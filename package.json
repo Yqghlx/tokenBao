@@ -1,0 +1,47 @@
+{
+  "name": "tokenbao",
+  "version": "1.0.0",
+  "description": "AI API Token 节省工具 - Electron 桌面应用",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "start": "npm run build && electron .",
+    "dev": "tsc -p tsconfig.json && electron .",
+    "build": "tsc -p tsconfig.json",
+    "build:renderer": "cd src/renderer && npm run build",
+    "test": "vitest",
+    "db:init": "ts-node src/db/init.ts"
+  },
+  "dependencies": {
+    "electron": "^25.0.0",
+    "better-sqlite3": "^9.4.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.0.0",
+    "@types/node": "^18.0.0",
+    "@types/better-sqlite3": "^7.6.0",
+    "vitest": "^0.36.3",
+    "@vitest/ui": "^0.4.0",
+    "ts-node": "^10.9.0"
+  },
+  "build": {
+    "appId": "com.tokenbao.app",
+    "productName": "TokenBao",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "data/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": ["dmg"]
+    },
+    "win": {
+      "target": ["nsis"]
+    }
+  }
+}
+  }
+}
