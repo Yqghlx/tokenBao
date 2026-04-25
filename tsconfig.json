@@ -11,6 +11,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "include": ["src/main/**/*", "src/utils/**/*", "src/services/**/*", "src/proxy/**/*", "src/optimizations/**/*", "src/__tests__/**/*"],
+  "exclude": ["node_modules", "src/renderer"]
 }

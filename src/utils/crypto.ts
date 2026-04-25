@@ -1,29 +1,61 @@
 import crypto from 'crypto';
-import fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import * as fs from 'fs';
 
-// 加密算法：AES-256-GCM
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 
-// 从环境变量或文件加载密钥
-function getEncryptionKey(): Buffer {
-  const keyEnv = process.env.ENCRYPTION_KEY;
-  if (keyEnv && keyEnv.length > 0) {
-    return Buffer.from(keyEnv, 'hex');
-  }
-  // 如果没有密钥，生成一个并保存到文件
-  const newKey = crypto.randomBytes(32);
-  // 保存到项目根目录的 .encryption.key 文件，便于重复使用
-  try {
-    fs.writeFileSync('.encryption.key', newKey.toString('hex'), { encoding: 'utf8' });
-  } catch (e) {
-    // 忽略写入失败，只要能够继续使用生成的密钥即可
-  }
-  return newKey;
+let cachedKey: Buffer | null = null;
+
+function getKeyFilePath(): string {
+  const isElectron = process.versions?.electron != null;
+  const baseDir = isElectron 
+    ? path.join(os.homedir(), '.tokenbao')
+    : path.join(process.cwd(), '.keys');
+  return path.join(baseDir, '.encryption.key');
 }
 
-// 加密函数
+function getEncryptionKey(): Buffer {
+  if (cachedKey) return cachedKey;
+  
+  const keyEnv = process.env.ENCRYPTION_KEY;
+  if (keyEnv && keyEnv.length === 64) {
+    cachedKey = Buffer.from(keyEnv, 'hex');
+    return cachedKey;
+  }
+  
+  const keyPath = getKeyFilePath();
+  
+  try {
+    if (fs.existsSync(keyPath)) {
+      const savedKey = fs.readFileSync(keyPath, 'utf8').trim();
+      if (savedKey.length === 64) {
+        cachedKey = Buffer.from(savedKey, 'hex');
+        return cachedKey;
+      }
+    }
+  } catch (e) {
+    // 文件读取失败，生成新密钥
+  }
+  
+  const newKey = crypto.randomBytes(32);
+  cachedKey = newKey;
+  
+  try {
+    const dir = path.dirname(keyPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(keyPath, newKey.toString('hex'), { encoding: 'utf8' });
+  } catch (e) {
+    // 写入失败，使用内存缓存
+  }
+  
+  return cachedKey;
+}
+
 export function encrypt(plaintext: string): string {
   const key = getEncryptionKey();
   const iv = crypto.randomBytes(IV_LENGTH);
@@ -34,11 +66,9 @@ export function encrypt(plaintext: string): string {
 
   const authTag = cipher.getAuthTag();
 
-  // 返回格式：iv:authTag:encrypted
   return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
 }
 
-// 解密函数
 export function decrypt(ciphertext: string): string {
   const key = getEncryptionKey();
   const parts = ciphertext.split(':');
@@ -59,7 +89,6 @@ export function decrypt(ciphertext: string): string {
   return decrypted;
 }
 
-// 生成随机 ID
 export function generateId(): string {
   return crypto.randomBytes(16).toString('hex');
 }

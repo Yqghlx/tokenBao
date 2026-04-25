@@ -1,11 +1,55 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-// 在渲染进程中暴露一个受控的 IPC 桥梁，确保上下文隔离安全
 contextBridge.exposeInMainWorld('electronAPI', {
-  send: (channel: string, data?: any) => {
-    ipcRenderer.send(channel, data);
+  proxy: {
+    start: (port: number) => ipcRenderer.invoke('proxy:start', port),
+    stop: () => ipcRenderer.invoke('proxy:stop'),
+    status: () => ipcRenderer.invoke('proxy:status'),
+    setKeys: (openaiKey: string, anthropicKey: string) => 
+      ipcRenderer.invoke('proxy:setKeys', openaiKey, anthropicKey)
   },
-  on: (channel: string, callback: (...args: any[]) => void) => {
-    ipcRenderer.on(channel, (event, ...args) => callback(...args));
+  
+  config: {
+    get: (key: string) => ipcRenderer.invoke('config:get', key),
+    set: (key: string, value: string) => ipcRenderer.invoke('config:set', key, value),
+    getAll: () => ipcRenderer.invoke('config:getAll')
+  },
+  
+  apiKeys: {
+    list: () => ipcRenderer.invoke('apiKeys:list'),
+    add: (name: string, type: string, key: string) => 
+      ipcRenderer.invoke('apiKeys:add', name, type, key),
+    delete: (id: number) => ipcRenderer.invoke('apiKeys:delete', id),
+    get: (id: number) => ipcRenderer.invoke('apiKeys:get', id)
+  },
+  
+  history: {
+    list: (options?: { limit?: number; offset?: number; apiType?: string }) => 
+      ipcRenderer.invoke('history:list', options),
+    clear: () => ipcRenderer.invoke('history:clear')
+  },
+  
+  budget: {
+    get: () => ipcRenderer.invoke('budget:get'),
+    set: (type: string, limit: number) => ipcRenderer.invoke('budget:set', type, limit),
+    status: () => ipcRenderer.invoke('budget:status')
+  },
+  
+  stats: {
+    summary: () => ipcRenderer.invoke('stats:summary')
+  },
+  
+  optimization: {
+    getConfig: () => ipcRenderer.invoke('optimization:getConfig'),
+    setConfig: (config: Record<string, unknown>) => 
+      ipcRenderer.invoke('optimization:setConfig', config)
+  },
+  
+  on: (channel: string, callback: (...args: unknown[]) => void) => {
+    ipcRenderer.on(channel, (_, ...args) => callback(...args));
+  },
+  
+  off: (channel: string) => {
+    ipcRenderer.removeAllListeners(channel);
   }
 });
