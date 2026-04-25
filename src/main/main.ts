@@ -7,7 +7,6 @@ import * as historyService from '../services/history';
 import * as budgetService from '../services/budget';
 import * as statsService from '../services/stats';
 import { getOptimizationConfig, setOptimizationConfig } from '../services/config';
-import { applyOptimizations } from '../optimizations/index';
 
 let mainWindow: BrowserWindow | null = null;
 let proxyServer: ProxyServer | null = null;

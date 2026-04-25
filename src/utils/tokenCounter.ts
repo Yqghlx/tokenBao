@@ -1,3 +1,12 @@
+interface ContentBlock {
+  type: string;
+  text?: string;
+}
+
+interface Message {
+  content: string | ContentBlock[];
+}
+
 function estimateTokens(text: string): number {
   if (!text) return 0;
   
@@ -32,15 +41,15 @@ function countTokens(text: string, apiType?: string): number {
   return baseEstimate;
 }
 
-function countMessages(messages: any[]): number {
+function countMessages(messages: Message[]): number {
   if (!messages || !Array.isArray(messages)) return 0;
   
-  return messages.reduce((total: number, msg: any) => {
+  return messages.reduce((total: number, msg: Message) => {
     if (typeof msg.content === 'string') {
       return total + countTokens(msg.content);
     }
     if (Array.isArray(msg.content)) {
-      return total + msg.content.reduce((msgTotal: number, block: any) => {
+      return total + msg.content.reduce((msgTotal: number, block: ContentBlock) => {
         if (block.type === 'text' && block.text) {
           return msgTotal + countTokens(block.text);
         }

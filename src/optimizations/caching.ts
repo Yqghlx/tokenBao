@@ -18,7 +18,7 @@ const defaultOptions: CachingOptions = {
   scope: 'both'
 };
 
-let cachePatterns: Map<string, { content: string; timestamp: number }> = new Map();
+const cachePatterns: Map<string, { content: string; timestamp: number }> = new Map();
 
 function loadFromStorage(): void {
   try {

@@ -6,10 +6,11 @@ let dataDir: string;
 
 function getDataDir(): string {
   if (!dataDir) {
-    const isElectron = process.versions?.electron != null;
+    const isElectron = process.versions?.electron !== undefined;
     
     if (isElectron) {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const electron = require('electron');
         const app = electron.app;
         dataDir = path.join(app.getPath('userData'), 'data');

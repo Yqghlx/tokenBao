@@ -1,4 +1,4 @@
-import { encrypt, decrypt, generateId } from '../utils/crypto';
+import { encrypt, decrypt } from '../utils/crypto';
 import { loadJson, saveJson } from '../utils/storage';
 
 interface ApiKey {

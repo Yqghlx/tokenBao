@@ -15,13 +15,13 @@ class RequestInterceptor {
   registerPreHook(name: string, hook: RequestHook, priority = 100): void {
     this.configs.set(name, { name, enabled: true, priority });
     this.preHooks.push(hook);
-    this.preHooks.sort((a, b) => priority - 100);
+    this.preHooks.sort((_a, _b) => priority - 100);
   }
 
   registerPostHook(name: string, hook: ResponseHook, priority = 100): void {
     this.configs.set(name, { name, enabled: true, priority });
     this.postHooks.push(hook);
-    this.postHooks.sort((a, b) => priority - 100);
+    this.postHooks.sort((_a, _b) => priority - 100);
   }
 
   async executePreHooks(req: any): Promise<any> {

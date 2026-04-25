@@ -1,6 +1,6 @@
 import http from 'http';
 import https from 'https';
-import { applyOptimizations, setOptimizationConfig, getOptimizationConfig } from '../optimizations/index';
+import { applyOptimizations, setOptimizationConfig } from '../optimizations/index';
 import * as statsService from '../services/stats';
 import * as budgetService from '../services/budget';
 

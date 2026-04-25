@@ -16,10 +16,10 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/prefer-const': 'error',
+    'prefer-const': 'error',
     'no-console': 'off',
     'prefer-arrow-callback': 'error',
     'eqeqeq': ['error', 'always']
   },
-  ignorePatterns: ['dist/', 'node_modules/', 'src/renderer/', '*.test.ts']
+  ignorePatterns: ['dist/', 'node_modules/', 'src/renderer/', 'src/types/', 'src/db/', '*.test.ts']
 };

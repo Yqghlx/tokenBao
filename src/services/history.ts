@@ -69,7 +69,7 @@ export async function clearRequests(): Promise<void> {
   saveStore({ requests: [], nextId: 1 });
 }
 
-export async function getRecentRequests(limit: number = 10): Promise<RequestLog[]> {
+export async function getRecentRequests(limit = 10): Promise<RequestLog[]> {
   const store = getStore();
   return store.requests.slice(-limit);
 }
