@@ -1,5 +1,3 @@
-import http from 'http';
-
 interface ApiRequest {
   method?: string;
   url?: string;
