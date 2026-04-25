@@ -51,6 +51,11 @@
     },
     "win": {
       "target": ["nsis"]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Yqghlx",
+      "repo": "tokenBao"
     }
   }
 }
