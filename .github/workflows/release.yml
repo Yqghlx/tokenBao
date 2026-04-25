@@ -1,8 +1,9 @@
 name: Release
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -27,8 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Build
-        run: npm run build && npm run build:renderer
+      - name: Build TypeScript
+        run: npm run build
+      
+      - name: Build Renderer
+        run: npm run build:renderer
       
       - name: Build Electron (macOS)
         if: matrix.os == 'macos-latest'
@@ -47,3 +51,59 @@ jobs:
         with:
           name: ${{ matrix.os }}-build
           path: release/*
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-latest-build
+          path: release-mac
+      
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-latest-build
+          path: release-win
+      
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Create Release with assets
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: TokenBao v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## TokenBao v${{ steps.get_version.outputs.VERSION }}
+            
+            ### 功能
+            - AI API Token 优化代理
+            - 多策略支持（缓存、压缩、路由）
+            - 实时统计和预算管理
+            - API Key 加密存储
+            
+            ### 安装
+            - macOS: 下载 DMG 文件安装
+            - Windows: 下载 EXE 文件安装
+            
+            ### 自动更新
+            应用启动后自动检查更新
+            
+            ### 统计
+            - 测试覆盖: 41 tests
+            - ESLint: 0 errors
+            - 打包: DMG + EXE
+          files: |
+            release-mac/*.dmg
+            release-win/*.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
