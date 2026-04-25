@@ -1,20 +1,35 @@
 function estimateTokens(text: string): number {
   if (!text) return 0;
-  return Math.ceil(text.length / 4);
+  
+  const chineseChars = text.match(/[\u4e00-\u9fff]/g)?.length || 0;
+  const englishWords = text.match(/[a-zA-Z]+/g)?.length || 0;
+  const numbers = text.match(/[0-9]+/g)?.length || 0;
+  const specialChars = text.match(/[^\w\s\u4e00-\u9fff]/g)?.length || 0;
+  const whitespace = text.match(/\s+/g)?.length || 0;
+  
+  const chineseTokens = Math.ceil(chineseChars * 0.6);
+  const englishTokens = Math.ceil(englishWords * 1.3);
+  const numberTokens = Math.ceil(numbers * 0.5);
+  const specialTokens = Math.ceil(specialChars * 0.3);
+  const whitespaceTokens = Math.ceil(whitespace * 0.1);
+  
+  return chineseTokens + englishTokens + numberTokens + specialTokens + whitespaceTokens;
 }
 
 function countTokens(text: string, apiType?: string): number {
   if (!text) return 0;
   
+  const baseEstimate = estimateTokens(text);
+  
   if (apiType === 'openai') {
-    return estimateTokens(text);
+    return Math.ceil(baseEstimate * 1.1);
   }
   
-  if (apiType === 'claude') {
-    return estimateTokens(text);
+  if (apiType === 'anthropic' || apiType === 'claude') {
+    return Math.ceil(baseEstimate * 1.05);
   }
   
-  return estimateTokens(text);
+  return baseEstimate;
 }
 
 function countMessages(messages: any[]): number {
