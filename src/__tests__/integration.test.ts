@@ -54,12 +54,12 @@ function runIntegrationTests() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test' },
         timeout: 5000
-      }, (res) => {
+      }, (res: { statusCode: number }) => {
         if (res.statusCode === 401 || res.statusCode === 502 || res.statusCode === 504) { passed++; console.log('✓ 代理请求处理正确'); }
         else { failed++; console.log('✗ 代理请求状态异常: ' + res.statusCode); }
       });
       
-      req.on('error', (e) => { passed++; console.log('✓ 代理请求错误处理正确'); });
+      req.on('error', (e: Error) => { passed++; console.log('✓ 代理请求错误处理正确'); });
       req.write(JSON.stringify({ model: 'gpt-4', messages: [{ role: 'user', content: 'test' }] }));
       req.end();
       
@@ -72,7 +72,7 @@ function runIntegrationTests() {
     console.log('SUMMARY: ' + passed + '/7 passed');
     if (failed > 0) process.exit(1);
     
-  }).catch(err => {
+  }).catch((err: Error) => {
     console.log('✗ 代理启动失败:', err.message);
     process.exit(1);
   });

@@ -13,23 +13,27 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
-    "check": "npm run lint && npm run build && npm test"
+    "check": "npm run lint && npm run build && npm test",
+    "package": "npm run build && npm run build:renderer && electron-builder",
+    "package:mac": "npm run build && npm run build:renderer && electron-builder --mac",
+    "package:win": "npm run build && npm run build:renderer && electron-builder --win",
+    "release": "npm run package"
   },
   "dependencies": {
     "electron": "^24.0.0"
   },
   "devDependencies": {
-    "electron-builder": "^25.0.0",
-    "typescript": "^5.0.4",
-    "@types/node": "^20.0.0",
-    "jest": "^29.0.0",
     "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "electron-builder": "^25.0.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^8.10.2",
+    "jest": "^29.0.0",
+    "prettier": "^2.8.8",
     "ts-jest": "^29.0.0",
-    "eslint": "^8.0.0",
-    "@typescript-eslint/parser": "^5.0.0",
-    "@typescript-eslint/eslint-plugin": "^5.0.0",
-    "eslint-config-prettier": "^8.0.0",
-    "prettier": "^2.0.0"
+    "typescript": "^5.0.4"
   },
   "build": {
     "appId": "com.tokenbao.app",
@@ -42,10 +46,17 @@
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": ["dmg"]
+      "target": ["dmg"],
+      "publish": ["github"]
     },
     "win": {
-      "target": ["nsis"]
+      "target": ["nsis"],
+      "publish": ["github"]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "your-github-username",
+      "repo": "tokenbao"
     }
   }
 }
