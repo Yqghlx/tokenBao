@@ -9,7 +9,7 @@
     "start": "npm run build && npm run build:renderer && electron .",
     "dev": "tsc -p tsconfig.json && electron .",
     "build": "tsc -p tsconfig.json",
-    "build:renderer": "cd src/renderer && npm install && npm run build && mkdir -p ../../dist/renderer && cp -r dist/* ../../dist/renderer/",
+    "build:renderer": "cd src/renderer && npm install && npm run build",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",
