@@ -102,6 +102,7 @@ jobs:
             - 打包: DMG + EXE
           files: |
             release-mac/*.dmg
+            release-mac/*.yml
             release-win/*.exe
           draft: false
           prerelease: false
