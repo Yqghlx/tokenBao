@@ -1,9 +1,0 @@
-{
-  "patterns": [
-    {
-      "key": "anthropic:test content",
-      "content": "test content",
-      "timestamp": 1777081428983
-    }
-  ]
-}

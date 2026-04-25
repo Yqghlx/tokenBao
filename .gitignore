@@ -5,3 +5,20 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Build outputs
+release/
+*.blockmap
+builder-debug.yml
+builder-effective-config.yaml
+
+# Test data
+test-data/
+
+# Security
+.encryption.key
+.keys/
+
+# IDE
+.vscode/
+.idea/
