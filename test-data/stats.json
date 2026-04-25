@@ -1,0 +1,21 @@
+{
+  "totalRequests": 4,
+  "totalInputTokens": 7,
+  "totalOutputTokens": 0,
+  "totalCachedTokens": 0,
+  "totalCost": 0,
+  "byApi": {
+    "openai": {
+      "requests": 4,
+      "tokens": 7,
+      "cost": 0
+    }
+  },
+  "byModel": {
+    "gpt-4": {
+      "requests": 4,
+      "tokens": 7,
+      "cost": 0
+    }
+  }
+}

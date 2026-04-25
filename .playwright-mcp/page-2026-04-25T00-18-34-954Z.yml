@@ -1,0 +1,34 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - heading "TokenBao" [level=1] [ref=e6]
+    - navigation [ref=e7]:
+      - link "控制面板" [ref=e8] [cursor=pointer]:
+        - /url: "#/control"
+      - link "监控仪表盘" [active] [ref=e9] [cursor=pointer]:
+        - /url: "#/monitor"
+      - link "优化策略" [ref=e10] [cursor=pointer]:
+        - /url: "#/optimization"
+      - link "请求历史" [ref=e11] [cursor=pointer]:
+        - /url: "#/history"
+      - link "API Keys" [ref=e12] [cursor=pointer]:
+        - /url: "#/api-keys"
+      - link "设置" [ref=e13] [cursor=pointer]:
+        - /url: "#/settings"
+    - generic [ref=e14]: Token 节省工具
+  - main [ref=e15]:
+    - generic [ref=e87]:
+      - heading "监控仪表盘" [level=2] [ref=e88]
+      - generic [ref=e89]:
+        - generic [ref=e90]:
+          - heading "今日 Token 使用" [level=3] [ref=e91]
+          - paragraph [ref=e92]: "0"
+        - generic [ref=e93]:
+          - heading "本月 Token 使用" [level=3] [ref=e94]
+          - paragraph [ref=e95]: "0"
+        - generic [ref=e96]:
+          - heading "本月成本" [level=3] [ref=e97]
+          - paragraph [ref=e98]: $0.00
+        - generic [ref=e99]:
+          - heading "节省金额" [level=3] [ref=e100]
+          - paragraph [ref=e101]: $0.00
+      - paragraph [ref=e103]: 图表将在运行时渲染
