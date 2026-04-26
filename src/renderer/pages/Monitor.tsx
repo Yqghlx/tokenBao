@@ -11,11 +11,27 @@ function Monitor() {
     byModel: {} as Record<string, { requests: number; tokens: number; cost: number }>
   });
 
+  const [cachingStats, setCachingStats] = useState({
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+    cacheSavings: 0
+  });
+
   const loadStats = useCallback(async () => {
     if (window.electronAPI?.stats?.summary) {
       try {
         const data = await window.electronAPI.stats.summary();
         setStats(data);
+        
+        const cacheReadTokens = data.totalCachedTokens || 0;
+        const cacheCreationTokens = Math.round(cacheReadTokens * 0.1);
+        const cacheSavings = cacheReadTokens > 0 ? (cacheReadTokens / 1000 * 0.003 * 0.9).toFixed(4) : '0.00';
+        
+        setCachingStats({
+          cacheReadTokens,
+          cacheCreationTokens,
+          cacheSavings: parseFloat(cacheSavings)
+        });
       } catch (err) {
         console.error('获取统计数据失败:', err);
       }
@@ -28,34 +44,51 @@ function Monitor() {
     return () => clearInterval(interval);
   }, [loadStats]);
 
-  const todayTokens = stats.totalInputTokens + stats.totalOutputTokens;
-  const monthlyTokens = todayTokens;
+  const totalTokens = stats.totalInputTokens + stats.totalOutputTokens;
   const savedCost = stats.totalCachedTokens > 0 
     ? (stats.totalCachedTokens / 1000 * 0.03).toFixed(2)
     : '0.00';
+  const actualCost = stats.totalCost.toFixed(4);
 
   return (
     <div className="page">
       <h2>监控仪表盘</h2>
       <div className="stats-grid">
         <div className="stat-card">
-          <h3>今日 Token 使用</h3>
-          <p className="stat-value">{todayTokens}</p>
+          <h3>总 Token 使用</h3>
+          <p className="stat-value">{totalTokens}</p>
+          <p className="stat-detail">输入: {stats.totalInputTokens} | 输出: {stats.totalOutputTokens}</p>
         </div>
         <div className="stat-card">
-          <h3>本月 Token 使用</h3>
-          <p className="stat-value">{monthlyTokens}</p>
+          <h3>总请求数</h3>
+          <p className="stat-value">{stats.totalRequests}</p>
         </div>
         <div className="stat-card">
-          <h3>本月成本</h3>
-          <p className="stat-value">$0.00</p>
+          <h3>总成本</h3>
+          <p className="stat-value">$${actualCost}</p>
         </div>
         <div className="stat-card">
           <h3>节省金额</h3>
-          <p className="stat-value">$0.00</p>
+          <p className="stat-value">$${savedCost}</p>
+          <p className="stat-detail">节省 Tokens: {stats.totalCachedTokens}</p>
         </div>
       </div>
-
+      
+      {cachingStats.cacheReadTokens > 0 && (
+        <div className="stats-grid" style={{ marginTop: '16px' }}>
+          <div className="stat-card" style={{ background: '#1a472a' }}>
+            <h3>Prompt Caching 效果</h3>
+            <p className="stat-value">{cachingStats.cacheReadTokens}</p>
+            <p className="stat-detail">缓存读取 Tokens</p>
+          </div>
+          <div className="stat-card" style={{ background: '#1a472a' }}>
+            <h3>缓存节省费用</h3>
+            <p className="stat-value">$${cachingStats.cacheSavings.toFixed(4)}</p>
+            <p className="stat-detail">90% 费率优惠</p>
+          </div>
+        </div>
+      )}
+      
       {stats.totalRequests > 0 && (
         <div className="stats-details" style={{ marginTop: '24px' }}>
           <h3>详细统计</h3>

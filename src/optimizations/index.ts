@@ -7,6 +7,7 @@ export { default as batch } from './batch';
 import cachingModule from './caching';
 import compressionModule from './compression';
 import routingModule from './routing';
+import rulesModule from './rules';
 import tokenCounterModule from '../utils/tokenCounter';
 
 interface OptimizationConfig {
@@ -14,6 +15,7 @@ interface OptimizationConfig {
   compression: boolean;
   routing: boolean;
   batching: boolean;
+  rules: boolean;
 }
 
 interface OptimizationResult {
@@ -28,7 +30,8 @@ const config: OptimizationConfig = {
   caching: true,
   compression: true,
   routing: true,
-  batching: false
+  batching: false,
+  rules: true
 };
 
 export function setOptimizationConfig(newConfig: Partial<OptimizationConfig>): void {
@@ -55,12 +58,42 @@ export function applyOptimizations(apiType: string, body: any): OptimizationResu
     return result;
   }
 
-  result.originalTokens = tokenCounterModule.countMessages(body.messages);
+  result.originalTokens = tokenCounterModule.countMessages(body.messages, apiType);
 
   let modifiedBody = { ...body };
 
-  if (config.compression) {
+  if (config.rules) {
     modifiedBody.messages = body.messages.map((msg: any) => {
+      if (typeof msg.content === 'string') {
+        const processed = rulesModule.applyRules(msg.content);
+        if (processed !== msg.content) {
+          return { ...msg, content: processed };
+        }
+      }
+      if (Array.isArray(msg.content)) {
+        return {
+          ...msg,
+          content: msg.content.map((block: any) => {
+            if (block.type === 'text' && block.text) {
+              const processed = rulesModule.applyRules(block.text);
+              if (processed !== block.text) {
+                return { ...block, text: processed };
+              }
+            }
+            return block;
+          })
+        };
+      }
+      return msg;
+    });
+    const enabledRules = rulesModule.listRules().filter(r => r.enabled);
+    if (enabledRules.length > 0) {
+      result.appliedStrategies.push(`rules(${enabledRules.length})`);
+    }
+  }
+
+  if (config.compression) {
+    modifiedBody.messages = modifiedBody.messages.map((msg: any) => {
       if (typeof msg.content === 'string') {
         const compressed = compressionModule.compress(msg.content);
         return { ...msg, content: compressed.text };
@@ -82,16 +115,15 @@ export function applyOptimizations(apiType: string, body: any): OptimizationResu
     result.appliedStrategies.push('compression');
   }
 
-  if (config.routing && body.model) {
-    const prompt = messagesToText(body.messages);
-    const routedModel = routingModule.routeModel(apiType, body.model, prompt);
-    if (routedModel !== body.model) {
+  if (config.routing && modifiedBody.model) {
+    const prompt = messagesToText(modifiedBody.messages);
+    const routedModel = routingModule.routeModel(apiType, modifiedBody.model, prompt);
+    if (routedModel !== modifiedBody.model) {
       modifiedBody.model = routedModel;
       result.appliedStrategies.push(`routing:${body.model}→${routedModel}`);
     }
   }
 
-  // Anthropic 支持 Prompt Caching，需要添加 cache_control 标记
   if (config.caching && apiType === 'anthropic') {
     modifiedBody = cachingModule.addCacheControl(modifiedBody);
     if (modifiedBody.system || hasCacheMarkers(modifiedBody.messages)) {
@@ -99,7 +131,7 @@ export function applyOptimizations(apiType: string, body: any): OptimizationResu
     }
   }
 
-  result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages);
+  result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages, apiType);
   result.savedTokens = result.originalTokens - result.optimizedTokens;
   result.modifiedBody = modifiedBody;
 

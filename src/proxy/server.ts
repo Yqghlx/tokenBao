@@ -3,6 +3,23 @@ import https from 'https';
 import { applyOptimizations, setOptimizationConfig } from '../optimizations/index';
 import * as statsService from '../services/stats';
 import * as budgetService from '../services/budget';
+import { handleResponse, recordStats } from './responseHandler';
+import requestTracker from './requestTracker';
+
+interface ApiUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+}
+
+interface ApiResponse {
+  usage?: ApiUsage;
+  model?: string;
+}
 
 interface ProxyConfig {
   port: number;
@@ -16,6 +33,30 @@ const OPENAI_BASE = 'https://api.openai.com';
 const ANTHROPIC_BASE = 'https://api.anthropic.com';
 
 const PROXY_TIMEOUT = 60000;
+
+/**
+ * 模型定价表（每 1000 tokens 价格，美元）
+ * 数据来源：OpenAI 和 Anthropic 官方定价
+ */
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  'gpt-4': { input: 0.03, output: 0.06 },
+  'gpt-4-turbo': { input: 0.01, output: 0.03 },
+  'gpt-4o': { input: 0.005, output: 0.015 },
+  'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+  'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
+  'claude-3-opus': { input: 0.015, output: 0.075 },
+  'claude-3-sonnet': { input: 0.003, output: 0.015 },
+  'claude-3-haiku': { input: 0.00025, output: 0.00125 },
+  'claude-3.5-sonnet': { input: 0.003, output: 0.015 },
+};
+
+/**
+ * 计算 API 调用费用
+ */
+function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
+  const pricing = MODEL_PRICING[model] || { input: 0.001, output: 0.002 };
+  return (inputTokens / 1000) * pricing.input + (outputTokens / 1000) * pricing.output;
+}
 
 class ProxyServer {
   private server: http.Server | null = null;
@@ -115,8 +156,18 @@ class ProxyServer {
               savedTokens = result.savedTokens;
               this.totalSavedTokens += savedTokens;
               
-              console.log(`优化策略: ${result.appliedStrategies.join(', ')}`);
-              console.log(`节省 Tokens: ${savedTokens} (累计: ${this.totalSavedTokens})`);
+              const requestMeta = requestTracker.createRequestMetadata(
+                apiType,
+                parsed,
+                result.modifiedBody,
+                result.originalTokens,
+                result.optimizedTokens,
+                savedTokens,
+                result.appliedStrategies
+              );
+              
+              console.log(`[${requestMeta.requestId}] 优化策略: ${result.appliedStrategies.join(', ')}`);
+              console.log(`[${requestMeta.requestId}] 节省 Tokens: ${savedTokens} (累计: ${this.totalSavedTokens})`);
               
               await statsService.recordRequest({
                 apiType,
@@ -126,6 +177,8 @@ class ProxyServer {
                 savedTokens: savedTokens,
                 strategies: result.appliedStrategies
               });
+              
+              (parsed as any).__requestId = requestMeta.requestId;
               
               const estimatedCost = result.optimizedTokens / 1000 * 0.001;
               await budgetService.updateSpent('daily', estimatedCost);
@@ -145,8 +198,47 @@ class ProxyServer {
         };
 
         const proxyReq = https.request(options, (proxyRes) => {
-          clientRes.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
-          proxyRes.pipe(clientRes);
+          const chunks: Buffer[] = [];
+          proxyRes.on('data', (chunk) => chunks.push(chunk));
+          proxyRes.on('end', () => {
+            const responseBody = Buffer.concat(chunks).toString();
+            const headers = proxyRes.headers as Record<string, string>;
+            const statusCode = proxyRes.statusCode || 500;
+            
+            let requestId: string | undefined;
+            try {
+              const bodyParsed = JSON.parse(optimizedBody);
+              requestId = bodyParsed.__requestId;
+            } catch {}
+            
+            if (statusCode >= 400) {
+              console.error(`请求失败: status=${statusCode}`);
+              if (requestId) {
+                requestTracker.failRequest(requestId, responseBody, statusCode);
+              }
+            } else {
+              const result = handleResponse(responseBody, headers, apiType);
+              
+              if (result.stats && requestId) {
+                requestTracker.completeRequest(requestId, {
+                  requestId,
+                  inputTokens: result.stats.inputTokens,
+                  outputTokens: result.stats.outputTokens,
+                  cacheReadTokens: result.stats.cacheReadTokens,
+                  cacheCreationTokens: result.stats.cacheCreationTokens,
+                  cost: calculateCost(result.stats.model, result.stats.inputTokens, result.stats.outputTokens),
+                  model: result.stats.model,
+                  duration: 0,
+                  status: statusCode
+                });
+                
+                recordStats(result.stats, apiType).catch(err => console.error('记录统计失败:', err));
+              }
+            }
+            
+            clientRes.writeHead(statusCode, proxyRes.headers);
+            clientRes.end(responseBody);
+          });
         });
 
         proxyReq.setTimeout(PROXY_TIMEOUT, () => {
@@ -160,6 +252,28 @@ class ProxyServer {
 
         proxyReq.on('error', (err) => {
           console.error('Proxy error:', err.message);
+          
+          let requestId: string | undefined;
+          try {
+            const bodyParsed = JSON.parse(optimizedBody);
+            requestId = bodyParsed.__requestId;
+          } catch {}
+          
+          if (requestId && requestTracker.canRetry(requestId)) {
+            const retryCount = requestTracker.incrementRetry(requestId);
+            console.log(`[${requestId}] 重试请求 (${retryCount}/${requestTracker.MAX_RETRIES})`);
+            
+            setTimeout(() => {
+              const metadata = requestTracker.getRequestMetadata(requestId);
+              if (metadata) {
+                console.log(`[${requestId}] 重试中...`);
+                requestTracker.updateRequestStatus(requestId, 'retrying');
+              }
+            }, requestTracker.RETRY_DELAY);
+          } else if (requestId) {
+            requestTracker.failRequest(requestId, err.message, 502);
+          }
+          
           if (!clientRes.headersSent) {
             clientRes.writeHead(502, { 'Content-Type': 'application/json' });
             clientRes.end(JSON.stringify({ error: err.message }));
@@ -214,3 +328,4 @@ class ProxyServer {
 }
 
 export default ProxyServer;
+export { calculateCost, MODEL_PRICING };

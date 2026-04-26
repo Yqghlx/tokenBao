@@ -21,7 +21,9 @@
     "package:win": "npm run build && npm run build:renderer && electron-builder --win",
     "release": "npm run package"
   },
-  "dependencies": {},
+  "dependencies": {
+    "js-tiktoken": "^1.0.21"
+  },
   "devDependencies": {
     "@types/jest": "^29.0.0",
     "@types/node": "^20.0.0",
