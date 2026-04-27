@@ -209,6 +209,9 @@ function sendUpstream(
   });
 }
 
+const CIRCUIT_BREAKER_THRESHOLD = 5;  // 连续失败 5 次触发熔断
+const CIRCUIT_BREAKER_COOLDOWN = 60000; // 熔断冷却 60 秒
+
 class ProxyServer {
   private server: http.Server | null = null;
   private port: number;
@@ -220,6 +223,7 @@ class ProxyServer {
   private activeUpstreamRequests = new Set<http.ClientRequest>();
   private shuttingDown = false;
   private proxyTimeout: number;
+  private circuitBreaker = { failures: 0, openUntil: 0 };
 
   constructor(config: ProxyConfig) {
     this.port = config.port;
@@ -411,6 +415,15 @@ class ProxyServer {
           }
         }
 
+        // 熔断器检查：上游不可达时快速失败
+        if (this.isCircuitOpen()) {
+          if (!clientRes.headersSent) {
+            clientRes.writeHead(503, { 'Content-Type': 'application/json' });
+            clientRes.end(JSON.stringify({ error: 'Service Unavailable', message: '上游 API 暂时不可达，熔断冷却中', requestId }));
+          }
+          return;
+        }
+
         const options: https.RequestOptions = {
           hostname: targetBase.replace('https://', ''),
           port: 443,
@@ -431,6 +444,9 @@ class ProxyServer {
             const statusCode = proxyRes.statusCode || 500;
             if (statusCode >= 400) {
               logProxy('error', `流式请求失败`, { requestId, statusCode });
+              this.recordUpstreamFailure();
+            } else {
+              this.recordUpstreamSuccess();
             }
             clientRes.writeHead(statusCode, proxyRes.headers);
 
@@ -573,7 +589,9 @@ class ProxyServer {
           if (requestId) {
             requestTracker.failRequest(requestId, upstreamResult.body, statusCode);
           }
+          this.recordUpstreamFailure();
         } else {
+          this.recordUpstreamSuccess();
           const handleResult = handleResponse(upstreamResult.body, upstreamResult.headers as Record<string, string>, apiType);
 
           if (handleResult.stats && requestId) {
@@ -675,8 +693,37 @@ class ProxyServer {
     return { requests: this.requestCount, savedTokens: this.totalSavedTokens };
   }
 
+  /** 检查熔断器是否开启（上游不可达时应快速失败） */
+  private isCircuitOpen(): boolean {
+    if (this.circuitBreaker.openUntil === 0) return false;
+    if (Date.now() >= this.circuitBreaker.openUntil) {
+      // 冷却期结束，进入半开状态允许一次试探
+      return false;
+    }
+    return true;
+  }
+
+  /** 记录上游成功，重置熔断器 */
+  private recordUpstreamSuccess(): void {
+    this.circuitBreaker.failures = 0;
+    this.circuitBreaker.openUntil = 0;
+  }
+
+  /** 记录上游失败，达到阈值则触发熔断 */
+  private recordUpstreamFailure(): void {
+    this.circuitBreaker.failures++;
+    if (this.circuitBreaker.failures >= CIRCUIT_BREAKER_THRESHOLD) {
+      this.circuitBreaker.openUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN;
+      logProxy('warn', `熔断器触发，上游连续失败 ${this.circuitBreaker.failures} 次，冷却 ${CIRCUIT_BREAKER_COOLDOWN / 1000}s`);
+    }
+  }
+
   isRunning(): boolean {
     return this.server !== null;
+  }
+
+  getActiveConnections(): number {
+    return this.activeConnections.size;
   }
 
   getPort(): number {

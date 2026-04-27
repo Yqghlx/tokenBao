@@ -2,6 +2,15 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import { usePolling } from '../hooks/usePolling';
 
+/** 将秒数格式化为可读时长 */
+function formatUptime(seconds: number): string {
+  if (seconds < 60) return `${seconds}秒`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}时${m}分`;
+}
+
 function ControlPanel() {
   const [proxyStatus, setProxyStatus] = useState({
     running: false,
@@ -27,6 +36,7 @@ function ControlPanel() {
   });
   const [loading, setLoading] = useState(true);
   const [togglingProxy, setTogglingProxy] = useState(false);
+  const [health, setHealth] = useState({ uptime: 0, activeConnections: 0 });
 
   const loadProxyStatus = useCallback(async () => {
     if (window.electronAPI?.proxy?.status) {
@@ -126,6 +136,13 @@ function ControlPanel() {
   const pollStats = useCallback(() => {
     loadProxyStatus();
     loadStats();
+    if (window.electronAPI?.proxy?.health) {
+      window.electronAPI.proxy.health().then(h => {
+        if (h.status === 'healthy') {
+          setHealth({ uptime: h.uptime, activeConnections: h.activeConnections });
+        }
+      }).catch(() => {});
+    }
   }, [loadProxyStatus, loadStats]);
 
   usePolling(pollStats, 3000);
@@ -232,6 +249,12 @@ function ControlPanel() {
           {proxyStatus.requests > 0 && (
             <div className="proxy-request-count">
               已处理 {proxyStatus.requests} 个请求
+            </div>
+          )}
+          {proxyStatus.running && (
+            <div className="proxy-health-info">
+              <span>运行: {formatUptime(health.uptime)}</span>
+              <span>活跃连接: {health.activeConnections}</span>
             </div>
           )}
         </div>

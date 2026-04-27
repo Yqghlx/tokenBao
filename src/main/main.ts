@@ -150,6 +150,18 @@ function registerIpcHandlers(): void {
     };
   });
 
+  ipcMain.handle('proxy:health', async () => {
+    if (!proxyServer?.isRunning()) {
+      return { status: 'not_running', uptime: 0, activeConnections: 0, requestCount: 0 };
+    }
+    return {
+      status: 'healthy',
+      uptime: Math.floor(process.uptime()),
+      activeConnections: proxyServer.getActiveConnections(),
+      requestCount: proxyServer.getStats().requests
+    };
+  });
+
   ipcMain.handle('proxy:setKeys', async (_, openaiKey: string, anthropicKey: string) => {
     // 主进程二次校验，防御 preload 绕过
     if (openaiKey && (!openaiKey.startsWith('sk-') || openaiKey.length < 20)) {

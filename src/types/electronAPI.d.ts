@@ -9,6 +9,13 @@ interface ProxyStatus {
   requests: number;
 }
 
+interface ProxyHealth {
+  status: 'healthy' | 'not_running';
+  uptime: number;
+  activeConnections: number;
+  requestCount: number;
+}
+
 interface BudgetInfo {
   type: string;
   limit: number;
@@ -56,6 +63,7 @@ interface ElectronAPI {
     start: (port?: number) => Promise<{ success: boolean; port?: number; error?: string }>;
     stop: () => Promise<{ success: boolean; error?: string }>;
     status: () => Promise<ProxyStatus>;
+    health: () => Promise<ProxyHealth>;
     setKeys: (openaiKey: string, anthropicKey: string) => Promise<{ success: boolean }>;
   };
 

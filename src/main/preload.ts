@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     stop: () => ipcRenderer.invoke('proxy:stop'),
     status: () => ipcRenderer.invoke('proxy:status'),
+    health: () => ipcRenderer.invoke('proxy:health'),
     setKeys: (openaiKey: string, anthropicKey: string) => {
       if (typeof openaiKey !== 'string' || typeof anthropicKey !== 'string') {
         return Promise.resolve({ success: false, error: '密钥必须为字符串' });
