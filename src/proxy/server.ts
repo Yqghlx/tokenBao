@@ -1,6 +1,7 @@
 import http from 'http';
 import https from 'https';
 import { PassThrough } from 'stream';
+import zlib from 'zlib';
 import { applyOptimizations, setOptimizationConfig } from '../optimizations/index';
 import * as statsService from '../services/stats';
 import * as budgetService from '../services/budget';
@@ -640,8 +641,23 @@ class ProxyServer {
           if (budgetCheck.warning) {
             respHeaders['X-Budget-Warning'] = budgetCheck.warning;
           }
-          clientRes.writeHead(statusCode, respHeaders);
-          clientRes.end(upstreamResult.body);
+
+          // 对 JSON 响应进行 gzip 压缩（非流式路径）
+          const acceptEncoding = (clientReq.headers['accept-encoding'] || '').toLowerCase();
+          const isJson = (upstreamResult.headers['content-type'] || '').includes('application/json');
+          const bodyBuffer = Buffer.from(upstreamResult.body);
+
+          if (isJson && bodyBuffer.length > 1024 && acceptEncoding.includes('gzip')) {
+            respHeaders['content-encoding'] = 'gzip';
+            delete respHeaders['content-length'];
+            clientRes.writeHead(statusCode, respHeaders);
+            zlib.gzip(bodyBuffer, (_, compressed) => {
+              clientRes.end(compressed);
+            });
+          } else {
+            clientRes.writeHead(statusCode, respHeaders);
+            clientRes.end(upstreamResult.body);
+          }
         }
       });
 

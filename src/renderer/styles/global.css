@@ -52,6 +52,11 @@ input, select, textarea {
   background: var(--bg-secondary);
 }
 
+/* Toast loading 旋转动画 */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Toast 通知动画 */
 @keyframes slideIn {
   from {
