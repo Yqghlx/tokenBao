@@ -29,7 +29,8 @@ function parseOpenAIStreamUsage(lines: string[]): UsageStats | null {
             model: parsed.model || 'unknown'
           };
         }
-      } catch {
+      } catch (e) {
+        // SSE 数据行 JSON 解析失败，跳过该行继续处理
         continue;
       }
     }
@@ -56,7 +57,8 @@ function parseAnthropicStreamUsage(lines: string[]): UsageStats | null {
             model: parsed.model || 'unknown'
           };
         }
-      } catch {
+      } catch (e) {
+        // SSE 数据行 JSON 解析失败，跳过该行继续处理
         continue;
       }
     }
@@ -79,7 +81,8 @@ function parseNonStreamUsage(body: string, apiType: string): UsageStats | null {
         model: parsed.model || 'unknown'
       };
     }
-  } catch {
+  } catch (e) {
+    console.warn('解析非流式响应 usage 失败:', e);
     return null;
   }
   return null;
