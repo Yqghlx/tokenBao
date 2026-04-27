@@ -43,7 +43,8 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
 
 export async function listRequests(options?: { limit?: number; offset?: number; apiType?: string; search?: string }): Promise<RequestLog[]> {
   const store = getStore();
-  let filtered = store.requests;
+  // 最新请求在前
+  let filtered = [...store.requests].reverse();
 
   if (options?.apiType) {
     filtered = filtered.filter(r => r.apiType === options.apiType);

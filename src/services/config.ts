@@ -15,7 +15,7 @@ const STORAGE_FILE = 'config.json';
 function getStore(): ConfigStore {
   return loadJson<ConfigStore>(STORAGE_FILE, {
     config: {
-      proxyPort: '8080',
+      proxyPort: '3000',
       dataRetentionDays: '30',
       cacheTTL: '5min',
       theme: 'dark'
@@ -52,7 +52,7 @@ export async function getAllConfig(): Promise<Record<string, string>> {
 export async function resetConfig(): Promise<void> {
   saveStore({
     config: {
-      proxyPort: '8080',
+      proxyPort: '3000',
       dataRetentionDays: '30',
       cacheTTL: '5min',
       theme: 'dark'

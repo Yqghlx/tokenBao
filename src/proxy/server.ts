@@ -297,7 +297,8 @@ class ProxyServer {
               await budgetService.updateSpent('monthly', estimatedCost);
             }
           } catch (e) {
-            // JSON 解析失败，直接转发原始请求
+            // JSON 解析或优化失败，直接转发原始请求
+            logProxy('warn', '优化管线处理失败，转发原始请求', { error: (e as Error).message });
           }
         }
 

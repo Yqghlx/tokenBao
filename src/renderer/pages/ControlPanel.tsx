@@ -47,8 +47,7 @@ function ControlPanel() {
     if (window.electronAPI?.budget?.status) {
       try {
         const status = await window.electronAPI.budget.status();
-        // budget.getBudgetStatus 现在返回 { daily, monthly }
-        const monthly = status.monthly || status as any;
+        const monthly = status.monthly ?? { spent: 0, limit: 100, remaining: 100 };
         setBudgetStatus({
           spent: monthly.spent ?? 0,
           limit: monthly.limit ?? 100,
