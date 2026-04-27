@@ -107,4 +107,20 @@ describe('优化管线 pipeline', () => {
     // 压缩后 token 应少于原始 token
     expect(result.optimizedTokens).toBeLessThanOrEqual(result.originalTokens);
   });
+
+  test('优化不应修改原始请求体（深拷贝保护）', () => {
+    const originalContent = 'Please help me with this task in order to succeed';
+    const body = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: originalContent }]
+    };
+    // 保存原始快照
+    const originalSnapshot = JSON.parse(JSON.stringify(body));
+
+    applyOptimizations('openai', body);
+
+    // 原始请求体应完全不变
+    expect(body.messages[0].content).toBe(originalContent);
+    expect(body).toEqual(originalSnapshot);
+  });
 });

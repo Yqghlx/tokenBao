@@ -82,4 +82,17 @@ describe('routing 模块', () => {
   test('中文复杂任务应保持原模型', () => {
     expect(routing.routeModel('gpt-4', '请分析这个算法的时间复杂度并优化')).toBe('gpt-4');
   });
+
+  test('重复关键词不应虚增复杂度分数', () => {
+    // "analyze" 出现多次，应与单次出现结果相同（布尔命中）
+    const single = routing.detectComplexity('Please analyze this data');
+    const repeated = routing.detectComplexity('analyze, then analyze, then analyze again');
+    expect(single).toBe(repeated);
+  });
+
+  test('classification 应降级到 simple（降级链）', () => {
+    // claude-3-opus 有 classification 规则降级到 claude-3-haiku
+    // 但如果没有 classification 规则，应尝试 simple
+    expect(routing.routeModel('claude-3-opus', 'Translate this text')).toBe('claude-3-haiku');
+  });
 });

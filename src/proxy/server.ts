@@ -668,8 +668,15 @@ class ProxyServer {
             respHeaders['content-encoding'] = 'gzip';
             delete respHeaders['content-length'];
             clientRes.writeHead(statusCode, respHeaders);
-            zlib.gzip(bodyBuffer, (_, compressed) => {
-              clientRes.end(compressed);
+            zlib.gzip(bodyBuffer, (gzipErr, compressed) => {
+              if (gzipErr) {
+                // 压缩失败时回退到未压缩响应
+                logProxy('warn', 'Gzip 压缩失败，回退到未压缩响应', { requestId, error: gzipErr.message });
+                delete respHeaders['content-encoding'];
+                clientRes.end(upstreamResult.body);
+              } else {
+                clientRes.end(compressed);
+              }
             });
           } else {
             clientRes.writeHead(statusCode, respHeaders);

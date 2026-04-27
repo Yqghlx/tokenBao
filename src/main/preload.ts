@@ -120,6 +120,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return ipcRenderer.invoke('history:list', options);
     },
     count: (options?: { apiType?: string; search?: string }) => {
+      if (options) {
+        if (options.search !== undefined && (typeof options.search !== 'string' || options.search.length > 200)) {
+          return Promise.resolve(0);
+        }
+        if (options.apiType !== undefined && !['openai', 'anthropic'].includes(options.apiType)) {
+          return Promise.resolve(0);
+        }
+      }
       return ipcRenderer.invoke('history:count', options);
     },
     clear: () => ipcRenderer.invoke('history:clear')

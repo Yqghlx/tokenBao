@@ -149,4 +149,13 @@ describe('compression 模块', () => {
     expect(result.text).not.toContain('please');
     expect(result.text).toContain('resp: JSON');
   });
+
+  test('压缩应保留段落结构（空白顺序修复验证）', () => {
+    const input = 'Paragraph 1\n\n\nParagraph 2\n\n\n\nParagraph 3';
+    const result = compression.compress(input);
+    // 多个连续空行应被合并为双换行（保留段落分隔）
+    expect(result.text).toContain('\n\n');
+    // 不应将所有内容合并为单行
+    expect(result.text.split('\n').length).toBeGreaterThanOrEqual(3);
+  });
 });
