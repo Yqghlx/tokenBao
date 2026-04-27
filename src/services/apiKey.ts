@@ -10,6 +10,21 @@ interface ApiKey {
   updatedAt: string;
 }
 
+/** API 密钥格式校验规则 */
+const KEY_PATTERNS: Record<string, RegExp> = {
+  openai: /^sk-[A-Za-z0-9_-]{20,}$/,
+  anthropic: /^sk-ant-[A-Za-z0-9_-]{20,}$/
+};
+
+/** 校验密钥格式，通过返回 null，失败返回错误信息 */
+function validateKeyFormat(type: string, key: string): string | null {
+  const pattern = KEY_PATTERNS[type];
+  if (!pattern) return null; // 未知类型不做校验
+  if (pattern.test(key)) return null;
+  const prefix = type === 'openai' ? 'sk-' : 'sk-ant-';
+  return `密钥格式无效，${type} 密钥应以 "${prefix}" 开头且至少 20 个字符`;
+}
+
 interface ApiKeyStore {
   keys: ApiKey[];
   nextId: number;
@@ -26,6 +41,11 @@ function saveStore(store: ApiKeyStore): void {
 }
 
 export async function addApiKey(name: string, type: string, key: string): Promise<ApiKey> {
+  const validationError = validateKeyFormat(type, key);
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
   const store = getStore();
   const encryptedKey = encrypt(key);
   const now = new Date().toISOString();

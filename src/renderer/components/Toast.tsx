@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface ToastItem {
   id: number;
   message: string;
   type: 'success' | 'error' | 'info';
 }
+
+const MAX_TOASTS = 5;
+const DEFAULT_DURATION = 3000;
+const ERROR_DURATION = 5000;
 
 let addToastFn: ((message: string, type?: 'success' | 'error' | 'info') => void) | null = null;
 
@@ -17,22 +21,30 @@ export function showToast(message: string, type: 'success' | 'error' | 'info' = 
 
 export function useToast() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  let nextId = 0;
+  const nextIdRef = useRef(0);
+
+  const removeToast = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = ++nextId;
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
-  }, []);
+    const id = ++nextIdRef.current;
+    setToasts(prev => {
+      const updated = [...prev, { id, message, type }];
+      // 超过上限时移除最早的
+      return updated.length > MAX_TOASTS ? updated.slice(-MAX_TOASTS) : updated;
+    });
+
+    const duration = type === 'error' ? ERROR_DURATION : DEFAULT_DURATION;
+    setTimeout(() => removeToast(id), duration);
+  }, [removeToast]);
 
   useEffect(() => {
     addToastFn = addToast;
     return () => { addToastFn = null; };
   }, [addToast]);
 
-  return { toasts };
+  return { toasts, removeToast };
 }
 
 const TOAST_STYLES: Record<string, React.CSSProperties> = {
@@ -41,7 +53,7 @@ const TOAST_STYLES: Record<string, React.CSSProperties> = {
   info: { background: '#1a2a4a', borderLeft: '4px solid #3b82f6' },
 };
 
-export function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
+export function ToastContainer({ toasts, removeToast }: { toasts: ToastItem[]; removeToast: (id: number) => void }) {
   if (toasts.length === 0) return null;
 
   return (
@@ -52,12 +64,24 @@ export function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
       {toasts.map(t => (
         <div key={t.id} style={{
           ...TOAST_STYLES[t.type],
-          padding: '12px 20px', borderRadius: '8px', color: '#fff',
+          padding: '12px 36px 12px 20px', borderRadius: '8px', color: '#fff',
           fontSize: '14px', minWidth: '200px', maxWidth: '400px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          animation: 'slideIn 0.3s ease'
+          animation: 'slideIn 0.3s ease',
+          position: 'relative'
         }}>
           {t.message}
+          <button
+            onClick={() => removeToast(t.id)}
+            style={{
+              position: 'absolute', top: '8px', right: '8px',
+              background: 'none', border: 'none', color: '#aaa',
+              cursor: 'pointer', fontSize: '16px', lineHeight: 1,
+              padding: '2px'
+            }}
+          >
+            x
+          </button>
         </div>
       ))}
     </div>

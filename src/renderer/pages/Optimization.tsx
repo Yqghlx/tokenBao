@@ -9,12 +9,17 @@ function Optimization() {
     routing: true,
     batching: false
   });
+  const [cacheTTL, setCacheTTL] = useState('5min');
 
   const loadConfig = useCallback(async () => {
-    if (window.electronAPI?.optimization?.getConfig) {
+    if (window.electronAPI?.optimization?.getConfig && window.electronAPI?.config?.get) {
       try {
-        const config = await window.electronAPI.optimization.getConfig();
+        const [config, ttl] = await Promise.all([
+          window.electronAPI.optimization.getConfig(),
+          window.electronAPI.config.get('cacheTTL')
+        ]);
         setOptimizationConfig(config);
+        setCacheTTL(ttl || '5min');
       } catch (err) {
         console.error('获取优化配置失败:', err);
         showToast('获取优化配置失败', 'error');
@@ -32,12 +37,28 @@ function Optimization() {
 
   const updateConfig = async (key: string, value: boolean) => {
     setOptimizationConfig(prev => ({ ...prev, [key]: value }));
-    
+
     if (window.electronAPI?.optimization?.setConfig) {
       try {
         await window.electronAPI.optimization.setConfig({ [key]: value });
+        showToast('配置已更新', 'success');
       } catch (err) {
         console.error('保存优化配置失败:', err);
+        showToast('保存配置失败', 'error');
+        setOptimizationConfig(prev => ({ ...prev, [key]: !value }));
+      }
+    }
+  };
+
+  const updateTTL = async (value: string) => {
+    setCacheTTL(value);
+    if (window.electronAPI?.config?.set) {
+      try {
+        await window.electronAPI.config.set('cacheTTL', value);
+        showToast('TTL 设置已保存', 'success');
+      } catch (err) {
+        console.error('保存 TTL 失败:', err);
+        showToast('保存 TTL 失败', 'error');
       }
     }
   };
@@ -59,7 +80,7 @@ function Optimization() {
           <h3>Prompt Caching</h3>
           <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
+              <input
                 type="checkbox"
                 checked={optimizationConfig.caching}
                 onChange={(e) => updateConfig('caching', e.target.checked)}
@@ -72,18 +93,18 @@ function Optimization() {
           </div>
           <div className="form-group" style={{ marginTop: '12px' }}>
             <label>TTL 设置</label>
-            <select defaultValue="5min">
+            <select value={cacheTTL} onChange={(e) => updateTTL(e.target.value)}>
               <option value="5min">5 分钟（1.25x 写费用）</option>
               <option value="1hour">1 小时（2x 写费用）</option>
             </select>
           </div>
         </section>
-        
+
         <section className="optim-section">
           <h3>Prompt 压缩</h3>
           <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
+              <input
                 type="checkbox"
                 checked={optimizationConfig.compression}
                 onChange={(e) => updateConfig('compression', e.target.checked)}
@@ -100,7 +121,7 @@ function Optimization() {
           <h3>智能模型路由</h3>
           <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
+              <input
                 type="checkbox"
                 checked={optimizationConfig.routing}
                 onChange={(e) => updateConfig('routing', e.target.checked)}
@@ -113,12 +134,12 @@ function Optimization() {
           </div>
           <div className="route-rules" style={{ marginTop: '12px' }}>
             <div className="route-rule" style={{ padding: '8px', background: '#16213e', borderRadius: '4px', marginBottom: '4px' }}>
-              <span>gpt-4 → gpt-3.5-turbo</span>
+              <span>gpt-4 / gpt-4o / gpt-4.1 → gpt-4o-mini / gpt-4.1-mini</span>
               <span style={{ marginLeft: '12px', fontSize: '11px', color: '#00d4ff' }}>简单任务</span>
             </div>
             <div className="route-rule" style={{ padding: '8px', background: '#16213e', borderRadius: '4px', marginBottom: '4px' }}>
-              <span>claude-3-opus → claude-3-haiku</span>
-              <span style={{ marginLeft: '12px', fontSize: '11px', color: '#00d4ff' }}>分类/提取</span>
+              <span>claude-opus-4 / claude-3-opus → claude-3.5-haiku / claude-3-haiku</span>
+              <span style={{ marginLeft: '12px', fontSize: '11px', color: '#00d4ff' }}>分类/简单任务</span>
             </div>
           </div>
         </section>
@@ -127,15 +148,15 @@ function Optimization() {
           <h3>请求批处理</h3>
           <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
+              <input
                 type="checkbox"
                 checked={optimizationConfig.batching}
                 onChange={(e) => updateConfig('batching', e.target.checked)}
               />
-              <span>启用请求批处理</span>
+              <span>启用请求批处理（实验性）</span>
             </label>
             <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
-              合并多个请求批量发送，减少 API 调用次数
+              合并多个请求批量发送，减少 API 调用次数。当前仅用于统计，不影响实际请求。
             </p>
           </div>
         </section>

@@ -5,7 +5,7 @@ import * as budgetService from '../services/budget';
 
 describe('apiKey 服务', () => {
   test('添加 API Key 后应能通过列表查询', async () => {
-    await apiKeyService.addApiKey('测试 Key', 'openai', 'sk-test-key-123456');
+    await apiKeyService.addApiKey('测试 Key', 'openai', 'sk-test-key-1234567890abcdefghij');
     const keys = await apiKeyService.listApiKeys();
     expect(keys.length).toBeGreaterThanOrEqual(1);
     expect(keys[keys.length - 1].name).toBe('测试 Key');
@@ -14,15 +14,19 @@ describe('apiKey 服务', () => {
   });
 
   test('加密解密应一致', async () => {
-    const added = await apiKeyService.addApiKey('解密测试', 'anthropic', 'sk-ant-decrypt-test-12345');
+    const added = await apiKeyService.addApiKey('解密测试', 'anthropic', 'sk-ant-decrypt-test-1234567890abcdefghij');
     const decrypted = await apiKeyService.getDecryptedKey(added.id);
-    expect(decrypted).toBe('sk-ant-decrypt-test-12345');
+    expect(decrypted).toBe('sk-ant-decrypt-test-1234567890abcdefghij');
   });
 
   test('按类型查询解密 Key', async () => {
-    await apiKeyService.addApiKey('类型查询测试', 'openai', 'sk-type-query-test-999');
+    await apiKeyService.addApiKey('类型查询测试', 'openai', 'sk-type-query-test-99999999999999999999');
     const key = await apiKeyService.getDecryptedKeyByType('openai');
     expect(key).toBeTruthy();
+  });
+
+  test('无效格式的密钥应被拒绝', async () => {
+    await expect(apiKeyService.addApiKey('无效', 'openai', 'invalid-key')).rejects.toThrow('密钥格式无效');
   });
 
   test('删除不存在的 Key 应返回 false', async () => {

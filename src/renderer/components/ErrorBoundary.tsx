@@ -39,7 +39,7 @@ class ErrorBoundary extends Component<Props, State> {
         }}>
           <h1 style={{ color: '#ff6b6b', marginBottom: '20px' }}>出错了</h1>
           <p style={{ marginBottom: '20px', color: '#888' }}>
-            {this.state.error?.message || '未知错误'}
+            页面发生了错误，请尝试刷新或联系支持。
           </p>
           <button
             onClick={this.handleRetry}

@@ -11,11 +11,11 @@ import Optimization from './pages/Optimization';
 import './styles/pages.css';
 
 function App() {
-  const { toasts } = useToast();
+  const { toasts, removeToast } = useToast();
 
   return (
     <ErrorBoundary>
-      <ToastContainer toasts={toasts} />
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <HashRouter>
         <Routes>
           <Route path="/" element={<Layout />}>

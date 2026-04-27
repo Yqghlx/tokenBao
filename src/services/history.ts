@@ -41,22 +41,30 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
   return request;
 }
 
-export async function listRequests(options?: { limit?: number; offset?: number; apiType?: string }): Promise<RequestLog[]> {
+export async function listRequests(options?: { limit?: number; offset?: number; apiType?: string; search?: string }): Promise<RequestLog[]> {
   const store = getStore();
   let filtered = store.requests;
-  
+
   if (options?.apiType) {
     filtered = filtered.filter(r => r.apiType === options.apiType);
   }
-  
+
+  if (options?.search) {
+    const keyword = options.search.toLowerCase();
+    filtered = filtered.filter(r =>
+      r.model.toLowerCase().includes(keyword) ||
+      r.apiType.toLowerCase().includes(keyword)
+    );
+  }
+
   if (options?.offset) {
     filtered = filtered.slice(options.offset);
   }
-  
+
   if (options?.limit) {
     filtered = filtered.slice(0, options.limit);
   }
-  
+
   return filtered;
 }
 

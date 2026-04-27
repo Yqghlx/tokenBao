@@ -80,7 +80,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   history: {
-    list: (options?: { limit?: number; offset?: number; apiType?: string }) => {
+    list: (options?: { limit?: number; offset?: number; apiType?: string; search?: string }) => {
       if (options) {
         if (options.limit !== undefined && (options.limit < 1 || options.limit > 1000)) {
           return Promise.resolve([]);
