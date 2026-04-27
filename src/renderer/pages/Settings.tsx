@@ -88,6 +88,7 @@ function Settings() {
             min={1024}
             max={65535}
             style={{ width: '200px', padding: '8px', borderRadius: '4px', border: '1px solid #333' }}
+            disabled={loading}
           />
           <span style={{ marginLeft: '8px', fontSize: '12px', color: '#888' }}>范围: 1024-65535</span>
         </div>
@@ -100,6 +101,7 @@ function Settings() {
             min={1}
             max={365}
             style={{ width: '200px', padding: '8px', borderRadius: '4px', border: '1px solid #333' }}
+            disabled={loading}
           />
         </div>
         <div className="form-group" style={{ marginBottom: '16px' }}>
@@ -108,15 +110,16 @@ function Settings() {
             value={cacheTTL}
             onChange={(e) => setCacheTTL(e.target.value)}
             style={{ width: '200px', padding: '8px', borderRadius: '4px', border: '1px solid #333' }}
+            disabled={loading}
           >
             <option value="5min">5 分钟</option>
             <option value="1hour">1 小时</option>
           </select>
         </div>
-        <button className="btn-primary" onClick={saveSettings} disabled={saving}>
+        <button className="btn-primary" onClick={saveSettings} disabled={saving || loading}>
           {saving ? '保存中...' : '保存设置'}
         </button>
-        <button className="btn-secondary" onClick={resetSettings} disabled={saving} style={{ marginLeft: '8px' }}>
+        <button className="btn-secondary" onClick={resetSettings} disabled={saving || loading} style={{ marginLeft: '8px' }}>
           恢复默认
         </button>
       </div>

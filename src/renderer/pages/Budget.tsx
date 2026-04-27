@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../components/Toast';
+import { usePolling } from '../hooks/usePolling';
 
 function Budget() {
   const [loading, setLoading] = useState(true);
@@ -33,9 +34,9 @@ function Budget() {
 
   useEffect(() => {
     loadBudget();
-    const interval = setInterval(loadBudget, 15000);
-    return () => clearInterval(interval);
   }, [loadBudget]);
+
+  usePolling(loadBudget, 15000);
 
   const saveBudget = async (type: 'daily' | 'monthly', value: string) => {
     const limit = parseFloat(value);
@@ -132,7 +133,7 @@ function Budget() {
         <button className="btn-primary" onClick={() => saveBudget(type, limit)} disabled={saving} style={{ padding: '6px 12px', fontSize: '13px' }}>
           保存
         </button>
-        <button className="btn-secondary" onClick={() => resetSpent(type)} style={{ padding: '6px 12px', fontSize: '13px' }}>
+        <button className="btn-secondary" onClick={() => resetSpent(type)} disabled={saving} style={{ padding: '6px 12px', fontSize: '13px' }}>
           重置支出
         </button>
       </div>
