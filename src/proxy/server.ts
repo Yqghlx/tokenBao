@@ -6,7 +6,7 @@ import * as statsService from '../services/stats';
 import * as budgetService from '../services/budget';
 import * as historyService from '../services/history';
 import { calculateCost } from './pricing';
-import { handleResponse } from './responseHandler';
+import { handleResponse, extractStreamUsage } from './responseHandler';
 import requestTracker from './requestTracker';
 
 interface ProxyConfig {
@@ -56,60 +56,6 @@ function isStreamRequest(body: string): boolean {
   } catch {
     return false;
   }
-}
-
-interface StreamUsage {
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens: number;
-  cacheCreationTokens: number;
-  model: string;
-}
-
-/**
- * 从 SSE 流数据中提取 usage 统计
- * OpenAI: 最后一个包含 usage 的 data 事件
- * Anthropic: message_delta 事件中的 usage
- */
-function extractStreamUsage(sseData: string, _apiType: string): StreamUsage | null {
-  const lines = sseData.split('\n');
-
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i];
-    if (!line.startsWith('data: ')) continue;
-    const data = line.slice(6);
-    if (data === '[DONE]') continue;
-
-    try {
-      const parsed = JSON.parse(data);
-
-      // OpenAI 格式
-      if (parsed.usage) {
-        return {
-          inputTokens: parsed.usage.prompt_tokens || 0,
-          outputTokens: parsed.usage.completion_tokens || 0,
-          cacheReadTokens: parsed.usage.prompt_tokens_details?.cached_tokens || 0,
-          cacheCreationTokens: 0,
-          model: parsed.model || 'unknown'
-        };
-      }
-
-      // Anthropic 格式
-      if (parsed.type === 'message_delta' && parsed.usage) {
-        return {
-          inputTokens: parsed.usage.input_tokens || 0,
-          outputTokens: parsed.usage.output_tokens || 0,
-          cacheReadTokens: parsed.usage.cache_read_input_tokens || 0,
-          cacheCreationTokens: parsed.usage.cache_creation_input_tokens || 0,
-          model: parsed.model || 'unknown'
-        };
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
 }
 
 /** 请求结果数据，用于统一记录统计/预算/历史 */
@@ -469,7 +415,7 @@ class ProxyServer {
               // 流结束后从 SSE 数据中提取 usage
               if (statusCode < 400) {
                 try {
-                  const usage = extractStreamUsage(sseBuffer, apiType);
+                  const usage = extractStreamUsage(sseBuffer);
                   if (usage) {
                     const model = usage.model || parsedModel;
                     const cost = calculateCost(model, usage.inputTokens, usage.outputTokens);

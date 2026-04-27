@@ -1,7 +1,7 @@
 interface RoutingRule {
   sourceModel: string;
   targetModel: string;
-  condition: 'simple' | 'classification' | 'extraction' | 'complex';
+  condition: 'simple' | 'classification' | 'extraction' | 'complex' | 'unknown';
 }
 
 interface RoutingOptions {
@@ -44,17 +44,25 @@ const defaultOptions: RoutingOptions = {
 
 const simpleKeywords = [
   'classify', 'categorize', 'list', 'what is', 'which', 'yes or no', 'true or false',
-  'summarize', 'translate', 'define', 'name', 'count'
+  'summarize', 'translate', 'define', 'name', 'count',
+  // 中文关键词
+  '分类', '列举', '定义', '总结', '翻译', '判断', '计数', '选择', '命名'
 ];
 
 const extractionKeywords = [
-  'extract', 'parse', 'identify', 'find all', 'retrieve', 'pull', 'locate', 'select'
+  'extract', 'parse', 'identify', 'find all', 'retrieve', 'pull', 'locate', 'select',
+  // 中文关键词
+  '提取', '解析', '识别', '查找', '检索', '定位', '筛选'
 ];
 
 const complexKeywords = [
   'analyze', 'reason', 'prove', 'derive', 'explain why', 'think step',
   'create', 'design', 'write code', 'implement', 'architect',
-  'synthesize', 'evaluate', 'compare', 'refactor'
+  'synthesize', 'evaluate', 'compare', 'refactor',
+  // 中文关键词
+  '分析', '推理', '证明', '推导', '解释为什么', '逐步思考',
+  '创建', '设计', '写代码', '实现', '架构',
+  '综合', '评估', '比较', '重构', '优化', '调试'
 ];
 
 function getOptions(): RoutingOptions {
@@ -65,7 +73,7 @@ function setOptions(options: Partial<RoutingOptions>): void {
   Object.assign(defaultOptions, options);
 }
 
-function detectComplexity(prompt: string): 'simple' | 'classification' | 'extraction' | 'complex' {
+function detectComplexity(prompt: string): 'simple' | 'classification' | 'extraction' | 'complex' | 'unknown' {
   const lower = prompt.toLowerCase();
 
   let simpleScore = 0;
@@ -84,6 +92,15 @@ function detectComplexity(prompt: string): 'simple' | 'classification' | 'extrac
     if (lower.includes(kw)) complexScore++;
   }
 
+  // 长度因子：长 prompt 倾向于复杂任务
+  if (prompt.length > 500) complexScore += 2;
+  if (prompt.length > 1000) complexScore += 3;
+
+  const maxScore = Math.max(simpleScore, extractionScore, complexScore);
+
+  // 所有关键词评分为 0，无法确定复杂度，保持原模型不降级
+  if (maxScore === 0) return 'unknown';
+
   // 取最高分类别
   if (complexScore > simpleScore && complexScore > extractionScore) return 'complex';
   if (extractionScore > simpleScore) return 'extraction';
@@ -95,6 +112,9 @@ function routeModel(model: string, prompt: string): string {
   if (!defaultOptions.enabled) return model;
 
   const condition = detectComplexity(prompt);
+
+  // 无法判断复杂度时保持原模型，避免盲目降级影响输出质量
+  if (condition === 'unknown') return model;
 
   // 精确匹配 condition
   for (const rule of defaultOptions.rules) {
