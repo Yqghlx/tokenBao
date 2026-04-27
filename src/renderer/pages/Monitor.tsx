@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { showToast } from '../components/Toast';
 
 function Monitor() {
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalRequests: 0,
     totalInputTokens: 0,
@@ -22,11 +24,11 @@ function Monitor() {
       try {
         const data = await window.electronAPI.stats.summary();
         setStats(data);
-        
+
         const cacheReadTokens = data.totalCachedTokens || 0;
         const cacheCreationTokens = Math.round(cacheReadTokens * 0.1);
         const cacheSavings = cacheReadTokens > 0 ? (cacheReadTokens / 1000 * 0.003 * 0.9).toFixed(4) : '0.00';
-        
+
         setCachingStats({
           cacheReadTokens,
           cacheCreationTokens,
@@ -34,7 +36,12 @@ function Monitor() {
         });
       } catch (err) {
         console.error('获取统计数据失败:', err);
+        showToast('获取统计数据失败', 'error');
+      } finally {
+        setLoading(false);
       }
+    } else {
+      setLoading(false);
     }
   }, []);
 
@@ -49,6 +56,15 @@ function Monitor() {
     ? (stats.totalCachedTokens / 1000 * 0.03).toFixed(2)
     : '0.00';
   const actualCost = stats.totalCost.toFixed(4);
+
+  if (loading) {
+    return (
+      <div className="page">
+        <h2>监控仪表盘</h2>
+        <p>加载中...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

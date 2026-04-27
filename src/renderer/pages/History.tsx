@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { showToast } from '../components/Toast';
 
 interface HistoryItem {
   id: number;
@@ -13,6 +14,7 @@ interface HistoryItem {
 }
 
 function History() {
+  const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [filter, setFilter] = useState('');
 
@@ -24,7 +26,12 @@ function History() {
         setHistory(data);
       } catch (err) {
         console.error('获取历史记录失败:', err);
+        showToast('获取历史记录失败', 'error');
+      } finally {
+        setLoading(false);
       }
+    } else {
+      setLoading(false);
     }
   }, [filter]);
 
@@ -36,7 +43,7 @@ function History() {
 
   const exportCsv = () => {
     if (history.length === 0) {
-      alert('没有数据可导出');
+      showToast('没有数据可导出', 'error');
       return;
     }
     
@@ -73,6 +80,15 @@ function History() {
       }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="page">
+        <h2>请求历史</h2>
+        <p>加载中...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

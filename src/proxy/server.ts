@@ -22,7 +22,6 @@ const MAX_BODY_SIZE = 10 * 1024 * 1024; // 请求体最大 10MB
 
 /**
  * 模型定价表（每 1000 tokens 价格，美元）
- * 数据来源：OpenAI 和 Anthropic 官方定价
  */
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'gpt-4': { input: 0.03, output: 0.06 },
@@ -36,16 +35,25 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'claude-3.5-sonnet': { input: 0.003, output: 0.015 },
 };
 
-/**
- * 计算 API 调用费用
- */
 function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
   const pricing = MODEL_PRICING[model] || { input: 0.001, output: 0.002 };
   return (inputTokens / 1000) * pricing.input + (outputTokens / 1000) * pricing.output;
 }
 
 /**
- * 向上游 API 发送请求，返回响应状态码、响应头和响应体
+ * 检测请求是否为流式（stream: true）
+ */
+function isStreamRequest(body: string): boolean {
+  try {
+    const parsed = JSON.parse(body);
+    return parsed.stream === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 向上游 API 发送请求，返回完整响应（非流式）
  */
 function sendUpstream(
   options: https.RequestOptions,
@@ -92,7 +100,7 @@ class ProxyServer {
   }
 
   detectApiType(path: string): ApiType {
-    if (path.includes('/v1/chat/completions') || 
+    if (path.includes('/v1/chat/completions') ||
         path.includes('/v1/embeddings') ||
         path.includes('/v1/models')) {
       return 'openai';
@@ -114,22 +122,19 @@ class ProxyServer {
 
   transformHeaders(headers: http.IncomingMessage['headers'], apiType: ApiType): Record<string, string> {
     const result: Record<string, string> = {};
-    
+
     for (const [key, value] of Object.entries(headers)) {
       if (key.toLowerCase() === 'host') continue;
-      
+
       const stringValue = Array.isArray(value) ? value[0] : value;
-      
+
       if (key.toLowerCase() === 'authorization') {
-        // 始终替换为代理配置的 Key，不透传客户端原始凭证
         if (apiType === 'anthropic' && this.anthropicKey) {
           result['x-api-key'] = this.anthropicKey;
         } else if (apiType === 'openai' && this.openaiKey) {
           result['authorization'] = `Bearer ${this.openaiKey}`;
         }
-        // 未配置代理 Key 时不发送认证头，避免泄漏客户端凭证
       } else if (key.toLowerCase() === 'x-api-key') {
-        // 同样替换 Anthropic 的 x-api-key
         if (apiType === 'anthropic' && this.anthropicKey) {
           result['x-api-key'] = this.anthropicKey;
         }
@@ -241,8 +246,41 @@ class ProxyServer {
           headers: headers
         };
 
-        // 带重试的上游请求
+        // 流式请求：直接 pipe 转发，不缓冲响应
+        if (isStreamRequest(rawBody)) {
+          const proxyReq = https.request(options, (proxyRes) => {
+            const statusCode = proxyRes.statusCode || 500;
+            if (statusCode >= 400) {
+              console.error(`流式请求失败: status=${statusCode}`);
+            }
+            clientRes.writeHead(statusCode, proxyRes.headers);
+            proxyRes.pipe(clientRes);
+          });
 
+          proxyReq.setTimeout(PROXY_TIMEOUT, () => {
+            proxyReq.destroy();
+            if (!clientRes.headersSent) {
+              clientRes.writeHead(504, { 'Content-Type': 'application/json' });
+              clientRes.end(JSON.stringify({ error: 'Gateway Timeout', message: '上游 API 响应超时' }));
+            }
+          });
+
+          proxyReq.on('error', (err) => {
+            console.error('流式代理错误:', err.message);
+            if (!clientRes.headersSent) {
+              clientRes.writeHead(502, { 'Content-Type': 'application/json' });
+              clientRes.end(JSON.stringify({ error: err.message }));
+            }
+          });
+
+          if (optimizedBody) {
+            proxyReq.write(optimizedBody);
+          }
+          proxyReq.end();
+          return;
+        }
+
+        // 非流式请求：缓冲响应 + 重试 + 统计
         let lastError: Error | undefined;
         let upstreamResult: { statusCode: number; headers: http.IncomingHttpHeaders; body: string } | undefined;
         const maxAttempts = requestId ? requestTracker.MAX_RETRIES + 1 : 1;
@@ -258,14 +296,12 @@ class ProxyServer {
               const retryCount = requestTracker.incrementRetry(requestId);
               console.log(`[${requestId}] 重试请求 (${retryCount}/${requestTracker.MAX_RETRIES})`);
               requestTracker.updateRequestStatus(requestId, 'retrying');
-              // 等待重试间隔
               await new Promise(r => setTimeout(r, requestTracker.RETRY_DELAY));
             }
           }
         }
 
         if (lastError) {
-          // 所有重试耗尽
           console.error('代理请求失败:', lastError.message);
           if (requestId) {
             requestTracker.failRequest(requestId, lastError.message, 502);

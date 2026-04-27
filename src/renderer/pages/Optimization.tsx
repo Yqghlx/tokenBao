@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { showToast } from '../components/Toast';
 
 function Optimization() {
+  const [loading, setLoading] = useState(true);
   const [optimizationConfig, setOptimizationConfig] = useState({
     caching: true,
     compression: true,
@@ -15,7 +17,12 @@ function Optimization() {
         setOptimizationConfig(config);
       } catch (err) {
         console.error('获取优化配置失败:', err);
+        showToast('获取优化配置失败', 'error');
+      } finally {
+        setLoading(false);
       }
+    } else {
+      setLoading(false);
     }
   }, []);
 
@@ -34,6 +41,15 @@ function Optimization() {
       }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="page">
+        <h2>优化策略配置</h2>
+        <p>加载中...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

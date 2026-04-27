@@ -14,6 +14,7 @@ function ApiKeys() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [newKey, setNewKey] = useState({ name: '', type: 'openai', key: '' });
 
   const loadApiKeys = useCallback(async () => {
@@ -71,14 +72,15 @@ function ApiKeys() {
   };
 
   const deleteApiKey = async (id: number) => {
-    if (!window.confirm('确定要删除此 API Key吗？')) return;
-
     if (window.electronAPI?.apiKeys?.delete) {
       try {
         await window.electronAPI.apiKeys.delete(id);
+        setConfirmDeleteId(null);
         loadApiKeys();
+        showToast('API Key 已删除', 'info');
       } catch (err) {
         console.error('删除 API Key 失败:', err);
+        showToast('删除失败', 'error');
       }
     }
   };
@@ -160,13 +162,32 @@ function ApiKeys() {
                   <td>••••••••</td>
                   <td>{new Date(key.createdAt).toLocaleDateString()}</td>
                   <td>
-                    <button 
-                      className="btn-secondary" 
-                      onClick={() => deleteApiKey(key.id)}
-                      style={{ padding: '4px 8px', fontSize: '12px' }}
-                    >
-                      删除
-                    </button>
+                    {confirmDeleteId === key.id ? (
+                      <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => deleteApiKey(key.id)}
+                          style={{ padding: '4px 8px', fontSize: '12px', background: '#8b0000' }}
+                        >
+                          确认
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => setConfirmDeleteId(null)}
+                          style={{ padding: '4px 8px', fontSize: '12px' }}
+                        >
+                          取消
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        className="btn-secondary"
+                        onClick={() => setConfirmDeleteId(key.id)}
+                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                      >
+                        删除
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
