@@ -65,7 +65,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle('proxy:status', async () => {
     return {
       running: proxyServer?.isRunning() || false,
-      port: proxyServer ? 8080 : 0,
+      port: proxyServer?.getPort() || 0,
       requests: proxyServer?.getStats()?.requests || 0
     };
   });

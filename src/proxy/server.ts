@@ -349,6 +349,11 @@ class ProxyServer {
     return this.server !== null;
   }
 
+  getPort(): number {
+    const addr = this.server?.address();
+    return typeof addr === 'object' && addr ? addr.port : this.port;
+  }
+
   updateOptimizationConfig(config: { caching?: boolean; compression?: boolean; routing?: boolean; batching?: boolean }): void {
     setOptimizationConfig(config);
   }
