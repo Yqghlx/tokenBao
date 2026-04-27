@@ -74,10 +74,22 @@ export async function addStats(data: {
   cost: number;
 }): Promise<void> {
   // 输入校验：拒绝 NaN 和负数
-  if (isNaN(data.inputTokens) || data.inputTokens < 0) return;
-  if (isNaN(data.outputTokens) || data.outputTokens < 0) return;
-  if (isNaN(data.cachedTokens) || data.cachedTokens < 0) return;
-  if (isNaN(data.cost) || data.cost < 0) return;
+  if (isNaN(data.inputTokens) || data.inputTokens < 0) {
+    console.warn('stats.addStats: inputTokens 无效，已跳过', data.inputTokens);
+    return;
+  }
+  if (isNaN(data.outputTokens) || data.outputTokens < 0) {
+    console.warn('stats.addStats: outputTokens 无效，已跳过', data.outputTokens);
+    return;
+  }
+  if (isNaN(data.cachedTokens) || data.cachedTokens < 0) {
+    console.warn('stats.addStats: cachedTokens 无效，已跳过', data.cachedTokens);
+    return;
+  }
+  if (isNaN(data.cost) || data.cost < 0) {
+    console.warn('stats.addStats: cost 无效，已跳过', data.cost);
+    return;
+  }
 
   return mutex.runExclusive(() => {
     const stats = getStats();

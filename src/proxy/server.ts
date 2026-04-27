@@ -359,7 +359,7 @@ class ProxyServer {
         // 流式请求：pipe 转发 + 拦截 SSE 提取 usage 统计
         if (isStreamRequest(rawBody)) {
           let parsedModel = 'unknown';
-          try { parsedModel = JSON.parse(rawBody).model || 'unknown'; } catch { /* 非法 JSON，使用默认模型名 */ }
+          try { parsedModel = JSON.parse(rawBody).model || 'unknown'; } catch { logProxy('warn', '流式请求体 JSON 解析失败', { requestId }); }
 
           // PassThrough 在外层声明，以便 timeout/error 回调中可以销毁
           const passThrough = new PassThrough();
@@ -372,8 +372,15 @@ class ProxyServer {
             clientRes.writeHead(statusCode, proxyRes.headers);
 
             let sseBuffer = '';
+            const SSE_BUFFER_HARD_LIMIT = 1024 * 1024; // 1MB 绝对上限
             passThrough.on('data', (chunk: Buffer) => {
               sseBuffer += chunk.toString();
+              // 超过绝对上限则强制断开，防止内存暴涨
+              if (sseBuffer.length > SSE_BUFFER_HARD_LIMIT) {
+                logProxy('error', 'SSE 缓冲超出上限，强制断开', { requestId });
+                passThrough.destroy(new Error('SSE buffer exceeded hard limit'));
+                return;
+              }
               // 只保留最后 10KB 用于提取 usage，避免内存增长
               if (sseBuffer.length > 10240) {
                 sseBuffer = sseBuffer.slice(-10240);
@@ -430,6 +437,7 @@ class ProxyServer {
           });
 
           proxyReq.setTimeout(this.proxyTimeout, () => {
+            this.activeUpstreamRequests.delete(proxyReq);
             proxyReq.destroy();
             passThrough.destroy();
             if (!clientRes.headersSent) {
@@ -439,6 +447,7 @@ class ProxyServer {
           });
 
           proxyReq.on('error', (err) => {
+            this.activeUpstreamRequests.delete(proxyReq);
             passThrough.destroy();
             if (!clientRes.headersSent) {
               clientRes.writeHead(502, { 'Content-Type': 'application/json' });

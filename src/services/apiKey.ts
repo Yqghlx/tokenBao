@@ -101,17 +101,21 @@ export async function getApiKey(id: number): Promise<ApiKey | undefined> {
 }
 
 export async function getDecryptedKey(id: number): Promise<string | undefined> {
-  const store = getStore();
-  const key = store.keys.find(k => k.id === id);
-  if (!key) return undefined;
-  return decrypt(key.encryptedKey);
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    const key = store.keys.find(k => k.id === id);
+    if (!key) return undefined;
+    return decrypt(key.encryptedKey);
+  });
 }
 
 export async function getDecryptedKeyByType(apiType: string): Promise<string | undefined> {
-  const store = getStore();
-  const key = store.keys.find(k => k.type === apiType);
-  if (!key) return undefined;
-  return decrypt(key.encryptedKey);
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    const key = store.keys.find(k => k.type === apiType);
+    if (!key) return undefined;
+    return decrypt(key.encryptedKey);
+  });
 }
 
 export default {

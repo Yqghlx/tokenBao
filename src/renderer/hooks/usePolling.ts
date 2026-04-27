@@ -18,8 +18,8 @@ export function usePolling(callback: () => void, intervalMs: number): void {
       timerId = setInterval(() => {
         try {
           savedCallback.current();
-        } catch {
-          // 轮询单次异常不应中断后续轮询
+        } catch (err) {
+          console.warn('轮询回调异常:', err);
         }
       }, intervalMs);
     };
@@ -35,8 +35,8 @@ export function usePolling(callback: () => void, intervalMs: number): void {
         // 页面重新可见时立即刷新一次再恢复轮询
         try {
           savedCallback.current();
-        } catch {
-          // 单次回调异常不应阻止轮询恢复
+        } catch (err) {
+          console.warn('可见性切换回调异常:', err);
         }
         startPolling();
       }
