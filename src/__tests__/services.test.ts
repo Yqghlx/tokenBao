@@ -109,6 +109,62 @@ describe('stats 服务', () => {
     expect(summary.totalRequests).toBe(0);
     expect(summary.totalInputTokens).toBe(0);
   });
+
+  test('addStats 应拒绝 NaN 的 inputTokens', async () => {
+    await statsService.resetStats();
+    await statsService.addStats({
+      apiType: 'openai',
+      model: 'gpt-4',
+      inputTokens: NaN,
+      outputTokens: 10,
+      cachedTokens: 0,
+      cost: 0.01
+    });
+    const summary = await statsService.getSummary();
+    expect(summary.totalRequests).toBe(0);
+  });
+
+  test('addStats 应拒绝负数的 outputTokens', async () => {
+    await statsService.resetStats();
+    await statsService.addStats({
+      apiType: 'openai',
+      model: 'gpt-4',
+      inputTokens: 10,
+      outputTokens: -5,
+      cachedTokens: 0,
+      cost: 0.01
+    });
+    const summary = await statsService.getSummary();
+    expect(summary.totalRequests).toBe(0);
+  });
+
+  test('addStats 应拒绝 NaN 的 cost', async () => {
+    await statsService.resetStats();
+    await statsService.addStats({
+      apiType: 'openai',
+      model: 'gpt-4',
+      inputTokens: 10,
+      outputTokens: 10,
+      cachedTokens: 0,
+      cost: NaN
+    });
+    const summary = await statsService.getSummary();
+    expect(summary.totalRequests).toBe(0);
+  });
+
+  test('addStats 应拒绝负数的 cachedTokens', async () => {
+    await statsService.resetStats();
+    await statsService.addStats({
+      apiType: 'openai',
+      model: 'gpt-4',
+      inputTokens: 10,
+      outputTokens: 10,
+      cachedTokens: -1,
+      cost: 0.01
+    });
+    const summary = await statsService.getSummary();
+    expect(summary.totalRequests).toBe(0);
+  });
 });
 
 describe('budget 服务', () => {
@@ -140,5 +196,34 @@ describe('budget 服务', () => {
     await budgetService.setBudgetLimit('monthly', 200);
     const status = await budgetService.getBudgetStatus();
     expect(status.monthly.limit).toBe(200);
+  });
+
+  test('resetSpent 应清零日预算支出', async () => {
+    await budgetService.updateSpent('daily', 1.5);
+    const before = await budgetService.getBudgetStatus();
+    expect(before.daily.spent).toBeGreaterThan(0);
+
+    await budgetService.resetSpent('daily');
+    const after = await budgetService.getBudgetStatus();
+    expect(after.daily.spent).toBe(0);
+  });
+
+  test('resetSpent 应清零月预算支出', async () => {
+    await budgetService.updateSpent('monthly', 5.0);
+    const before = await budgetService.getBudgetStatus();
+    expect(before.monthly.spent).toBeGreaterThan(0);
+
+    await budgetService.resetSpent('monthly');
+    const after = await budgetService.getBudgetStatus();
+    expect(after.monthly.spent).toBe(0);
+  });
+
+  test('resetSpent 不应影响预算限额', async () => {
+    await budgetService.setBudgetLimit('daily', 50);
+    await budgetService.updateSpent('daily', 10);
+    await budgetService.resetSpent('daily');
+    const status = await budgetService.getBudgetStatus();
+    expect(status.daily.limit).toBe(50);
+    expect(status.daily.spent).toBe(0);
   });
 });

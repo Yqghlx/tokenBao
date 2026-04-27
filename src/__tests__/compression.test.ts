@@ -65,4 +65,88 @@ describe('compression 模块', () => {
     expect(result.text).not.toContain('Could you');
     expect(result.text).toContain('const x = 1;');
   });
+
+  test('压缩应替换 "in order to" 为 "to"', () => {
+    const result = compression.compress('In order to succeed, you must try');
+    expect(result.text).not.toContain('in order to');
+    expect(result.text).toContain('to');
+  });
+
+  test('压缩应替换 "make sure to" 为 "ensure"', () => {
+    const result = compression.compress('Make sure to check all inputs');
+    expect(result.text).toContain('ensure');
+    expect(result.text).not.toContain('make sure to');
+  });
+
+  test('压缩应替换 "as well as" 为 "&"', () => {
+    const result = compression.compress('Please include headers as well as footers');
+    expect(result.text).toContain('&');
+    expect(result.text).not.toContain('as well as');
+  });
+
+  test('压缩应替换 "for the purpose of" 为 "to"', () => {
+    const result = compression.compress('For the purpose of testing, we run this');
+    expect(result.text).not.toContain('for the purpose of');
+    expect(result.text).toContain('to');
+  });
+
+  test('压缩应替换 "at this point in time" 为 "now"', () => {
+    const result = compression.compress('At this point in time, we cannot proceed');
+    expect(result.text).toContain('now');
+    expect(result.text).not.toContain('at this point in time');
+  });
+
+  test('压缩应替换 "in the event that" 为 "if"', () => {
+    const result = compression.compress('In the event that it rains, stay inside');
+    expect(result.text).toContain('if');
+    expect(result.text).not.toContain('in the event that');
+  });
+
+  test('压缩应替换 "a large number of" 为 "many"', () => {
+    const result = compression.compress('A large number of users reported this');
+    expect(result.text).toContain('many');
+    expect(result.text).not.toContain('a large number of');
+  });
+
+  test('压缩应替换 "and so on" 为 "etc"', () => {
+    const result = compression.compress('Please include apples, bananas, and so on');
+    expect(result.text).toContain('etc');
+    expect(result.text).not.toContain('and so on');
+  });
+
+  test('压缩应替换 "for example" 为 "e.g."', () => {
+    const result = compression.compress('For example, consider this case');
+    expect(result.text).toContain('e.g.');
+    expect(result.text).not.toContain('for example');
+  });
+
+  test('压缩应替换 "that is to say" 为 "i.e."', () => {
+    const result = compression.compress('That is to say, the result is correct');
+    expect(result.text).toContain('i.e.');
+    expect(result.text).not.toContain('that is to say');
+  });
+
+  test('压缩应替换 "field name is string type" 为缩写', () => {
+    const result = compression.compress('The field name is string type and required');
+    expect(result.text).toContain('name: str');
+  });
+
+  test('compressPrompt 应处理字符串输入', () => {
+    const result = compression.compressPrompt('Please help me with this');
+    expect(typeof result).toBe('string');
+    expect((result as string)).not.toContain('Please');
+  });
+
+  test('compressPrompt 空输入应原样返回', () => {
+    expect(compression.compressPrompt('')).toBe('');
+    expect(compression.compressPrompt(null as any)).toBeNull();
+  });
+
+  test('多条规则应同时生效', () => {
+    const input = 'In order to proceed, please make sure to include data in JSON format';
+    const result = compression.compress(input);
+    expect(result.text).not.toContain('in order to');
+    expect(result.text).not.toContain('please');
+    expect(result.text).toContain('resp: JSON');
+  });
 });

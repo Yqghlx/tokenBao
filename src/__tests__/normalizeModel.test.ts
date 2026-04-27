@@ -87,7 +87,9 @@ describe('calculateCost 费用计算', () => {
       'gpt-3.5-turbo', 'o3', 'o4-mini',
       'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
       'claude-3.5-sonnet', 'claude-3.5-haiku',
-      'claude-sonnet-4', 'claude-opus-4'
+      'claude-sonnet-4', 'claude-opus-4',
+      'claude-opus-4.1', 'claude-sonnet-4.6', 'claude-opus-4.6',
+      'claude-haiku-4.5'
     ];
     for (const model of expectedModels) {
       expect(model in MODEL_PRICING).toBe(true);
