@@ -1,4 +1,4 @@
-import { loadJson, saveJson } from '../utils/storage';
+import { loadJson, saveJsonAsync } from '../utils/storage';
 import { getConfig } from './config';
 import { getMutex } from '../utils/mutex';
 
@@ -69,11 +69,11 @@ async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
   }
 }
 
-function saveStore(store: HistoryStore): void {
+async function saveStore(store: HistoryStore): Promise<void> {
   if (store.requests.length > MAX_HISTORY) {
     store.requests = store.requests.slice(-MAX_HISTORY);
   }
-  saveJson(STORAGE_FILE, store);
+  await saveJsonAsync(STORAGE_FILE, store);
 }
 
 export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLog> {
@@ -100,53 +100,59 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
     store.requests.push(request);
     // 在锁内同步清理过期记录，避免与后续写入冲突
     await cleanupExpiredRequests(store);
-    saveStore(store);
+    await saveStore(store);
     return request;
   });
 }
 
 export async function listRequests(options?: { limit?: number; offset?: number; apiType?: string; search?: string }): Promise<RequestLog[]> {
-  const store = getStore();
-  // 最新请求在前
-  let filtered = [...store.requests].reverse();
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    // 最新请求在前
+    let filtered = [...store.requests].reverse();
 
-  if (options?.apiType) {
-    filtered = filtered.filter(r => r.apiType === options.apiType);
-  }
+    if (options?.apiType) {
+      filtered = filtered.filter(r => r.apiType === options.apiType);
+    }
 
-  if (options?.search) {
-    const keyword = options.search.toLowerCase();
-    filtered = filtered.filter(r =>
-      r.model.toLowerCase().includes(keyword) ||
-      r.apiType.toLowerCase().includes(keyword)
-    );
-  }
+    if (options?.search) {
+      const keyword = options.search.toLowerCase();
+      filtered = filtered.filter(r =>
+        r.model.toLowerCase().includes(keyword) ||
+        r.apiType.toLowerCase().includes(keyword)
+      );
+    }
 
-  if (options?.offset) {
-    filtered = filtered.slice(options.offset);
-  }
+    if (options?.offset) {
+      filtered = filtered.slice(options.offset);
+    }
 
-  if (options?.limit) {
-    filtered = filtered.slice(0, options.limit);
-  }
+    if (options?.limit) {
+      filtered = filtered.slice(0, options.limit);
+    }
 
-  return filtered;
+    return filtered;
+  });
 }
 
 export async function getRequest(id: number): Promise<RequestLog | undefined> {
-  const store = getStore();
-  return store.requests.find(r => r.id === id);
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    return store.requests.find(r => r.id === id);
+  });
 }
 
 export async function clearRequests(): Promise<void> {
-  return mutex.runExclusive(() => {
-    saveStore({ requests: [], nextId: 1 });
+  return mutex.runExclusive(async () => {
+    await saveStore({ requests: [], nextId: 1 });
   });
 }
 
 export async function getRecentRequests(limit = 10): Promise<RequestLog[]> {
-  const store = getStore();
-  return store.requests.slice(-limit);
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    return store.requests.slice(-limit);
+  });
 }
 
 export default {

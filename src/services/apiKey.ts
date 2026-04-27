@@ -84,20 +84,24 @@ export async function deleteApiKey(id: number): Promise<boolean> {
 }
 
 export async function listApiKeys(): Promise<Omit<ApiKey, 'encryptedKey'>[]> {
-  const store = getStore();
-  return store.keys.map(k => ({
-    id: k.id,
-    name: k.name,
-    type: k.type,
-    encryptedKey: '***',
-    createdAt: k.createdAt,
-    updatedAt: k.updatedAt
-  }));
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    return store.keys.map(k => ({
+      id: k.id,
+      name: k.name,
+      type: k.type,
+      encryptedKey: '***',
+      createdAt: k.createdAt,
+      updatedAt: k.updatedAt
+    }));
+  });
 }
 
 export async function getApiKey(id: number): Promise<ApiKey | undefined> {
-  const store = getStore();
-  return store.keys.find(k => k.id === id);
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    return store.keys.find(k => k.id === id);
+  });
 }
 
 export async function getDecryptedKey(id: number): Promise<string | undefined> {

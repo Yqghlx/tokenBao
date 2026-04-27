@@ -1,4 +1,4 @@
-import { loadJson, saveJson } from '../utils/storage';
+import { loadJson, saveJsonAsync } from '../utils/storage';
 import { getMutex } from '../utils/mutex';
 
 interface Stats {
@@ -30,8 +30,8 @@ function getStats(): Stats {
   return loadJson<Stats>(STORAGE_FILE, getDefaultStats());
 }
 
-function saveStats(stats: Stats): void {
-  saveJson(STORAGE_FILE, stats);
+async function saveStats(stats: Stats): Promise<void> {
+  await saveJsonAsync(STORAGE_FILE, stats);
 }
 
 /**
@@ -43,7 +43,7 @@ export async function recordOptimization(data: {
   model: string;
   savedTokens: number;
 }): Promise<void> {
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const stats = getStats();
     stats.totalCachedTokens += data.savedTokens;
 
@@ -57,7 +57,7 @@ export async function recordOptimization(data: {
     }
     stats.byModel[data.model].tokens += data.savedTokens;
 
-    saveStats(stats);
+    await saveStats(stats);
   });
 }
 
@@ -91,7 +91,7 @@ export async function addStats(data: {
     return;
   }
 
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const stats = getStats();
 
     stats.totalRequests++;
@@ -114,7 +114,7 @@ export async function addStats(data: {
     stats.byModel[data.model].tokens += data.inputTokens + data.outputTokens;
     stats.byModel[data.model].cost += data.cost;
 
-    saveStats(stats);
+    await saveStats(stats);
   });
 }
 
@@ -123,8 +123,8 @@ export async function getSummary(): Promise<Stats> {
 }
 
 export async function resetStats(): Promise<void> {
-  return mutex.runExclusive(() => {
-    saveStats(getDefaultStats());
+  return mutex.runExclusive(async () => {
+    await saveStats(getDefaultStats());
   });
 }
 

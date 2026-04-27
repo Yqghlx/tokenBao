@@ -77,15 +77,17 @@ interface BudgetSnapshot {
 
 /**
  * 统一记录请求结果：统计 → 预算 → 历史
- * 流式和非流式路径共用，消除重复代码
+ * 流式和非流式路径共用，每个服务独立 try-catch
+ * 返回 { cost, allSucceeded } 供调用方决定是否更新内存快照
  */
 async function recordRequestResult(
   result: RequestResult,
   apiType: string,
   requestId: string | undefined
-): Promise<number> {
+): Promise<{ cost: number; allSucceeded: boolean }> {
   const cost = calculateCost(result.model, result.inputTokens, result.outputTokens);
   const cachedTokens = result.cacheReadTokens + result.cacheCreationTokens;
+  let allSucceeded = true;
 
   try {
     await statsService.addStats({
@@ -96,8 +98,20 @@ async function recordRequestResult(
       cachedTokens,
       cost
     });
+  } catch (err) {
+    allSucceeded = false;
+    logProxy('error', '统计记录失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
+  }
+
+  try {
     await budgetService.updateSpent('daily', cost);
     await budgetService.updateSpent('monthly', cost);
+  } catch (err) {
+    allSucceeded = false;
+    logProxy('error', '预算更新失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
+  }
+
+  try {
     await historyService.addRequest({
       apiType,
       model: result.model,
@@ -109,10 +123,11 @@ async function recordRequestResult(
       timestamp: new Date().toISOString()
     });
   } catch (err) {
-    logProxy('error', '记录请求统计失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
+    allSucceeded = false;
+    logProxy('error', '历史记录失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
   }
 
-  return cost;
+  return { cost, allSucceeded };
 }
 
 /**
@@ -458,15 +473,18 @@ class ProxyServer {
                     const cost = calculateCost(model, usage.inputTokens, usage.outputTokens);
                     logProxy('info', `流式请求完成`, { requestId, model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4), duration: `${Date.now() - requestStart}ms` });
 
-                    await recordRequestResult({
+                    const { cost: recordedCost, allSucceeded } = await recordRequestResult({
                       model,
                       inputTokens: usage.inputTokens,
                       outputTokens: usage.outputTokens,
                       cacheReadTokens: usage.cacheReadTokens,
                       cacheCreationTokens: usage.cacheCreationTokens
-                    }, apiType, requestId).then(recordedCost => {
+                    }, apiType, requestId);
+                    if (allSucceeded) {
                       this.updateBudgetSnapshot(recordedCost);
-                    });
+                    } else {
+                      this.loadBudgetSnapshot();
+                    }
                   }
                 } catch (err) {
                   logProxy('warn', '流式 usage 提取失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
@@ -601,14 +619,18 @@ class ProxyServer {
               status: statusCode
             });
 
-            const recordedCost = await recordRequestResult({
+            const { cost: recordedCost, allSucceeded } = await recordRequestResult({
               model: handleResult.stats.model,
               inputTokens: handleResult.stats.inputTokens,
               outputTokens: handleResult.stats.outputTokens,
               cacheReadTokens: handleResult.stats.cacheReadTokens,
               cacheCreationTokens: handleResult.stats.cacheCreationTokens
             }, apiType, requestId);
-            this.updateBudgetSnapshot(recordedCost);
+            if (allSucceeded) {
+              this.updateBudgetSnapshot(recordedCost);
+            } else {
+              this.loadBudgetSnapshot();
+            }
           }
         }
 
