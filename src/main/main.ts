@@ -131,6 +131,7 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('history:clear', async () => {
+    await historyService.clearRequests();
     return { success: true };
   });
 

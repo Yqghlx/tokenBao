@@ -47,10 +47,44 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
 };
 
 /**
- * 结构化日志辅助函数
+ * 模型名称归一化映射
+ * API 返回的 model 可能包含日期后缀（如 gpt-4-0613）或变体名，需归一化到定价表标准名
  */
+const MODEL_ALIASES: Record<string, string> = {
+  // OpenAI 变体
+  'gpt-4-0314': 'gpt-4', 'gpt-4-0613': 'gpt-4', 'gpt-4-1106-preview': 'gpt-4-turbo',
+  'gpt-4-0125-preview': 'gpt-4-turbo', 'gpt-4-turbo-preview': 'gpt-4-turbo',
+  'gpt-4-turbo-2024-04-09': 'gpt-4-turbo',
+  'gpt-4o-2024-05-13': 'gpt-4o', 'gpt-4o-2024-08-06': 'gpt-4o', 'gpt-4o-2024-11-20': 'gpt-4o',
+  'gpt-4o-mini-2024-07-18': 'gpt-4o-mini',
+  'gpt-3.5-turbo-0125': 'gpt-3.5-turbo', 'gpt-3.5-turbo-1106': 'gpt-3.5-turbo',
+  'gpt-3.5-turbo-16k': 'gpt-3.5-turbo',
+  // Anthropic 变体
+  'claude-3-opus-20240229': 'claude-3-opus',
+  'claude-3-sonnet-20240229': 'claude-3-sonnet',
+  'claude-3-haiku-20240307': 'claude-3-haiku',
+  'claude-3-5-sonnet-20240620': 'claude-3.5-sonnet',
+  'claude-3-5-sonnet-20241022': 'claude-3.5-sonnet',
+  'claude-3-5-haiku-20241022': 'claude-3.5-haiku',
+};
+
+function normalizeModelName(model: string): string {
+  if (!model) return 'unknown';
+  const lower = model.toLowerCase();
+  // 精确匹配别名
+  if (MODEL_ALIASES[lower]) return MODEL_ALIASES[lower];
+  // 直接命中定价表
+  if (MODEL_PRICING[lower]) return lower;
+  // 前缀匹配：取最长的匹配
+  for (const key of Object.keys(MODEL_PRICING)) {
+    if (lower.startsWith(key)) return key;
+  }
+  return model;
+}
+
 function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
-  const pricing = MODEL_PRICING[model] || { input: 0.001, output: 0.002 };
+  const normalized = normalizeModelName(model);
+  const pricing = MODEL_PRICING[normalized] || { input: 0.001, output: 0.002 };
   return (inputTokens / 1000) * pricing.input + (outputTokens / 1000) * pricing.output;
 }
 

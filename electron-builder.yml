@@ -1,4 +1,4 @@
-appId: com.example.tokenbao
+appId: com.tokenbao.app
 productName: TokenBao
 directories:
   output: dist
