@@ -76,7 +76,15 @@ function Budget() {
   };
 
   if (loading) {
-    return <div className="page"><h2>预算管理</h2><p>加载中...</p></div>;
+    return (
+      <div className="page">
+        <h2>预算管理</h2>
+        <div className="stats-grid">
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+        </div>
+      </div>
+    );
   }
 
   const renderProgressBar = (percentage: number) => {

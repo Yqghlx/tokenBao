@@ -32,4 +32,30 @@ describe('crypto 模块', () => {
     const decrypted = decrypt(encrypted);
     expect(decrypted).toBe(original);
   });
+
+  test('加密解密应支持长文本', () => {
+    const original = 'a'.repeat(10000);
+    const encrypted = encrypt(original);
+    const decrypted = decrypt(encrypted);
+    expect(decrypted).toBe(original);
+  });
+
+  test('加密解密应支持空字符串', () => {
+    const encrypted = encrypt('');
+    const decrypted = decrypt(encrypted);
+    expect(decrypted).toBe('');
+  });
+
+  test('解密被篡改的密文应抛出异常', () => {
+    const encrypted = encrypt('test');
+    const parts = encrypted.split(':');
+    // 篡改密文部分
+    parts[2] = parts[2].replace(/./g, '0');
+    expect(() => decrypt(parts.join(':'))).toThrow();
+  });
+
+  test('generateId 应只包含十六进制字符', () => {
+    const id = generateId();
+    expect(id).toMatch(/^[0-9a-f]{32}$/);
+  });
 });

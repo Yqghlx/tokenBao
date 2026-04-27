@@ -43,6 +43,12 @@ function saveStore(store: ApiKeyStore): void {
 }
 
 export async function addApiKey(name: string, type: string, key: string): Promise<ApiKey> {
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    throw new Error('名称不能为空');
+  }
+  if (name.length > 100) {
+    throw new Error('名称不能超过 100 个字符');
+  }
   const validationError = validateKeyFormat(type, key);
   if (validationError) {
     throw new Error(validationError);

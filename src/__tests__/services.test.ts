@@ -227,3 +227,48 @@ describe('budget 服务', () => {
     expect(status.daily.spent).toBe(0);
   });
 });
+
+describe('history 输入验证', () => {
+  test('addRequest 应拒绝空 apiType', async () => {
+    await expect(historyService.addRequest({
+      apiType: '', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
+    })).rejects.toThrow('apiType 无效');
+  });
+
+  test('addRequest 应拒绝负数 inputTokens', async () => {
+    await expect(historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: -1, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
+    })).rejects.toThrow('inputTokens 无效');
+  });
+
+  test('addRequest 应拒绝 NaN cost', async () => {
+    await expect(historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: NaN, cached: false, timestamp: new Date().toISOString()
+    })).rejects.toThrow('cost 无效');
+  });
+
+  test('addRequest 应接受有效数据', async () => {
+    const result = await historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
+    });
+    expect(result.id).toBeGreaterThan(0);
+    expect(result.apiType).toBe('openai');
+  });
+});
+
+describe('apiKey 输入验证', () => {
+  test('addApiKey 应拒绝空名称', async () => {
+    await expect(apiKeyService.addApiKey('', 'openai', 'sk-test-key-1234567890abcdefghij'))
+      .rejects.toThrow('名称不能为空');
+  });
+
+  test('addApiKey 应拒绝过长名称', async () => {
+    const longName = 'a'.repeat(101);
+    await expect(apiKeyService.addApiKey(longName, 'openai', 'sk-test-key-1234567890abcdefghij'))
+      .rejects.toThrow('名称不能超过 100 个字符');
+  });
+});

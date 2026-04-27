@@ -77,6 +77,23 @@ function saveStore(store: HistoryStore): void {
 }
 
 export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLog> {
+  // 输入校验：拒绝无效数据
+  if (!log.apiType || typeof log.apiType !== 'string') {
+    throw new Error('apiType 无效');
+  }
+  if (!log.model || typeof log.model !== 'string') {
+    throw new Error('model 无效');
+  }
+  if (typeof log.inputTokens !== 'number' || isNaN(log.inputTokens) || log.inputTokens < 0) {
+    throw new Error('inputTokens 无效');
+  }
+  if (typeof log.outputTokens !== 'number' || isNaN(log.outputTokens) || log.outputTokens < 0) {
+    throw new Error('outputTokens 无效');
+  }
+  if (typeof log.cost !== 'number' || isNaN(log.cost) || log.cost < 0) {
+    throw new Error('cost 无效');
+  }
+
   return mutex.runExclusive(async () => {
     const store = getStore();
     const request: RequestLog = { ...log, id: store.nextId++ };
