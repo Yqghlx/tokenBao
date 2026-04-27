@@ -166,9 +166,10 @@ app.whenReady().then(() => {
   createWindow();
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   if (proxyServer) {
-    proxyServer.stop();
+    await proxyServer.stop();
+    proxyServer = null;
   }
   if (process.platform !== 'darwin') {
     app.quit();

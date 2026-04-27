@@ -74,22 +74,16 @@ describe('history 服务', () => {
 });
 
 describe('stats 服务', () => {
-  test('recordRequest 应更新统计数据', async () => {
+  test('recordOptimization 应更新节省 tokens', async () => {
     const before = await statsService.getSummary();
-    const beforeTotal = before.totalRequests;
 
-    await statsService.recordRequest({
+    await statsService.recordOptimization({
       apiType: 'openai',
       model: 'gpt-4',
-      originalTokens: 100,
-      optimizedTokens: 80,
       savedTokens: 20,
-      cost: 0.005,
-      strategies: ['compression']
     });
 
     const after = await statsService.getSummary();
-    expect(after.totalRequests).toBe(beforeTotal + 1);
     expect(after.totalCachedTokens).toBe(before.totalCachedTokens + 20);
   });
 

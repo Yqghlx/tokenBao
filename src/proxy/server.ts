@@ -1,5 +1,6 @@
 import http from 'http';
 import https from 'https';
+import { PassThrough } from 'stream';
 import { applyOptimizations, setOptimizationConfig } from '../optimizations/index';
 import * as statsService from '../services/stats';
 import * as budgetService from '../services/budget';
@@ -111,6 +112,60 @@ function isStreamRequest(body: string): boolean {
   } catch {
     return false;
   }
+}
+
+interface StreamUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+  model: string;
+}
+
+/**
+ * 从 SSE 流数据中提取 usage 统计
+ * OpenAI: 最后一个包含 usage 的 data 事件
+ * Anthropic: message_delta 事件中的 usage
+ */
+function extractStreamUsage(sseData: string, _apiType: string): StreamUsage | null {
+  const lines = sseData.split('\n');
+
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line.startsWith('data: ')) continue;
+    const data = line.slice(6);
+    if (data === '[DONE]') continue;
+
+    try {
+      const parsed = JSON.parse(data);
+
+      // OpenAI 格式
+      if (parsed.usage) {
+        return {
+          inputTokens: parsed.usage.prompt_tokens || 0,
+          outputTokens: parsed.usage.completion_tokens || 0,
+          cacheReadTokens: parsed.usage.prompt_tokens_details?.cached_tokens || 0,
+          cacheCreationTokens: 0,
+          model: parsed.model || 'unknown'
+        };
+      }
+
+      // Anthropic 格式
+      if (parsed.type === 'message_delta' && parsed.usage) {
+        return {
+          inputTokens: parsed.usage.input_tokens || 0,
+          outputTokens: parsed.usage.output_tokens || 0,
+          cacheReadTokens: parsed.usage.cache_read_input_tokens || 0,
+          cacheCreationTokens: parsed.usage.cache_creation_input_tokens || 0,
+          model: parsed.model || 'unknown'
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -283,16 +338,13 @@ class ProxyServer {
 
               logProxy('info', `优化请求`, { requestId, strategies: result.appliedStrategies, savedTokens, totalSaved: this.totalSavedTokens });
 
-              await statsService.recordRequest({
+              await statsService.recordOptimization({
                 apiType,
                 model: parsed.model || 'unknown',
-                originalTokens: result.originalTokens,
-                optimizedTokens: result.optimizedTokens,
                 savedTokens: savedTokens,
-                strategies: result.appliedStrategies
               });
 
-              const estimatedCost = result.optimizedTokens / 1000 * 0.001;
+              const estimatedCost = calculateCost(parsed.model || 'unknown', result.optimizedTokens, 0);
               await budgetService.updateSpent('daily', estimatedCost);
               await budgetService.updateSpent('monthly', estimatedCost);
             }
@@ -310,15 +362,55 @@ class ProxyServer {
           headers: headers
         };
 
-        // 流式请求：直接 pipe 转发，不缓冲响应
+        // 流式请求：pipe 转发 + 拦截 SSE 提取 usage 统计
         if (isStreamRequest(rawBody)) {
+          const parsedModel = rawBody ? (JSON.parse(rawBody).model || 'unknown') : 'unknown';
+
           const proxyReq = https.request(options, (proxyRes) => {
             const statusCode = proxyRes.statusCode || 500;
             if (statusCode >= 400) {
-              console.error(`流式请求失败: status=${statusCode}`);
+              logProxy('error', `流式请求失败`, { statusCode });
             }
             clientRes.writeHead(statusCode, proxyRes.headers);
-            proxyRes.pipe(clientRes);
+
+            // 用 PassThrough 拦截数据流：一边转发一边提取 usage
+            let sseBuffer = '';
+            const passThrough = new PassThrough();
+            passThrough.on('data', (chunk: Buffer) => {
+              sseBuffer += chunk.toString();
+              // 只保留最后 10KB 用于提取 usage，避免内存增长
+              if (sseBuffer.length > 10240) {
+                sseBuffer = sseBuffer.slice(-10240);
+              }
+            });
+            passThrough.on('end', () => {
+              // 流结束后从 SSE 数据中提取 usage
+              if (statusCode < 400) {
+                try {
+                  const usage = extractStreamUsage(sseBuffer, apiType);
+                  if (usage) {
+                    const cost = calculateCost(usage.model || parsedModel, usage.inputTokens, usage.outputTokens);
+                    statsService.addStats({
+                      apiType,
+                      model: usage.model || parsedModel,
+                      inputTokens: usage.inputTokens,
+                      outputTokens: usage.outputTokens,
+                      cachedTokens: usage.cacheReadTokens + usage.cacheCreationTokens,
+                      cost
+                    }).catch(err => logProxy('error', '流式统计记录失败', { error: err.message }));
+
+                    budgetService.updateSpent('daily', cost).catch(() => {});
+                    budgetService.updateSpent('monthly', cost).catch(() => {});
+
+                    logProxy('info', `流式请求统计`, { model: usage.model || parsedModel, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4) });
+                  }
+                } catch {
+                  // usage 提取失败不影响功能
+                }
+              }
+            });
+
+            proxyRes.pipe(passThrough).pipe(clientRes);
           });
 
           proxyReq.setTimeout(PROXY_TIMEOUT, () => {

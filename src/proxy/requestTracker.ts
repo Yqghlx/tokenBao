@@ -32,7 +32,7 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
 function generateRequestId(): string {
-  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `req_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
 function createRequestMetadata(
@@ -144,7 +144,7 @@ function getStatsSummary(): {
   const durations = Array.from(completedRequests.values()).map(r => r.duration);
   const avgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
   
-  const savedTokensList = Array.from(pendingRequests.values()).map(m => m.savedTokens);
+  const savedTokensList = Array.from(completedRequests.values()).map(r => r.inputTokens > 0 ? r.inputTokens : 0);
   const avgSavedTokens = savedTokensList.length > 0 ? savedTokensList.reduce((a, b) => a + b, 0) / savedTokensList.length : 0;
   
   return {

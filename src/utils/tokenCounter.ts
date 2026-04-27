@@ -1,4 +1,5 @@
 import { getEncoding, Tiktoken } from 'js-tiktoken';
+import { MODEL_PRICING } from '../proxy/server';
 
 interface ContentBlock {
   type: string;
@@ -90,30 +91,15 @@ function countMessages(messages: Message[], apiType?: string): number {
   }, 3);
 }
 
-const modelPrices = {
-  'gpt-4': { input: 0.03, output: 0.06 },
-  'gpt-4-turbo': { input: 0.01, output: 0.03 },
-  'gpt-4o': { input: 0.005, output: 0.015 },
-  'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
-  'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
-  'claude-3-opus': { input: 0.015, output: 0.075 },
-  'claude-3-sonnet': { input: 0.003, output: 0.015 },
-  'claude-3-haiku': { input: 0.00025, output: 0.00125 },
-  'claude-3.5-sonnet': { input: 0.003, output: 0.015 }
-};
-
 function estimateCost(
   inputTokens: number,
   outputTokens: number,
   model: string
 ): number {
-  const prices = modelPrices[model as keyof typeof modelPrices];
+  const prices = MODEL_PRICING[model];
   if (!prices) return (inputTokens + outputTokens) / 1000 * 0.001;
-  
-  const inputCost = (inputTokens / 1000) * prices.input;
-  const outputCost = (outputTokens / 1000) * prices.output;
-  
-  return inputCost + outputCost;
+
+  return (inputTokens / 1000) * prices.input + (outputTokens / 1000) * prices.output;
 }
 
 function calculateSavings(
