@@ -344,10 +344,6 @@ class ProxyServer {
                 model: parsed.model || 'unknown',
                 savedTokens: savedTokens,
               });
-
-              const estimatedCost = calculateCost(parsed.model || 'unknown', result.optimizedTokens, 0);
-              await budgetService.updateSpent('daily', estimatedCost);
-              await budgetService.updateSpent('monthly', estimatedCost);
             }
           } catch (e) {
             // JSON 解析或优化失败，直接转发原始请求
@@ -510,13 +506,17 @@ class ProxyServer {
 
             recordStats(handleResult.stats, apiType).catch(err => console.error('记录统计失败:', err));
 
+            const actualCost = calculateCost(handleResult.stats.model, handleResult.stats.inputTokens, handleResult.stats.outputTokens);
+            budgetService.updateSpent('daily', actualCost).catch(() => {});
+            budgetService.updateSpent('monthly', actualCost).catch(() => {});
+
             historyService.addRequest({
               apiType,
               model: handleResult.stats.model,
               inputTokens: handleResult.stats.inputTokens,
               outputTokens: handleResult.stats.outputTokens,
               cachedTokens: handleResult.stats.cacheReadTokens + handleResult.stats.cacheCreationTokens,
-              cost: calculateCost(handleResult.stats.model, handleResult.stats.inputTokens, handleResult.stats.outputTokens),
+              cost: actualCost,
               cached: handleResult.stats.cacheReadTokens > 0,
               timestamp: new Date().toISOString()
             }).catch(() => {});

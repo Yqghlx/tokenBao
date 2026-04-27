@@ -18,6 +18,9 @@ function Layout() {
         </nav>
         <div className="sidebar-footer">
           <span>Token 节省工具</span>
+          <span style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#555' }}>
+            v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}
+          </span>
         </div>
       </aside>
       <main className="main-content">
