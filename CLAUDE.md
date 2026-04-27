@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-TokenBao 是一个 Electron 桌面应用，通过本地 HTTP 代理服务器优化 AI API 调用（OpenAI、Anthropic），减少 Token 消耗和成本。代理监听可配置端口（默认 3000），拦截请求后应用优化策略（缓存、压缩、路由、批处理），再转发至目标 API。支持 SSE 流式响应透传。
+TokenBao 是一个 Electron 桌面应用，通过本地 HTTP 代理服务器优化 AI API 调用（OpenAI、Anthropic），减少 Token 消耗和成本。代理监听可配置端口（默认 3000），拦截请求后应用优化策略（缓存、压缩、路由、批处理），再转发至目标 API。同时支持 SSE 流式和非流式响应，均有完整的 token/费用统计和历史记录。
 
 ## 常用命令
 
@@ -42,33 +42,42 @@ typescript-language-server --version  # 需全局安装
 
 - **主进程** (`src/main/main.ts`): 应用入口，注册 IPC handlers，管理代理服务器生命周期
 - **渲染进程** (`src/renderer/`): React 18 SPA，使用 HashRouter 路由，6 个页面（控制面板、监控、优化、历史、API Keys、设置）
-- **Preload** (`src/main/preload.ts`): Context Bridge 暴露 `window.electronAPI`，IPC 通道白名单限制
+- **Preload** (`src/main/preload.ts`): Context Bridge 暴露 `window.electronAPI`，IPC 通道白名单 + 全面的输入参数验证
 
 ### 请求处理流程
 
 ```
-Renderer → IPC → Main Process → ProxyServer
+客户端请求 → ProxyServer
+  → 优化管线（规则替换 → 文本压缩 → 模型路由 → 缓存策略）
   → 检测 stream:true?
-    → 是: 直接 pipe 上游响应（流式透传）
-    → 否: 优化管线 → 重试 → 统计记录 → 返回响应
+    → 是: SSE pipe 转发 + PassThrough 拦截提取 usage → 记录统计/历史/预算
+    → 否: 缓冲响应 + 重试 → 解析 usage → 记录统计/历史/预算
 ```
 
-优化管线：规则替换 → 文本压缩 → 模型路由 → 缓存策略（`src/optimizations/index.ts`）
+关键：预算只在响应后用实际 token（输入+输出）更新一次，避免双重计算。
 
-### 模型名称归一化
+### 模型定价与归一化
 
-API 返回的 model 可能是 `gpt-4-0613`、`claude-3-5-sonnet-20241022` 等。`server.ts` 中的 `normalizeModelName()` 会通过别名表和前缀匹配归一化到定价表标准名，确保费用计算准确。
+`src/proxy/server.ts` 中 `MODEL_PRICING` 是唯一定价源（17 个模型），`tokenCounter.ts` 和 `responseHandler.ts` 均从此导入。`normalizeModelName()` 通过别名表 + 前缀匹配将 API 返回的模型名（如 `gpt-4-0613`）归一化到定价表标准名。
 
-### 数据持久化
+### 数据流与持久化
 
-- 使用 JSON 文件存储（`src/utils/storage.ts`），原子写入（临时文件+重命名）
-- 数据目录：`~/Library/Application Support/tokenbao/data/`
-- API Key 使用 AES-256-GCM 加密（`src/utils/crypto.ts`），密钥文件权限 0o600
-- Token 计数：区分中文（1.5 字符/token）和英文（4 字符/token）
+- **统计** (`src/services/stats.ts`): `recordOptimization` 记录节省 token，`addStats` 记录完整请求统计（token/费用），两者各司其职不重复
+- **历史** (`src/services/history.ts`): 每次 API 响应后调用 `addRequest` 持久化，支持按 API 类型过滤和模型名搜索，最新请求在前
+- **预算** (`src/services/budget.ts`): 日/月预算自动重置，记录 `lastResetDate` 检测周期
+- **存储** (`src/utils/storage.ts`): JSON 文件 + 原子写入（临时文件+重命名）
+- **加密** (`src/utils/crypto.ts`): AES-256-GCM，密钥文件权限 0o600
+
+### 安全设计
+
+- Preload 层 IPC 输入验证（端口范围、密钥格式、配置键白名单等）
+- API Key 格式校验（OpenAI: `sk-` 开头, Anthropic: `sk-ant-` 开头）
+- 规则引擎正则长度限制（500字符）+ 执行超时（50ms）防止 ReDoS
+- ErrorBoundary 不暴露错误详情给用户
 
 ### 渲染进程
 
-独立的 `package.json`（`src/renderer/package.json`），使用 Vite 构建，输出到 `dist/renderer/`。前端使用 Toast 通知组件（`src/renderer/components/Toast.tsx`），所有页面有 loading 状态，无 `alert()`/`confirm()` 调用。类型声明在 `src/types/electronAPI.d.ts`。
+独立的 `package.json`（`src/renderer/package.json`），使用 Vite 构建，输出到 `dist/renderer/`。Toast 通知（手动关闭、堆叠上限 5 个、error 类型 5s），所有页面有 loading 状态和错误处理。版本号通过 Vite `define` 从 `package.json` 注入。类型声明在 `src/types/electronAPI.d.ts` 和 `src/renderer/env.d.ts`。
 
 ## 关键配置文件
 
@@ -81,7 +90,21 @@ API 返回的 model 可能是 `gpt-4-0613`、`claude-3-5-sonnet-20241022` 等。
 
 ## 测试
 
-测试文件位于 `src/__tests__/`，7 个测试套件（crypto、compression、routing、caching、storage、services、integration），共 48 个测试。使用标准 Jest API（`describe`/`it`/`expect`）。集成测试会启动真实 HTTP 代理服务器。
+测试文件位于 `src/__tests__/`，9 个测试套件，共 73 个测试：
+
+| 套件 | 用途 |
+|------|------|
+| crypto | 加密解密、ID 生成 |
+| storage | JSON 文件读写 |
+| compression | Prompt 压缩 |
+| routing | 模型路由和复杂度检测 |
+| caching | Prompt Caching |
+| batch | 批量优化（实验性） |
+| normalizeModel | 模型名称归一化和费用计算 |
+| services | API Key/历史/统计/预算服务 |
+| integration | 真实 HTTP 代理服务器集成测试 |
+
+使用标准 Jest API（`describe`/`it`/`expect`）。集成测试会启动真实 HTTP 代理服务器。
 
 ## 注意事项
 
@@ -89,3 +112,5 @@ API 返回的 model 可能是 `gpt-4-0613`、`claude-3-5-sonnet-20241022` 等。
 - 主进程和渲染进程使用不同的 TypeScript 模块系统（CommonJS vs ESNext）
 - 端口优先级：启动参数 > config.proxyPort > 默认 3000
 - 类型声明在 `src/types/electronAPI.d.ts`，修改 preload API 后需同步更新
+- `MODEL_PRICING` 是唯一定价源，更新模型定价只需修改 `src/proxy/server.ts`
+- 优化模块 `batch.ts` 标记为实验性，仅用于统计

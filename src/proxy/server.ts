@@ -362,7 +362,7 @@ class ProxyServer {
         // 流式请求：pipe 转发 + 拦截 SSE 提取 usage 统计
         if (isStreamRequest(rawBody)) {
           let parsedModel = 'unknown';
-          try { parsedModel = JSON.parse(rawBody).model || 'unknown'; } catch {}
+          try { parsedModel = JSON.parse(rawBody).model || 'unknown'; } catch { /* 非法 JSON，使用默认模型名 */ }
 
           const proxyReq = https.request(options, (proxyRes) => {
             const statusCode = proxyRes.statusCode || 500;
@@ -397,8 +397,8 @@ class ProxyServer {
                       cost
                     }).catch(err => logProxy('error', '流式统计记录失败', { error: err.message }));
 
-                    budgetService.updateSpent('daily', cost).catch(() => {});
-                    budgetService.updateSpent('monthly', cost).catch(() => {});
+                    budgetService.updateSpent('daily', cost).catch(() => { /* 预算更新失败不阻断流程 */ });
+                    budgetService.updateSpent('monthly', cost).catch(() => { /* 预算更新失败不阻断流程 */ });
 
                     logProxy('info', `流式请求统计`, { model: usage.model || parsedModel, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4) });
 
@@ -411,7 +411,7 @@ class ProxyServer {
                       cost,
                       cached: usage.cacheReadTokens > 0,
                       timestamp: new Date().toISOString()
-                    }).catch(() => {});
+                    }).catch(() => { /* 历史记录写入失败不阻断流程 */ });
                   }
                 } catch {
                   // usage 提取失败不影响功能
@@ -507,8 +507,8 @@ class ProxyServer {
             recordStats(handleResult.stats, apiType).catch(err => console.error('记录统计失败:', err));
 
             const actualCost = calculateCost(handleResult.stats.model, handleResult.stats.inputTokens, handleResult.stats.outputTokens);
-            budgetService.updateSpent('daily', actualCost).catch(() => {});
-            budgetService.updateSpent('monthly', actualCost).catch(() => {});
+            budgetService.updateSpent('daily', actualCost).catch(() => { /* 预算更新失败不阻断流程 */ });
+            budgetService.updateSpent('monthly', actualCost).catch(() => { /* 预算更新失败不阻断流程 */ });
 
             historyService.addRequest({
               apiType,
@@ -519,7 +519,7 @@ class ProxyServer {
               cost: actualCost,
               cached: handleResult.stats.cacheReadTokens > 0,
               timestamp: new Date().toISOString()
-            }).catch(() => {});
+            }).catch(() => { /* 历史记录写入失败不阻断流程 */ });
           }
         }
 

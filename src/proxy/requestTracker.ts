@@ -161,7 +161,7 @@ function getStatsSummary(): {
   };
 }
 
-function clearOldRequests(maxAgeMs: number = 3600000): void {
+function clearOldRequests(maxAgeMs = 3600000): void {
   const now = Date.now();
 
   for (const [requestId, result] of completedRequests.entries()) {
