@@ -83,22 +83,22 @@ export function checkCache(apiType: string, content: string): boolean {
   return Date.now() - cached.timestamp < ttlMs;
 }
 
-export function addCacheControl(content: any, scope?: string): any {
+export function addCacheControl<T extends Record<string, unknown>>(content: T, scope?: string): T {
   if (!defaultOptions.enabled) return content;
-  
+
   const targetScope = scope || defaultOptions.scope;
-  
+
   if (targetScope === 'system' || targetScope === 'both') {
     if (content.system) {
       return {
         ...content,
-        system: Array.isArray(content.system) 
-          ? content.system.map((block: any) => ({ ...block, cache: true }))
-          : [{ type: 'text', text: content.system, cache: true }]
+        system: Array.isArray(content.system)
+          ? content.system.map((block: Record<string, unknown>) => ({ ...block, cache: true }))
+          : [{ type: 'text', text: content.system as string, cache: true }]
       };
     }
   }
-  
+
   return content;
 }
 

@@ -13,7 +13,8 @@ describe('caching 模块', () => {
     const content = { system: 'You are a helpful assistant', messages: [] };
     const result = caching.addCacheControl(content);
     expect(Array.isArray(result.system)).toBe(true);
-    expect(result.system[0].cache).toBe(true);
+    const systemBlocks = result.system as unknown as Array<{ cache?: boolean }>;
+    expect(systemBlocks[0].cache).toBe(true);
   });
 
   test('禁用后 addCacheControl 不应修改内容', () => {

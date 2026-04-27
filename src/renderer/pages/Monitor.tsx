@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../components/Toast';
+import { usePolling } from '../hooks/usePolling';
 
 function Monitor() {
   const [loading, setLoading] = useState(true);
@@ -44,9 +45,9 @@ function Monitor() {
 
   useEffect(() => {
     loadStats();
-    const interval = setInterval(loadStats, 10000);
-    return () => clearInterval(interval);
   }, [loadStats]);
+
+  usePolling(loadStats, 10000);
 
   const totalTokens = stats.totalInputTokens + stats.totalOutputTokens;
   // 节省费用估算：基于 GPT-4o 输入价格 × 50% 缓存折扣

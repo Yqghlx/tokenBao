@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
+import { usePolling } from '../hooks/usePolling';
 
 interface HistoryItem {
   id: number;
@@ -41,9 +42,9 @@ function History() {
 
   useEffect(() => {
     loadHistory();
-    const interval = setInterval(loadHistory, 15000);
-    return () => clearInterval(interval);
   }, [loadHistory]);
+
+  usePolling(loadHistory, 15000);
 
   // 搜索过滤 + 分页
   const filteredHistory = useMemo(() => {

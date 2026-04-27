@@ -61,8 +61,8 @@ function ApiKeys() {
         setShowAddForm(false);
         loadApiKeys();
         showToast('API Key 已添加', 'success');
-      } catch (err: any) {
-        const msg = err?.message || '添加失败';
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '添加失败';
         showToast(msg, 'error');
       } finally {
         setSaving(false);

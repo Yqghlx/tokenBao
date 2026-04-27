@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../components/Toast';
+import { usePolling } from '../hooks/usePolling';
 
 function ControlPanel() {
   const [proxyStatus, setProxyStatus] = useState({
@@ -108,14 +109,14 @@ function ControlPanel() {
   useEffect(() => {
     Promise.all([loadProxyStatus(), loadBudgetStatus(), loadStats(), loadOptimizations()])
       .finally(() => setLoading(false));
-
-    const pollInterval = setInterval(() => {
-      loadProxyStatus();
-      loadStats();
-    }, 3000);
-
-    return () => clearInterval(pollInterval);
   }, [loadProxyStatus, loadBudgetStatus, loadStats, loadOptimizations]);
+
+  const pollStats = useCallback(() => {
+    loadProxyStatus();
+    loadStats();
+  }, [loadProxyStatus, loadStats]);
+
+  usePolling(pollStats, 3000);
 
   const startProxy = async () => {
     setTogglingProxy(true);
