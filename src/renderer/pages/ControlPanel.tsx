@@ -118,7 +118,7 @@ function ControlPanel() {
 
   usePolling(pollStats, 3000);
 
-  const startProxy = async () => {
+  const startProxy = useCallback(async () => {
     setTogglingProxy(true);
     try {
       if (window.electronAPI?.proxy?.start) {
@@ -136,9 +136,9 @@ function ControlPanel() {
     } finally {
       setTogglingProxy(false);
     }
-  };
+  }, [proxyStatus.port]);
 
-  const stopProxy = async () => {
+  const stopProxy = useCallback(async () => {
     setTogglingProxy(true);
     try {
       if (window.electronAPI?.proxy?.stop) {
@@ -154,9 +154,9 @@ function ControlPanel() {
     } finally {
       setTogglingProxy(false);
     }
-  };
+  }, []);
 
-  const toggleOptimization = async (key: string) => {
+  const toggleOptimization = useCallback(async (key: string) => {
     const newValue = !optimizations[key as keyof typeof optimizations];
     setOptimizations(prev => ({ ...prev, [key]: newValue }));
 
@@ -166,11 +166,10 @@ function ControlPanel() {
       } catch (err) {
         console.error('保存优化配置失败:', err);
         showToast('保存配置失败', 'error');
-        // 回滚状态
         setOptimizations(prev => ({ ...prev, [key]: !newValue }));
       }
     }
-  };
+  }, [optimizations]);
 
   if (loading) {
     return <div className="page"><h2>控制面板</h2><p>加载中...</p></div>;

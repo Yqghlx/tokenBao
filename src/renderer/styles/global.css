@@ -64,3 +64,61 @@ input, select, textarea {
     transform: translateX(50%);
   }
 }
+
+/* ===== 确认对话框 ===== */
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirm-dialog {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 320px;
+  max-width: 480px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.confirm-dialog h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #e0e0e0;
+}
+
+.confirm-dialog p {
+  font-size: 14px;
+  color: #a0a0a0;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 危险操作按钮（红色） */
+.btn-danger {
+  background: #dc2626 !important;
+  color: #fff !important;
+}
+
+.btn-danger:hover {
+  background: #b91c1c !important;
+}

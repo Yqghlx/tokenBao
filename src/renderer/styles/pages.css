@@ -165,6 +165,10 @@
   margin-bottom: 16px;
 }
 
+.api-keys-section .data-table {
+  margin-top: 16px;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;

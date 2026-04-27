@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 function Settings() {
   const [proxyPort, setProxyPort] = useState('3000');
@@ -7,6 +8,7 @@ function Settings() {
   const [cacheTTL, setCacheTTL] = useState('5min');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const loadSettings = useCallback(async () => {
     if (window.electronAPI?.config?.getAll) {
@@ -116,10 +118,20 @@ function Settings() {
         <button className="btn-primary" onClick={saveSettings} disabled={saving || loading}>
           {saving ? '保存中...' : '保存设置'}
         </button>
-        <button className="btn-secondary" onClick={resetSettings} disabled={saving || loading} style={{ marginLeft: '8px' }}>
+        <button className="btn-secondary" onClick={() => setShowResetConfirm(true)} disabled={saving || loading}>
           恢复默认
         </button>
       </div>
+
+      <ConfirmDialog
+        open={showResetConfirm}
+        title="恢复默认设置"
+        message="确定要恢复所有设置为默认值吗？此操作不可撤销。"
+        confirmLabel="恢复默认"
+        danger
+        onConfirm={resetSettings}
+        onCancel={() => setShowResetConfirm(false)}
+      />
     </div>
   );
 }

@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { usePolling } from '../hooks/usePolling';
 
 function Budget() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmReset, setConfirmReset] = useState<{ type: 'daily' | 'monthly'; label: string } | null>(null);
   const [status, setStatus] = useState<{
     daily: { limit: number; spent: number; remaining: number; percentage: number };
     monthly: { limit: number; spent: number; remaining: number; percentage: number };
@@ -127,7 +129,7 @@ function Budget() {
         <button className="btn-primary btn-sm" onClick={() => saveBudget(type, limit)} disabled={saving}>
           保存
         </button>
-        <button className="btn-secondary btn-sm" onClick={() => resetSpent(type)} disabled={saving}>
+        <button className="btn-secondary btn-sm" onClick={() => setConfirmReset({ type, label: type === 'daily' ? '日' : '月' })} disabled={saving}>
           重置支出
         </button>
       </div>
@@ -155,6 +157,19 @@ function Budget() {
           <li>「重置支出」可手动清零当前周期的支出记录</li>
         </ul>
       </div>
+
+      <ConfirmDialog
+        open={confirmReset !== null}
+        title="重置支出"
+        message={`确定要重置${confirmReset?.label || ''}支出记录吗？此操作不可撤销。`}
+        confirmLabel="重置"
+        danger
+        onConfirm={() => {
+          if (confirmReset) resetSpent(confirmReset.type);
+          setConfirmReset(null);
+        }}
+        onCancel={() => setConfirmReset(null)}
+      />
     </div>
   );
 }

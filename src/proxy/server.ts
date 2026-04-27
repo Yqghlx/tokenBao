@@ -419,7 +419,7 @@ class ProxyServer {
           return;
         }
 
-        // 非流式请求：缓冲响应 + 重试 + 统计
+        // 非流式请求：缓冲响应 + 智能重试 + 统计
         let lastError: Error | undefined;
         let upstreamResult: { statusCode: number; headers: http.IncomingHttpHeaders; body: string } | undefined;
         const maxAttempts = requestId ? requestTracker.MAX_RETRIES + 1 : 1;
@@ -428,14 +428,34 @@ class ProxyServer {
           try {
             upstreamResult = await sendUpstream(options, optimizedBody);
             lastError = undefined;
-            break;
-          } catch (err: unknown) {
-            lastError = err instanceof Error ? err : new Error(String(err));
+
+            // 4xx 客户端错误不重试（408/429 除外）
+            if (upstreamResult.statusCode >= 400 && !requestTracker.isRetryableStatus(upstreamResult.statusCode)) {
+              break;
+            }
+
+            // 2xx/3xx 成功直接退出
+            if (upstreamResult.statusCode < 400) {
+              break;
+            }
+
+            // 可重试的 5xx/408/429，指数退避
             if (requestId && attempt < maxAttempts - 1) {
               const retryCount = requestTracker.incrementRetry(requestId);
-              console.log(`[${requestId}] 重试请求 (${retryCount}/${requestTracker.MAX_RETRIES})`);
+              const delay = requestTracker.getRetryDelay(attempt);
+              logProxy('warn', `服务端错误，指数退避重试`, { requestId, statusCode: upstreamResult.statusCode, retryCount, delay: `${Math.round(delay)}ms` });
               requestTracker.updateRequestStatus(requestId, 'retrying');
-              await new Promise(r => setTimeout(r, requestTracker.RETRY_DELAY));
+              await new Promise(r => setTimeout(r, delay));
+            }
+          } catch (err: unknown) {
+            lastError = err instanceof Error ? err : new Error(String(err));
+            // 网络错误可重试
+            if (requestId && attempt < maxAttempts - 1) {
+              const retryCount = requestTracker.incrementRetry(requestId);
+              const delay = requestTracker.getRetryDelay(attempt);
+              logProxy('warn', `网络错误，指数退避重试`, { requestId, error: lastError.message, retryCount, delay: `${Math.round(delay)}ms` });
+              requestTracker.updateRequestStatus(requestId, 'retrying');
+              await new Promise(r => setTimeout(r, delay));
             }
           }
         }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface ApiKeyItem {
   id: number;
@@ -122,7 +123,7 @@ function ApiKeys() {
                 placeholder="sk-..."
               />
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="form-actions">
               <button className="btn-primary" onClick={addApiKey} disabled={saving}>
                 {saving ? '保存中...' : '保存'}
               </button>
@@ -131,7 +132,8 @@ function ApiKeys() {
           </div>
         )}
 
-        <table className="data-table" style={{ marginTop: '16px' }}>
+        <table className="data-table">
+
           <thead>
             <tr>
               <th>名称</th>
@@ -158,30 +160,12 @@ function ApiKeys() {
                   <td>••••••••</td>
                   <td>{new Date(key.createdAt).toLocaleDateString()}</td>
                   <td>
-                    {confirmDeleteId === key.id ? (
-                      <span className="budget-edit-row">
-                        <button
-                          className="btn-secondary btn-sm"
-                          onClick={() => deleteApiKey(key.id)}
-                          style={{ background: '#8b0000' }}
-                        >
-                          确认
-                        </button>
-                        <button
-                          className="btn-secondary btn-sm"
-                          onClick={() => setConfirmDeleteId(null)}
-                        >
-                          取消
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        className="btn-secondary btn-sm"
-                        onClick={() => setConfirmDeleteId(key.id)}
-                      >
-                        删除
-                      </button>
-                    )}
+                    <button
+                      className="btn-secondary btn-sm"
+                      onClick={() => setConfirmDeleteId(key.id)}
+                    >
+                      删除
+                    </button>
                   </td>
                 </tr>
               ))
@@ -189,6 +173,18 @@ function ApiKeys() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="删除 API Key"
+        message="确定要删除此 API Key 吗？删除后无法恢复。"
+        confirmLabel="删除"
+        danger
+        onConfirm={() => {
+          if (confirmDeleteId !== null) deleteApiKey(confirmDeleteId);
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

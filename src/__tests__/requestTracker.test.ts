@@ -195,7 +195,33 @@ describe('requestTracker', () => {
     expect(requestTracker.MAX_RETRIES).toBe(3);
   });
 
-  test('RETRY_DELAY 应为 1000ms', () => {
-    expect(requestTracker.RETRY_DELAY).toBe(1000);
+  test('BASE_RETRY_DELAY 应为 500ms', () => {
+    expect(requestTracker.BASE_RETRY_DELAY).toBe(500);
+  });
+
+  test('isRetryableStatus 应正确区分可重试状态码', () => {
+    expect(requestTracker.isRetryableStatus(408)).toBe(true);
+    expect(requestTracker.isRetryableStatus(429)).toBe(true);
+    expect(requestTracker.isRetryableStatus(500)).toBe(true);
+    expect(requestTracker.isRetryableStatus(502)).toBe(true);
+    expect(requestTracker.isRetryableStatus(503)).toBe(true);
+    // 4xx 客户端错误不重试
+    expect(requestTracker.isRetryableStatus(400)).toBe(false);
+    expect(requestTracker.isRetryableStatus(401)).toBe(false);
+    expect(requestTracker.isRetryableStatus(403)).toBe(false);
+    expect(requestTracker.isRetryableStatus(404)).toBe(false);
+  });
+
+  test('getRetryDelay 应实现指数退避', () => {
+    const delay0 = requestTracker.getRetryDelay(0);
+    const delay1 = requestTracker.getRetryDelay(1);
+    const delay2 = requestTracker.getRetryDelay(2);
+    // 基础延迟 500ms，每次翻倍 + jitter
+    expect(delay0).toBeGreaterThanOrEqual(500);
+    expect(delay0).toBeLessThan(750);
+    expect(delay1).toBeGreaterThanOrEqual(1000);
+    expect(delay1).toBeLessThan(1250);
+    expect(delay2).toBeGreaterThanOrEqual(2000);
+    expect(delay2).toBeLessThan(2250);
   });
 });

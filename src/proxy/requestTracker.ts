@@ -29,7 +29,29 @@ interface RequestResult {
 const pendingRequests: Map<string, RequestMetadata> = new Map();
 const completedRequests: Map<string, RequestResult> = new Map();
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
+const BASE_RETRY_DELAY = 500; // 指数退避基础延迟 500ms
+
+/**
+ * 判断 HTTP 状态码是否为可重试错误
+ * 4xx 为客户端错误不应重试，5xx/网络异常为临时故障可重试
+ */
+function isRetryableStatus(statusCode: number): boolean {
+  // 408 Request Timeout、429 Too Many Requests 可重试
+  if (statusCode === 408 || statusCode === 429) return true;
+  // 5xx 服务端错误可重试
+  if (statusCode >= 500) return true;
+  return false;
+}
+
+/**
+ * 计算指数退避延迟（含 jitter 防惊群）
+ * 公式: BASE_DELAY * 2^attempt + random(0, BASE_DELAY/2)
+ */
+function getRetryDelay(attempt: number): number {
+  const delay = BASE_RETRY_DELAY * Math.pow(2, attempt);
+  const jitter = Math.random() * (BASE_RETRY_DELAY / 2);
+  return delay + jitter;
+}
 
 function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
@@ -184,6 +206,8 @@ export default {
   getCompletedRequest,
   getStatsSummary,
   clearOldRequests,
+  isRetryableStatus,
+  getRetryDelay,
   MAX_RETRIES,
-  RETRY_DELAY
+  BASE_RETRY_DELAY
 };
