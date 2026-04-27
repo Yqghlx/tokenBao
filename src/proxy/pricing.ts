@@ -8,7 +8,7 @@
  * 数据来源：OpenAI / Anthropic 官方定价，2026 年 4 月更新
  */
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  // OpenAI
+  // OpenAI（$/1K tokens）
   'gpt-4': { input: 0.03, output: 0.06 },
   'gpt-4-turbo': { input: 0.01, output: 0.03 },
   'gpt-4o': { input: 0.0025, output: 0.01 },
@@ -17,18 +17,20 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
   'gpt-4.1-mini': { input: 0.0004, output: 0.0016 },
   'gpt-4.1-nano': { input: 0.0001, output: 0.0004 },
   'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
+  'o1-preview': { input: 0.015, output: 0.06 },
+  'o1-mini': { input: 0.003, output: 0.012 },
   'o3': { input: 0.002, output: 0.008 },
   'o4-mini': { input: 0.0011, output: 0.0044 },
-  // Anthropic
+  // Anthropic（$/1K tokens）
   'claude-3-opus': { input: 0.015, output: 0.075 },
   'claude-3-sonnet': { input: 0.003, output: 0.015 },
   'claude-3-haiku': { input: 0.00025, output: 0.00125 },
   'claude-3.5-sonnet': { input: 0.003, output: 0.015 },
   'claude-3.5-haiku': { input: 0.001, output: 0.005 },
-  'claude-sonnet-4': { input: 0.003, output: 0.015 },
-  'claude-opus-4': { input: 0.005, output: 0.025 },
-  'claude-opus-4.1': { input: 0.015, output: 0.01875 },
-  'claude-sonnet-4.6': { input: 0.003, output: 0.015 },
+  'claude-sonnet-4': { input: 0.003, output: 0.00375 },
+  'claude-opus-4': { input: 0.015, output: 0.075 },
+  'claude-opus-4.1': { input: 0.015, output: 0.075 },
+  'claude-sonnet-4.6': { input: 0.003, output: 0.00375 },
   'claude-opus-4.6': { input: 0.005, output: 0.025 },
   'claude-haiku-4.5': { input: 0.001, output: 0.005 },
 };
@@ -48,6 +50,7 @@ const MODEL_ALIASES: Record<string, string> = {
   'gpt-4.1-2025-04-14': 'gpt-4.1', 'gpt-4.1-mini-2025-04-14': 'gpt-4.1-mini',
   'gpt-4.1-nano-2025-04-14': 'gpt-4.1-nano',
   'o3-2025-04-16': 'o3', 'o4-mini-2025-04-16': 'o4-mini',
+  'o1-preview-2024-09-12': 'o1-preview', 'o1-mini-2024-09-12': 'o1-mini',
   'gpt-3.5-turbo-0125': 'gpt-3.5-turbo', 'gpt-3.5-turbo-1106': 'gpt-3.5-turbo',
   'gpt-3.5-turbo-16k': 'gpt-3.5-turbo',
   // Anthropic 变体

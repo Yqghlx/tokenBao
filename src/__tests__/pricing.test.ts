@@ -15,11 +15,11 @@ describe('pricing 定价模块', () => {
       }
     });
 
-    test('应包含所有预期的模型（21 个）', () => {
+    test('应包含所有预期的模型（23 个）', () => {
       const expectedModels = [
         'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini',
         'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
-        'gpt-3.5-turbo', 'o3', 'o4-mini',
+        'gpt-3.5-turbo', 'o1-preview', 'o1-mini', 'o3', 'o4-mini',
         'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
         'claude-3.5-sonnet', 'claude-3.5-haiku',
         'claude-sonnet-4', 'claude-opus-4',
@@ -31,8 +31,8 @@ describe('pricing 定价模块', () => {
       }
     });
 
-    test('模型总数应为 21', () => {
-      expect(Object.keys(MODEL_PRICING).length).toBe(21);
+    test('模型总数应为 23', () => {
+      expect(Object.keys(MODEL_PRICING).length).toBe(23);
     });
   });
 
@@ -72,6 +72,14 @@ describe('pricing 定价模块', () => {
     test('claude-haiku-4-5-20251001 应归一化为 claude-haiku-4.5', () => {
       expect(normalizeModelName('claude-haiku-4-5-20251001')).toBe('claude-haiku-4.5');
     });
+
+    test('o1-preview-2024-09-12 应归一化为 o1-preview', () => {
+      expect(normalizeModelName('o1-preview-2024-09-12')).toBe('o1-preview');
+    });
+
+    test('o1-mini-2024-09-12 应归一化为 o1-mini', () => {
+      expect(normalizeModelName('o1-mini-2024-09-12')).toBe('o1-mini');
+    });
   });
 
   describe('calculateCost 各模型费用', () => {
@@ -92,12 +100,12 @@ describe('pricing 定价模块', () => {
 
     test('claude-opus-4.1 1K 输入 + 1K 输出', () => {
       const cost = calculateCost('claude-opus-4.1', 1000, 1000);
-      expect(cost).toBeCloseTo(0.015 + 0.01875, 6);
+      expect(cost).toBeCloseTo(0.015 + 0.075, 6);
     });
 
     test('claude-sonnet-4.6 500 输入 + 200 输出', () => {
       const cost = calculateCost('claude-sonnet-4.6', 500, 200);
-      expect(cost).toBeCloseTo(500 / 1000 * 0.003 + 200 / 1000 * 0.015, 6);
+      expect(cost).toBeCloseTo(500 / 1000 * 0.003 + 200 / 1000 * 0.00375, 6);
     });
 
     test('claude-opus-4.6 通过别名计算费用', () => {

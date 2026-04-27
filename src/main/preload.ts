@@ -19,6 +19,11 @@ const VALID_CONFIG_KEYS = ['proxyPort', 'dataRetentionDays', 'cacheTTL'] as cons
 /** 优化配置允许的属性白名单 */
 const VALID_OPTIM_KEYS = ['caching', 'compression', 'routing', 'batching'] as const;
 
+/** 检测字符串中是否含有控制字符（\x00-\x1F 除 \t\n\r 外，以及 \x7F） */
+function hasControlChars(str: string): boolean {
+  return /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(str);
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
   proxy: {
     start: (port?: number) => {
@@ -35,6 +40,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       }
       if (openaiKey.length > 500 || anthropicKey.length > 500) {
         return Promise.resolve({ success: false, error: '密钥长度超限' });
+      }
+      if (hasControlChars(openaiKey) || hasControlChars(anthropicKey)) {
+        return Promise.resolve({ success: false, error: '密钥包含非法控制字符' });
       }
       return ipcRenderer.invoke('proxy:setKeys', openaiKey, anthropicKey);
     }
@@ -63,14 +71,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   apiKeys: {
     list: () => ipcRenderer.invoke('apiKeys:list'),
     add: (name: string, type: string, key: string) => {
-      if (!name || typeof name !== 'string' || name.length > 100) {
+      if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
         return Promise.resolve({ success: false, error: '名称无效' });
+      }
+      if (hasControlChars(name)) {
+        return Promise.resolve({ success: false, error: '名称包含非法字符' });
       }
       if (!VALID_KEY_TYPES.includes(type as typeof VALID_KEY_TYPES[number])) {
         return Promise.resolve({ success: false, error: '不支持的密钥类型' });
       }
       if (!key || typeof key !== 'string' || key.length < 10 || key.length > 500) {
         return Promise.resolve({ success: false, error: '密钥格式无效' });
+      }
+      if (hasControlChars(key)) {
+        return Promise.resolve({ success: false, error: '密钥包含非法控制字符' });
       }
       return ipcRenderer.invoke('apiKeys:add', name, type, key);
     },

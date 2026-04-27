@@ -96,75 +96,103 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
 
   let modifiedBody = { ...body };
 
+  // 规则替换 —— 错误隔离，失败则跳过
   if (config.rules) {
-    modifiedBody.messages = body.messages.map((msg: ChatMessage) => {
-      if (typeof msg.content === 'string') {
-        const processed = rulesModule.applyRules(msg.content);
-        if (processed !== msg.content) {
-          return { ...msg, content: processed };
+    try {
+      modifiedBody.messages = body.messages.map((msg: ChatMessage) => {
+        if (typeof msg.content === 'string') {
+          const processed = rulesModule.applyRules(msg.content);
+          if (processed !== msg.content) {
+            return { ...msg, content: processed };
+          }
         }
-      }
-      if (Array.isArray(msg.content)) {
-        return {
-          ...msg,
-          content: msg.content.map((block) => {
-            if (block.type === 'text' && (block as TextContentBlock).text) {
-              const textBlock = block as TextContentBlock;
-              const processed = rulesModule.applyRules(textBlock.text);
-              if (processed !== textBlock.text) {
-                return { ...block, text: processed };
+        if (Array.isArray(msg.content)) {
+          return {
+            ...msg,
+            content: msg.content.map((block) => {
+              if (block.type === 'text' && (block as TextContentBlock).text) {
+                const textBlock = block as TextContentBlock;
+                const processed = rulesModule.applyRules(textBlock.text);
+                if (processed !== textBlock.text) {
+                  return { ...block, text: processed };
+                }
               }
-            }
-            return block;
-          })
-        };
+              return block;
+            })
+          };
+        }
+        return msg;
+      });
+      const enabledRules = rulesModule.listRules().filter(r => r.enabled);
+      if (enabledRules.length > 0) {
+        result.appliedStrategies.push(`rules(${enabledRules.length})`);
       }
-      return msg;
-    });
-    const enabledRules = rulesModule.listRules().filter(r => r.enabled);
-    if (enabledRules.length > 0) {
-      result.appliedStrategies.push(`rules(${enabledRules.length})`);
+    } catch (err) {
+      console.warn('规则替换优化失败，已跳过:', (err as Error).message);
     }
   }
 
+  // 文本压缩 —— 错误隔离，失败则跳过
   if (config.compression) {
-    modifiedBody.messages = modifiedBody.messages.map((msg: ChatMessage) => {
-      if (typeof msg.content === 'string') {
-        const compressed = compressionModule.compress(msg.content);
-        return { ...msg, content: compressed.text };
-      }
-      if (Array.isArray(msg.content)) {
-        return {
-          ...msg,
-          content: msg.content.map((block) => {
-            if (block.type === 'text' && (block as TextContentBlock).text) {
-              const textBlock = block as TextContentBlock;
-              const compressed = compressionModule.compress(textBlock.text);
-              return { ...block, text: compressed.text };
-            }
-            return block;
-          })
-        };
-      }
-      return msg;
-    });
-    result.appliedStrategies.push('compression');
+    try {
+      modifiedBody.messages = modifiedBody.messages.map((msg: ChatMessage) => {
+        if (typeof msg.content === 'string') {
+          const compressed = compressionModule.compress(msg.content);
+          return { ...msg, content: compressed.text };
+        }
+        if (Array.isArray(msg.content)) {
+          return {
+            ...msg,
+            content: msg.content.map((block) => {
+              if (block.type === 'text' && (block as TextContentBlock).text) {
+                const textBlock = block as TextContentBlock;
+                const compressed = compressionModule.compress(textBlock.text);
+                return { ...block, text: compressed.text };
+              }
+              return block;
+            })
+          };
+        }
+        return msg;
+      });
+      result.appliedStrategies.push('compression');
+    } catch (err) {
+      console.warn('文本压缩优化失败，已跳过:', (err as Error).message);
+    }
   }
 
+  // 模型路由 —— 错误隔离，失败则跳过
   if (config.routing && modifiedBody.model) {
-    const prompt = messagesToText(modifiedBody.messages);
-    const routedModel = routingModule.routeModel(modifiedBody.model, prompt);
-    if (routedModel !== modifiedBody.model) {
-      modifiedBody.model = routedModel;
-      result.appliedStrategies.push(`routing:${body.model}→${routedModel}`);
+    try {
+      const prompt = messagesToText(modifiedBody.messages);
+      const routedModel = routingModule.routeModel(modifiedBody.model, prompt);
+      if (routedModel !== modifiedBody.model) {
+        modifiedBody.model = routedModel;
+        result.appliedStrategies.push(`routing:${body.model}→${routedModel}`);
+      }
+    } catch (err) {
+      console.warn('模型路由优化失败，已跳过:', (err as Error).message);
     }
   }
 
+  // Prompt Caching —— 错误隔离，失败则跳过
   if (config.caching && apiType === 'anthropic') {
-    modifiedBody = cachingModule.addCacheControl(modifiedBody);
-    if (modifiedBody.system || hasCacheMarkers(modifiedBody.messages)) {
-      result.appliedStrategies.push('caching');
+    try {
+      modifiedBody = cachingModule.addCacheControl(modifiedBody);
+      if (modifiedBody.system || hasCacheMarkers(modifiedBody.messages)) {
+        result.appliedStrategies.push('caching');
+      }
+    } catch (err) {
+      console.warn('Prompt Caching 优化失败，已跳过:', (err as Error).message);
     }
+  }
+
+  // 管线完整性验证：优化后 body 结构异常则回退原始数据
+  if (!modifiedBody.messages || !Array.isArray(modifiedBody.messages)) {
+    console.warn('优化管线输出异常，回退原始请求体');
+    modifiedBody = { ...body };
+    result.savedTokens = 0;
+    result.appliedStrategies = [];
   }
 
   result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages, apiType);
