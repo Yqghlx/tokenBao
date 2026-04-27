@@ -22,8 +22,14 @@ export function showToast(message: string, type: 'success' | 'error' | 'info' = 
 export function useToast() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextIdRef = useRef(0);
+  const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const removeToast = useCallback((id: number) => {
+    const timer = timersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
+    }
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
@@ -36,12 +42,18 @@ export function useToast() {
     });
 
     const duration = type === 'error' ? ERROR_DURATION : DEFAULT_DURATION;
-    setTimeout(() => removeToast(id), duration);
+    const timer = setTimeout(() => removeToast(id), duration);
+    timersRef.current.set(id, timer);
   }, [removeToast]);
 
   useEffect(() => {
     addToastFn = addToast;
-    return () => { addToastFn = null; };
+    return () => {
+      addToastFn = null;
+      // 组件卸载时清理所有定时器
+      timersRef.current.forEach(timer => clearTimeout(timer));
+      timersRef.current.clear();
+    };
   }, [addToast]);
 
   return { toasts, removeToast };

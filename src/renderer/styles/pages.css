@@ -687,6 +687,30 @@ code.inline-code {
   .budget-edit-row {
     flex-wrap: wrap;
   }
+
+  /* 移动端表格横向滚动 */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table {
+    min-width: 600px;
+  }
+
+  /* 移动端表单堆叠布局 */
+  .add-form .form-group {
+    width: 100%;
+  }
+
+  .add-form .form-actions {
+    flex-direction: column;
+  }
+
+  .add-form .form-actions .btn-primary,
+  .add-form .form-actions .btn-secondary {
+    width: 100%;
+  }
 }
 
 /* ===== 无障碍焦点样式 ===== */

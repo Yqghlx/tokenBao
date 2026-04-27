@@ -149,8 +149,9 @@ function History() {
           placeholder="搜索模型名或 API 类型..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="搜索历史记录"
         />
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="filter-select">
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="filter-select" aria-label="按 API 类型筛选">
           <option value="">所有 API</option>
           <option value="openai">OpenAI</option>
           <option value="anthropic">Anthropic</option>
@@ -162,7 +163,7 @@ function History() {
         </span>
       </div>
       <div className="table-scroll">
-        <table className="data-table">
+        <table className="data-table" aria-label="请求历史记录">
           <thead>
             <tr>
               <th>时间</th>
@@ -198,7 +199,7 @@ function History() {
         </table>
       </div>
       {totalPages > 1 && (
-        <div className="pagination">
+        <div className="pagination" aria-label="分页导航">
           <button
             className="btn-secondary"
             disabled={safePage <= 1}
