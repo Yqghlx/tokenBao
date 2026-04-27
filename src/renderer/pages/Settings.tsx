@@ -29,6 +29,19 @@ function Settings() {
     loadSettings();
   }, [loadSettings]);
 
+  const resetSettings = async () => {
+    if (window.electronAPI?.config?.reset) {
+      try {
+        await window.electronAPI.config.reset();
+        await loadSettings();
+        showToast('已恢复默认设置', 'success');
+      } catch (err) {
+        console.error('重置设置失败:', err);
+        showToast('重置失败', 'error');
+      }
+    }
+  };
+
   const saveSettings = async () => {
     const port = parseInt(proxyPort, 10);
     if (isNaN(port) || port < 1024 || port > 65535) {
@@ -102,6 +115,9 @@ function Settings() {
         </div>
         <button className="btn-primary" onClick={saveSettings} disabled={saving}>
           {saving ? '保存中...' : '保存设置'}
+        </button>
+        <button className="btn-secondary" onClick={resetSettings} disabled={saving} style={{ marginLeft: '8px' }}>
+          恢复默认
         </button>
       </div>
     </div>

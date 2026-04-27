@@ -50,7 +50,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       }
       return ipcRenderer.invoke('config:set', key, value);
     },
-    getAll: () => ipcRenderer.invoke('config:getAll')
+    getAll: () => ipcRenderer.invoke('config:getAll'),
+    reset: () => ipcRenderer.invoke('config:reset')
   },
 
   apiKeys: {

@@ -48,8 +48,8 @@ function ApiKeys() {
       return;
     }
 
-    if (newKey.type === 'anthropic' && newKey.key.length < 20) {
-      showToast('Anthropic API Key 长度过短', 'error');
+    if (newKey.type === 'anthropic' && !newKey.key.startsWith('sk-ant-')) {
+      showToast('Anthropic API Key 应以 sk-ant- 开头', 'error');
       return;
     }
 
@@ -60,11 +60,10 @@ function ApiKeys() {
         setNewKey({ name: '', type: 'openai', key: '' });
         setShowAddForm(false);
         loadApiKeys();
-
         showToast('API Key 已添加', 'success');
-      } catch (err) {
-        console.error('添加 API Key 失败:', err);
-        showToast('添加失败', 'error');
+      } catch (err: any) {
+        const msg = err?.message || '添加失败';
+        showToast(msg, 'error');
       } finally {
         setSaving(false);
       }

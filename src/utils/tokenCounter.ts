@@ -1,5 +1,5 @@
 import { getEncoding, Tiktoken } from 'js-tiktoken';
-import { MODEL_PRICING } from '../proxy/server';
+import { MODEL_PRICING } from '../proxy/pricing';
 
 interface ContentBlock {
   type: string;

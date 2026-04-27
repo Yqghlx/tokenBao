@@ -1,4 +1,4 @@
-import { normalizeModelName, calculateCost, MODEL_PRICING } from '../proxy/server';
+import { normalizeModelName, calculateCost, MODEL_PRICING } from '../proxy/pricing';
 
 describe('normalizeModelName 模型名称归一化', () => {
   describe('别名精确匹配', () => {

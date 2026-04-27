@@ -94,6 +94,11 @@ function registerIpcHandlers(): void {
     return await configService.getAllConfig();
   });
 
+  ipcMain.handle('config:reset', async () => {
+    await configService.resetConfig();
+    return { success: true };
+  });
+
   ipcMain.handle('apiKeys:list', async () => {
     return await apiKeyService.listApiKeys();
   });

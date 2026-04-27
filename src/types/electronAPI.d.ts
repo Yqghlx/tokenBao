@@ -63,6 +63,7 @@ interface ElectronAPI {
     get: (key: string) => Promise<string | undefined>;
     set: (key: string, value: string) => Promise<{ success: boolean }>;
     getAll: () => Promise<Record<string, string>>;
+    reset: () => Promise<{ success: boolean }>;
   };
 
   apiKeys: {
