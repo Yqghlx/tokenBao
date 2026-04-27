@@ -63,11 +63,9 @@ function Budget() {
   };
 
   const resetSpent = async (type: 'daily' | 'monthly') => {
-    if (window.electronAPI?.budget?.set) {
+    if (window.electronAPI?.budget?.resetSpent) {
       try {
-        // 通过设置相同限额触发重置（服务端 resetSpent）
-        const limit = type === 'daily' ? status.daily.limit : status.monthly.limit;
-        await window.electronAPI.budget.set(type, limit);
+        await window.electronAPI.budget.resetSpent(type);
         await loadBudget();
         showToast(`${type === 'daily' ? '日' : '月'}支出已重置`, 'success');
       } catch (err) {

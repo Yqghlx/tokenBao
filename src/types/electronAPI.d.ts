@@ -53,7 +53,7 @@ interface HistoryRequest {
 
 interface ElectronAPI {
   proxy: {
-    start: (port: number) => Promise<{ success: boolean; port?: number; error?: string }>;
+    start: (port?: number) => Promise<{ success: boolean; port?: number; error?: string }>;
     stop: () => Promise<{ success: boolean; error?: string }>;
     status: () => Promise<ProxyStatus>;
     setKeys: (openaiKey: string, anthropicKey: string) => Promise<{ success: boolean }>;
@@ -82,10 +82,12 @@ interface ElectronAPI {
     get: () => Promise<BudgetInfo>;
     set: (type: string, limit: number) => Promise<BudgetInfo>;
     status: () => Promise<BudgetStatus>;
+    resetSpent: (type: 'daily' | 'monthly') => Promise<{ success: boolean }>;
   };
 
   stats: {
     summary: () => Promise<StatsSummary>;
+    reset: () => Promise<{ success: boolean }>;
   };
 
   optimization: {

@@ -217,8 +217,18 @@ function registerIpcHandlers(): void {
     return await budgetService.getBudgetStatus();
   });
 
+  ipcMain.handle('budget:resetSpent', async (_, type: string) => {
+    await budgetService.resetSpent(type as 'daily' | 'monthly');
+    return { success: true };
+  });
+
   ipcMain.handle('stats:summary', async () => {
     return await statsService.getSummary();
+  });
+
+  ipcMain.handle('stats:reset', async () => {
+    await statsService.resetStats();
+    return { success: true };
   });
 
   ipcMain.handle('optimization:getConfig', async () => {

@@ -15,7 +15,13 @@ export function usePolling(callback: () => void, intervalMs: number): void {
     let timerId: ReturnType<typeof setInterval>;
 
     const startPolling = () => {
-      timerId = setInterval(() => savedCallback.current(), intervalMs);
+      timerId = setInterval(() => {
+        try {
+          savedCallback.current();
+        } catch {
+          // 轮询单次异常不应中断后续轮询
+        }
+      }, intervalMs);
     };
 
     const stopPolling = () => {
@@ -27,7 +33,11 @@ export function usePolling(callback: () => void, intervalMs: number): void {
         stopPolling();
       } else {
         // 页面重新可见时立即刷新一次再恢复轮询
-        savedCallback.current();
+        try {
+          savedCallback.current();
+        } catch {
+          // 单次回调异常不应阻止轮询恢复
+        }
         startPolling();
       }
     };

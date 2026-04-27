@@ -118,11 +118,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
       }
       return ipcRenderer.invoke('budget:set', type, limit);
     },
-    status: () => ipcRenderer.invoke('budget:status')
+    status: () => ipcRenderer.invoke('budget:status'),
+    resetSpent: (type: string) => {
+      if (!VALID_BUDGET_TYPES.includes(type as typeof VALID_BUDGET_TYPES[number])) {
+        return Promise.resolve({ success: false, error: '无效的预算类型' });
+      }
+      return ipcRenderer.invoke('budget:resetSpent', type);
+    }
   },
 
   stats: {
-    summary: () => ipcRenderer.invoke('stats:summary')
+    summary: () => ipcRenderer.invoke('stats:summary'),
+    reset: () => ipcRenderer.invoke('stats:reset')
   },
 
   optimization: {
