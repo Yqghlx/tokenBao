@@ -1,4 +1,4 @@
-import { loadJson, saveJson } from '../utils/storage';
+import { loadJson, saveJsonAsync } from '../utils/storage';
 import { getMutex } from '../utils/mutex';
 
 interface ConfigStore {
@@ -49,8 +49,8 @@ function getStore(): ConfigStore {
   return loadJson<ConfigStore>(STORAGE_FILE, JSON.parse(JSON.stringify(DEFAULT_CONFIG)));
 }
 
-function saveStore(store: ConfigStore): void {
-  saveJson(STORAGE_FILE, store);
+async function saveStore(store: ConfigStore): Promise<void> {
+  await saveJsonAsync(STORAGE_FILE, store);
 }
 
 export async function getConfig(key: string): Promise<string | undefined> {
@@ -65,10 +65,10 @@ export async function setConfig(key: string, value: string): Promise<void> {
   if (validator && !validator(value)) {
     throw new Error(`配置值无效: ${key}=${value}`);
   }
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const store = getStore();
     store.config[key] = value;
-    saveStore(store);
+    await saveStore(store);
   });
 }
 
@@ -80,9 +80,8 @@ export async function getAllConfig(): Promise<Record<string, string>> {
 }
 
 export async function resetConfig(): Promise<void> {
-  return mutex.runExclusive(() => {
-    // 使用深拷贝避免默认值被修改
-    saveStore(JSON.parse(JSON.stringify(DEFAULT_CONFIG)));
+  return mutex.runExclusive(async () => {
+    await saveStore(JSON.parse(JSON.stringify(DEFAULT_CONFIG)));
   });
 }
 
@@ -94,10 +93,10 @@ export async function getOptimizationConfig(): Promise<Record<string, boolean>> 
 }
 
 export async function setOptimizationConfig(config: Record<string, boolean>): Promise<void> {
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const store = getStore();
     Object.assign(store.optimization, config);
-    saveStore(store);
+    await saveStore(store);
   });
 }
 

@@ -1,4 +1,4 @@
-import { loadJson, saveJson } from '../utils/storage';
+import { loadJson, saveJsonAsync } from '../utils/storage';
 import { getMutex } from '../utils/mutex';
 
 interface BudgetEntry {
@@ -46,8 +46,8 @@ function getStore(): BudgetStore {
   return loadJson<BudgetStore>(STORAGE_FILE, JSON.parse(JSON.stringify(getDefaultBudget())));
 }
 
-function saveStore(store: BudgetStore): void {
-  saveJson(STORAGE_FILE, store);
+async function saveStore(store: BudgetStore): Promise<void> {
+  await saveJsonAsync(STORAGE_FILE, store);
 }
 
 /**
@@ -75,35 +75,35 @@ function checkAutoReset(store: BudgetStore): boolean {
 }
 
 export async function getBudget(type: 'daily' | 'monthly'): Promise<{ type: string; limit: number; spent: number }> {
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const store = getStore();
-    if (checkAutoReset(store)) saveStore(store);
+    if (checkAutoReset(store)) await saveStore(store);
     return { ...store[type] };
   });
 }
 
 export async function setBudgetLimit(type: 'daily' | 'monthly', limit: number): Promise<{ type: string; limit: number; spent: number }> {
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const store = getStore();
     checkAutoReset(store);
     store[type].limit = limit;
-    saveStore(store);
+    await saveStore(store);
     return { ...store[type] };
   });
 }
 
 export async function updateSpent(type: 'daily' | 'monthly', amount: number): Promise<void> {
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     if (amount < 0) return;
     const store = getStore();
     checkAutoReset(store);
     store[type].spent += amount;
-    saveStore(store);
+    await saveStore(store);
   });
 }
 
 export async function resetSpent(type: 'daily' | 'monthly'): Promise<void> {
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const store = getStore();
     store[type].spent = 0;
     if (type === 'daily') {
@@ -111,7 +111,7 @@ export async function resetSpent(type: 'daily' | 'monthly'): Promise<void> {
     } else {
       store[type].lastResetDate = getMonthStr();
     }
-    saveStore(store);
+    await saveStore(store);
   });
 }
 
@@ -119,9 +119,9 @@ export async function getBudgetStatus(): Promise<{
   daily: { limit: number; spent: number; remaining: number; percentage: number };
   monthly: { limit: number; spent: number; remaining: number; percentage: number };
 }> {
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const store = getStore();
-    if (checkAutoReset(store)) saveStore(store);
+    if (checkAutoReset(store)) await saveStore(store);
 
     const computeStatus = (b: BudgetEntry) => ({
       limit: b.limit,

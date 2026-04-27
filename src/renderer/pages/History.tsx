@@ -41,16 +41,16 @@ function History() {
         const data = await window.electronAPI.history.list(options);
         setHistory(data);
 
-        // 通过请求 offset=0, limit=1 获取总数（或用当前页数据估算）
-        // 简化方案：请求足够多的数据来计算总数
-        const countOptions: { limit: number; offset: number; apiType?: string; search?: string } = {
-          limit: 1,
-          offset: 0
-        };
-        if (filter) countOptions.apiType = filter;
-        if (search.trim()) countOptions.search = search.trim();
-        // 用当前页结果估算：如果有 PAGE_SIZE 条，说明后面可能还有更多
-        setTotalCount(data.length < PAGE_SIZE ? offset + data.length : offset + PAGE_SIZE + 1);
+        // 并行请求精确总数
+        if (window.electronAPI?.history?.count) {
+          const countOptions: { apiType?: string; search?: string } = {};
+          if (filter) countOptions.apiType = filter;
+          if (search.trim()) countOptions.search = search.trim();
+          const count = await window.electronAPI.history.count(countOptions);
+          setTotalCount(count);
+        } else {
+          setTotalCount(data.length < PAGE_SIZE ? offset + data.length : offset + PAGE_SIZE + 1);
+        }
       } catch (err) {
         console.error('获取历史记录失败:', err);
         showToast('获取历史记录失败', 'error');
@@ -176,7 +176,7 @@ function History() {
         <button className="btn-secondary" onClick={exportCsv}>导出 CSV</button>
         <button className="btn-secondary" onClick={() => setShowClearConfirm(true)}>清除历史</button>
         <span className="record-count">
-          {totalCount > 0 ? `共 ${totalCount}+ 条记录` : '暂无记录'}
+          {totalCount > 0 ? `共 ${totalCount} 条记录` : '暂无记录'}
         </span>
       </div>
       <div className="table-scroll">

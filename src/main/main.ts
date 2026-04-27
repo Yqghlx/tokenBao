@@ -230,6 +230,10 @@ function registerIpcHandlers(): void {
     return await historyService.listRequests(options);
   });
 
+  ipcMain.handle('history:count', async (_, options?) => {
+    return await historyService.getRequestCount(options);
+  });
+
   ipcMain.handle('history:clear', async () => {
     await historyService.clearRequests();
     return { success: true };

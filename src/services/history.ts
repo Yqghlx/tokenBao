@@ -155,10 +155,32 @@ export async function getRecentRequests(limit = 10): Promise<RequestLog[]> {
   });
 }
 
+/** 获取过滤后的记录总数（用于分页计算） */
+export async function getRequestCount(options?: { apiType?: string; search?: string }): Promise<number> {
+  return mutex.runExclusive(() => {
+    let requests = getStore().requests;
+
+    if (options?.apiType) {
+      requests = requests.filter(r => r.apiType === options.apiType);
+    }
+
+    if (options?.search) {
+      const keyword = options.search.toLowerCase();
+      requests = requests.filter(r =>
+        r.model.toLowerCase().includes(keyword) ||
+        r.apiType.toLowerCase().includes(keyword)
+      );
+    }
+
+    return requests.length;
+  });
+}
+
 export default {
   addRequest,
   listRequests,
   getRequest,
   clearRequests,
-  getRecentRequests
+  getRecentRequests,
+  getRequestCount
 };

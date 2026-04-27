@@ -194,7 +194,8 @@ class ProxyServer {
   private activeUpstreamRequests = new Set<http.ClientRequest>();
   private shuttingDown = false;
   private proxyTimeout: number;
-  private circuitBreaker = { failures: 0, openUntil: 0 };
+  /** 按 API 提供商分离的熔断器，OpenAI 故障不阻断 Anthropic */
+  private circuitBreakers = new Map<ApiType, { failures: number; openUntil: number }>();
   private budgetState: BudgetSnapshot = { monthlyLimit: 100, monthlySpent: 0, dailyLimit: 10, dailySpent: 0 };
   private budgetSyncTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -389,8 +390,8 @@ class ProxyServer {
           }
         }
 
-        // 熔断器检查：上游不可达时快速失败
-        if (this.isCircuitOpen()) {
+        // 熔断器检查：按提供商独立判断
+        if (this.isCircuitOpen(apiType)) {
           if (!clientRes.headersSent) {
             clientRes.writeHead(503, { 'Content-Type': 'application/json' });
             clientRes.end(JSON.stringify({ error: 'Service Unavailable', message: '上游 API 暂时不可达，熔断冷却中', requestId }));
@@ -433,9 +434,9 @@ class ProxyServer {
             const statusCode = proxyRes.statusCode || 500;
             if (statusCode >= 400) {
               logProxy('error', `流式请求失败`, { requestId, statusCode });
-              this.recordUpstreamFailure();
+              this.recordUpstreamFailure(apiType);
             } else {
-              this.recordUpstreamSuccess();
+              this.recordUpstreamSuccess(apiType);
             }
             const streamHeaders: http.OutgoingHttpHeaders = { ...proxyRes.headers };
             if (budgetCheck.warning) {
@@ -600,9 +601,9 @@ class ProxyServer {
           if (requestId) {
             requestTracker.failRequest(requestId, upstreamResult.body, statusCode);
           }
-          this.recordUpstreamFailure();
+          this.recordUpstreamFailure(apiType);
         } else {
-          this.recordUpstreamSuccess();
+          this.recordUpstreamSuccess(apiType);
           const handleResult = handleResponse(upstreamResult.body, upstreamResult.headers as Record<string, string>, apiType);
 
           if (handleResult.stats && requestId) {
@@ -725,28 +726,38 @@ class ProxyServer {
     return { requests: this.requestCount, savedTokens: this.totalSavedTokens };
   }
 
-  /** 检查熔断器是否开启（上游不可达时应快速失败） */
-  private isCircuitOpen(): boolean {
-    if (this.circuitBreaker.openUntil === 0) return false;
-    if (Date.now() >= this.circuitBreaker.openUntil) {
-      // 冷却期结束，进入半开状态允许一次试探
-      return false;
+  /** 获取指定提供商的熔断器状态 */
+  private getCircuitBreaker(apiType: ApiType): { failures: number; openUntil: number } {
+    let cb = this.circuitBreakers.get(apiType);
+    if (!cb) {
+      cb = { failures: 0, openUntil: 0 };
+      this.circuitBreakers.set(apiType, cb);
     }
+    return cb;
+  }
+
+  /** 检查指定提供商的熔断器是否开启 */
+  private isCircuitOpen(apiType: ApiType): boolean {
+    const cb = this.getCircuitBreaker(apiType);
+    if (cb.openUntil === 0) return false;
+    if (Date.now() >= cb.openUntil) return false;
     return true;
   }
 
-  /** 记录上游成功，重置熔断器 */
-  private recordUpstreamSuccess(): void {
-    this.circuitBreaker.failures = 0;
-    this.circuitBreaker.openUntil = 0;
+  /** 记录上游成功，重置该提供商的熔断器 */
+  private recordUpstreamSuccess(apiType: ApiType): void {
+    const cb = this.getCircuitBreaker(apiType);
+    cb.failures = 0;
+    cb.openUntil = 0;
   }
 
-  /** 记录上游失败，达到阈值则触发熔断 */
-  private recordUpstreamFailure(): void {
-    this.circuitBreaker.failures++;
-    if (this.circuitBreaker.failures >= CIRCUIT_BREAKER_THRESHOLD) {
-      this.circuitBreaker.openUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN;
-      logProxy('warn', `熔断器触发，上游连续失败 ${this.circuitBreaker.failures} 次，冷却 ${CIRCUIT_BREAKER_COOLDOWN / 1000}s`);
+  /** 记录上游失败，达到阈值则触发该提供商的熔断 */
+  private recordUpstreamFailure(apiType: ApiType): void {
+    const cb = this.getCircuitBreaker(apiType);
+    cb.failures++;
+    if (cb.failures >= CIRCUIT_BREAKER_THRESHOLD) {
+      cb.openUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN;
+      logProxy('warn', `熔断器触发 [${apiType}]，连续失败 ${cb.failures} 次，冷却 ${CIRCUIT_BREAKER_COOLDOWN / 1000}s`);
     }
   }
 

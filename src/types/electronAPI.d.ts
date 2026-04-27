@@ -83,6 +83,7 @@ interface ElectronAPI {
 
   history: {
     list: (options?: { limit?: number; offset?: number; apiType?: string; search?: string }) => Promise<HistoryRequest[]>;
+    count: (options?: { apiType?: string; search?: string }) => Promise<number>;
     clear: () => Promise<{ success: boolean }>;
   };
 

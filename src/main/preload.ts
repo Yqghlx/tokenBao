@@ -119,6 +119,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       }
       return ipcRenderer.invoke('history:list', options);
     },
+    count: (options?: { apiType?: string; search?: string }) => {
+      return ipcRenderer.invoke('history:count', options);
+    },
     clear: () => ipcRenderer.invoke('history:clear')
   },
 
