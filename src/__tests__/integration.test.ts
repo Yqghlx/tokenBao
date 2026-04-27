@@ -39,6 +39,23 @@ describe('集成测试', () => {
     expect(server.isRunning()).toBe(true);
   });
 
+  test('GET /health 应返回健康状态', async () => {
+    const response = await new Promise<{ statusCode: number; body: string }>((resolve) => {
+      http.get('http://localhost:18091/health', (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => { resolve({ statusCode: res.statusCode ?? 0, body }); });
+      }).on('error', () => resolve({ statusCode: 0, body: '' }));
+    });
+    expect(response.statusCode).toBe(200);
+    const data = JSON.parse(response.body);
+    expect(data.status).toBe('healthy');
+    expect(typeof data.uptime).toBe('number');
+    expect(typeof data.activeConnections).toBe('number');
+    expect(typeof data.requestCount).toBe('number');
+    expect(data.shuttingDown).toBe(false);
+  });
+
   test('API 类型检测应正确', () => {
     expect(server.detectApiType('/v1/chat/completions')).toBe('openai');
     expect(server.detectApiType('/v1/messages')).toBe('anthropic');
