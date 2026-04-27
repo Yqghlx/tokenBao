@@ -4,6 +4,7 @@ import { PassThrough } from 'stream';
 import { applyOptimizations, setOptimizationConfig } from '../optimizations/index';
 import * as statsService from '../services/stats';
 import * as budgetService from '../services/budget';
+import * as historyService from '../services/history';
 import { handleResponse, recordStats } from './responseHandler';
 import requestTracker from './requestTracker';
 
@@ -364,7 +365,8 @@ class ProxyServer {
 
         // 流式请求：pipe 转发 + 拦截 SSE 提取 usage 统计
         if (isStreamRequest(rawBody)) {
-          const parsedModel = rawBody ? (JSON.parse(rawBody).model || 'unknown') : 'unknown';
+          let parsedModel = 'unknown';
+          try { parsedModel = JSON.parse(rawBody).model || 'unknown'; } catch {}
 
           const proxyReq = https.request(options, (proxyRes) => {
             const statusCode = proxyRes.statusCode || 500;
@@ -403,6 +405,17 @@ class ProxyServer {
                     budgetService.updateSpent('monthly', cost).catch(() => {});
 
                     logProxy('info', `流式请求统计`, { model: usage.model || parsedModel, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4) });
+
+                    historyService.addRequest({
+                      apiType,
+                      model: usage.model || parsedModel,
+                      inputTokens: usage.inputTokens,
+                      outputTokens: usage.outputTokens,
+                      cachedTokens: usage.cacheReadTokens + usage.cacheCreationTokens,
+                      cost,
+                      cached: usage.cacheReadTokens > 0,
+                      timestamp: new Date().toISOString()
+                    }).catch(() => {});
                   }
                 } catch {
                   // usage 提取失败不影响功能
@@ -496,6 +509,17 @@ class ProxyServer {
             });
 
             recordStats(handleResult.stats, apiType).catch(err => console.error('记录统计失败:', err));
+
+            historyService.addRequest({
+              apiType,
+              model: handleResult.stats.model,
+              inputTokens: handleResult.stats.inputTokens,
+              outputTokens: handleResult.stats.outputTokens,
+              cachedTokens: handleResult.stats.cacheReadTokens + handleResult.stats.cacheCreationTokens,
+              cost: calculateCost(handleResult.stats.model, handleResult.stats.inputTokens, handleResult.stats.outputTokens),
+              cached: handleResult.stats.cacheReadTokens > 0,
+              timestamp: new Date().toISOString()
+            }).catch(() => {});
           }
         }
 

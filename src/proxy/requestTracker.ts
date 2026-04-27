@@ -99,6 +99,10 @@ function completeRequest(requestId: string, result: RequestResult): void {
     result.completedAt = Date.now();
     completedRequests.set(requestId, result);
     pendingRequests.delete(requestId);
+    // 每次完成后自动清理超过 1 小时的旧记录
+    if (completedRequests.size > 100) {
+      clearOldRequests();
+    }
   }
 }
 
