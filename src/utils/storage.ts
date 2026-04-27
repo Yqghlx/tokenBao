@@ -1,6 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { promisify } from 'util';
+
+const writeFileAsync = promisify(fs.writeFile);
+const renameAsync = promisify(fs.rename);
 
 let dataDir: string;
 
@@ -77,6 +81,21 @@ export function saveJson<T>(filename: string, data: T): void {
     fs.renameSync(tmpPath, filePath);
   } catch (err) {
     console.error(`保存 ${filename} 失败:`, err);
+  }
+}
+
+/**
+ * 异步原子写入，不阻塞事件循环，适用于高并发场景
+ */
+export async function saveJsonAsync<T>(filename: string, data: T): Promise<void> {
+  const filePath = getFilePath(filename);
+  try {
+    const content = JSON.stringify(data, null, 2);
+    const tmpPath = filePath + '.tmp';
+    await writeFileAsync(tmpPath, content, 'utf-8');
+    await renameAsync(tmpPath, filePath);
+  } catch (err) {
+    console.error(`异步保存 ${filename} 失败:`, err);
   }
 }
 

@@ -22,6 +22,8 @@ const ANTHROPIC_BASE = 'https://api.anthropic.com';
 
 const PROXY_TIMEOUT = 60000;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 请求体最大 10MB
+const MAX_CONNECTIONS = 100; // 最大并发连接数
+const SHUTDOWN_TIMEOUT = 5000; // 优雅关闭等待超时 5s
 
 /**
  * 结构化日志辅助函数
@@ -110,23 +112,38 @@ function sendUpstream(
   body: string
 ): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body: string }> {
   return new Promise((resolve, reject) => {
+    let settled = false;
     const req = https.request(options, (res) => {
       const chunks: Buffer[] = [];
       res.on('data', (chunk) => chunks.push(chunk));
       res.on('end', () => {
+        if (settled) return;
+        settled = true;
         resolve({
           statusCode: res.statusCode || 500,
           headers: res.headers,
           body: Buffer.concat(chunks).toString()
         });
       });
+      // 上游断连时确保 promise 不会挂起
+      res.on('error', (err) => {
+        if (settled) return;
+        settled = true;
+        reject(err);
+      });
     });
 
     req.setTimeout(PROXY_TIMEOUT, () => {
+      if (settled) return;
+      settled = true;
       req.destroy(new Error('上游 API 响应超时'));
     });
 
-    req.on('error', reject);
+    req.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    });
 
     if (body) {
       req.write(body);
@@ -205,23 +222,35 @@ class ProxyServer {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       let totalSize = 0;
-      req.on('data', (chunk: Buffer) => {
+      let exceeded = false;
+      const onData = (chunk: Buffer) => {
+        if (exceeded) return;
         totalSize += chunk.length;
         if (totalSize > MAX_BODY_SIZE) {
+          exceeded = true;
+          req.removeListener('data', onData);
           req.destroy();
           reject(new Error(`请求体超过最大限制 (${MAX_BODY_SIZE / 1024 / 1024}MB)`));
           return;
         }
         chunks.push(chunk);
-      });
-      req.on('end', () => resolve(Buffer.concat(chunks).toString()));
-      req.on('error', reject);
+      };
+      req.on('data', onData);
+      req.on('end', () => { if (!exceeded) resolve(Buffer.concat(chunks).toString()); });
+      req.on('error', (err) => { if (!exceeded) reject(err); });
     });
   }
 
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.server = http.createServer(async (clientReq, clientRes) => {
+        // 并发连接数限制
+        if (this.activeConnections.size >= MAX_CONNECTIONS) {
+          clientRes.writeHead(429, { 'Content-Type': 'application/json' });
+          clientRes.end(JSON.stringify({ error: 'Too Many Requests', message: `并发连接超过 ${MAX_CONNECTIONS} 限制` }));
+          return;
+        }
+
         this.requestCount++;
         this.activeConnections.add(clientRes);
         clientRes.on('close', () => this.activeConnections.delete(clientRes));
@@ -297,6 +326,9 @@ class ProxyServer {
           let parsedModel = 'unknown';
           try { parsedModel = JSON.parse(rawBody).model || 'unknown'; } catch { /* 非法 JSON，使用默认模型名 */ }
 
+          // PassThrough 在外层声明，以便 timeout/error 回调中可以销毁
+          const passThrough = new PassThrough();
+
           const proxyReq = https.request(options, (proxyRes) => {
             const statusCode = proxyRes.statusCode || 500;
             if (statusCode >= 400) {
@@ -304,9 +336,7 @@ class ProxyServer {
             }
             clientRes.writeHead(statusCode, proxyRes.headers);
 
-            // 用 PassThrough 拦截数据流：一边转发一边提取 usage
             let sseBuffer = '';
-            const passThrough = new PassThrough();
             passThrough.on('data', (chunk: Buffer) => {
               sseBuffer += chunk.toString();
               // 只保留最后 10KB 用于提取 usage，避免内存增长
@@ -314,40 +344,43 @@ class ProxyServer {
                 sseBuffer = sseBuffer.slice(-10240);
               }
             });
-            passThrough.on('end', () => {
+            passThrough.on('end', async () => {
               // 流结束后从 SSE 数据中提取 usage
               if (statusCode < 400) {
                 try {
                   const usage = extractStreamUsage(sseBuffer, apiType);
                   if (usage) {
                     const cost = calculateCost(usage.model || parsedModel, usage.inputTokens, usage.outputTokens);
-                    statsService.addStats({
-                      apiType,
-                      model: usage.model || parsedModel,
-                      inputTokens: usage.inputTokens,
-                      outputTokens: usage.outputTokens,
-                      cachedTokens: usage.cacheReadTokens + usage.cacheCreationTokens,
-                      cost
-                    }).catch(err => logProxy('error', '流式统计记录失败', { requestId, error: err.message }));
-
-                    budgetService.updateSpent('daily', cost).catch(() => { /* 预算更新失败不阻断流程 */ });
-                    budgetService.updateSpent('monthly', cost).catch(() => { /* 预算更新失败不阻断流程 */ });
-
                     logProxy('info', `流式请求统计`, { requestId, model: usage.model || parsedModel, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4) });
 
-                    historyService.addRequest({
-                      apiType,
-                      model: usage.model || parsedModel,
-                      inputTokens: usage.inputTokens,
-                      outputTokens: usage.outputTokens,
-                      cachedTokens: usage.cacheReadTokens + usage.cacheCreationTokens,
-                      cost,
-                      cached: usage.cacheReadTokens > 0,
-                      timestamp: new Date().toISOString()
-                    }).catch(() => { /* 历史记录写入失败不阻断流程 */ });
+                    // 顺序记录保证数据一致性
+                    try {
+                      await statsService.addStats({
+                        apiType,
+                        model: usage.model || parsedModel,
+                        inputTokens: usage.inputTokens,
+                        outputTokens: usage.outputTokens,
+                        cachedTokens: usage.cacheReadTokens + usage.cacheCreationTokens,
+                        cost
+                      });
+                      await budgetService.updateSpent('daily', cost);
+                      await budgetService.updateSpent('monthly', cost);
+                      await historyService.addRequest({
+                        apiType,
+                        model: usage.model || parsedModel,
+                        inputTokens: usage.inputTokens,
+                        outputTokens: usage.outputTokens,
+                        cachedTokens: usage.cacheReadTokens + usage.cacheCreationTokens,
+                        cost,
+                        cached: usage.cacheReadTokens > 0,
+                        timestamp: new Date().toISOString()
+                      });
+                    } catch (err) {
+                      logProxy('error', '流式统计记录失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
+                    }
                   }
-                } catch {
-                  // usage 提取失败不影响功能
+                } catch (err) {
+                  logProxy('warn', '流式 usage 提取失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
                 }
               }
             });
@@ -363,6 +396,7 @@ class ProxyServer {
 
           proxyReq.setTimeout(PROXY_TIMEOUT, () => {
             proxyReq.destroy();
+            passThrough.destroy();
             if (!clientRes.headersSent) {
               clientRes.writeHead(504, { 'Content-Type': 'application/json' });
               clientRes.end(JSON.stringify({ error: 'Gateway Timeout', message: '上游 API 响应超时' }));
@@ -370,7 +404,7 @@ class ProxyServer {
           });
 
           proxyReq.on('error', (err) => {
-            console.error('流式代理错误:', err.message);
+            passThrough.destroy();
             if (!clientRes.headersSent) {
               clientRes.writeHead(502, { 'Content-Type': 'application/json' });
               clientRes.end(JSON.stringify({ error: err.message }));
@@ -444,22 +478,25 @@ class ProxyServer {
               status: statusCode
             });
 
-            recordStats(handleResult.stats, apiType).catch(err => console.error('记录统计失败:', err));
-
-            const actualCost = calculateCost(handleResult.stats.model, handleResult.stats.inputTokens, handleResult.stats.outputTokens);
-            budgetService.updateSpent('daily', actualCost).catch(() => { /* 预算更新失败不阻断流程 */ });
-            budgetService.updateSpent('monthly', actualCost).catch(() => { /* 预算更新失败不阻断流程 */ });
-
-            historyService.addRequest({
-              apiType,
-              model: handleResult.stats.model,
-              inputTokens: handleResult.stats.inputTokens,
-              outputTokens: handleResult.stats.outputTokens,
-              cachedTokens: handleResult.stats.cacheReadTokens + handleResult.stats.cacheCreationTokens,
-              cost: actualCost,
-              cached: handleResult.stats.cacheReadTokens > 0,
-              timestamp: new Date().toISOString()
-            }).catch(() => { /* 历史记录写入失败不阻断流程 */ });
+            // 顺序记录保证数据一致性：统计 → 预算 → 历史
+            try {
+              await recordStats(handleResult.stats, apiType);
+              const actualCost = calculateCost(handleResult.stats.model, handleResult.stats.inputTokens, handleResult.stats.outputTokens);
+              await budgetService.updateSpent('daily', actualCost);
+              await budgetService.updateSpent('monthly', actualCost);
+              await historyService.addRequest({
+                apiType,
+                model: handleResult.stats.model,
+                inputTokens: handleResult.stats.inputTokens,
+                outputTokens: handleResult.stats.outputTokens,
+                cachedTokens: handleResult.stats.cacheReadTokens + handleResult.stats.cacheCreationTokens,
+                cost: actualCost,
+                cached: handleResult.stats.cacheReadTokens > 0,
+                timestamp: new Date().toISOString()
+              });
+            } catch (err) {
+              logProxy('error', '记录请求统计失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
+            }
           }
         }
 
@@ -482,19 +519,40 @@ class ProxyServer {
   stop(): Promise<void> {
     return new Promise((resolve) => {
       if (this.server) {
-        // 关闭所有活跃连接，避免挂起
-        for (const res of this.activeConnections) {
-          if (!res.writableEnded) {
-            res.end();
-          }
-        }
-        this.activeConnections.clear();
-
+        // 停止接收新连接
         this.server.close(() => {
           this.server = null;
           logProxy('info', '代理服务器已关闭');
           resolve();
         });
+
+        // 优雅关闭：给活跃连接超时兜底
+        const shutdownTimer = setTimeout(() => {
+          for (const res of this.activeConnections) {
+            if (!res.writableEnded) {
+              res.destroy();
+            }
+          }
+          this.activeConnections.clear();
+        }, SHUTDOWN_TIMEOUT);
+
+        // 等待所有活跃连接结束
+        const checkIdle = () => {
+          if (this.activeConnections.size === 0) {
+            clearTimeout(shutdownTimer);
+          }
+        };
+        for (const res of this.activeConnections) {
+          if (res.writableEnded) {
+            this.activeConnections.delete(res);
+          } else {
+            res.on('close', () => {
+              this.activeConnections.delete(res);
+              checkIdle();
+            });
+          }
+        }
+        checkIdle();
       } else {
         resolve();
       }

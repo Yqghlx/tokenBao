@@ -13,26 +13,28 @@ interface UsageStats {
  * 解析 OpenAI 流式响应的 usage（最后一个 SSE 事件）
  */
 function parseOpenAIStreamUsage(lines: string[]): UsageStats | null {
-  for (const line of lines) {
-    if (line.startsWith('data: ')) {
-      const data = line.slice(6);
-      if (data === '[DONE]') continue;
-      
-      try {
-        const parsed = JSON.parse(data);
-        if (parsed.usage) {
-          return {
-            inputTokens: parsed.usage.prompt_tokens || 0,
-            outputTokens: parsed.usage.completion_tokens || 0,
-            cacheReadTokens: 0,
-            cacheCreationTokens: 0,
-            model: parsed.model || 'unknown'
-          };
-        }
-      } catch (e) {
-        // SSE 数据行 JSON 解析失败，跳过该行继续处理
-        continue;
+  // OpenAI 在最后一个 data 事件中发送 usage，从后往前遍历
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line.startsWith('data: ')) continue;
+    const data = line.slice(6);
+    if (data === '[DONE]') continue;
+
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.usage) {
+        return {
+          inputTokens: parsed.usage.prompt_tokens || 0,
+          outputTokens: parsed.usage.completion_tokens || 0,
+          // OpenAI Prompt Caching: prompt_tokens_details.cached_tokens
+          cacheReadTokens: parsed.usage.prompt_tokens_details?.cached_tokens || 0,
+          cacheCreationTokens: 0,
+          model: parsed.model || 'unknown'
+        };
       }
+    } catch {
+      // SSE 数据行 JSON 解析失败，跳过该行继续处理
+      continue;
     }
   }
   return null;
@@ -76,7 +78,11 @@ function parseNonStreamUsage(body: string): UsageStats | null {
       return {
         inputTokens: parsed.usage.prompt_tokens || parsed.usage.input_tokens || 0,
         outputTokens: parsed.usage.completion_tokens || parsed.usage.output_tokens || 0,
-        cacheReadTokens: parsed.usage.cache_read_input_tokens || 0,
+        // Anthropic: cache_read_input_tokens / cache_creation_input_tokens
+        // OpenAI: prompt_tokens_details.cached_tokens
+        cacheReadTokens: parsed.usage.cache_read_input_tokens
+          || parsed.usage.prompt_tokens_details?.cached_tokens
+          || 0,
         cacheCreationTokens: parsed.usage.cache_creation_input_tokens || 0,
         model: parsed.model || 'unknown'
       };
