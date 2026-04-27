@@ -16,6 +16,14 @@ interface BudgetStore {
 const STORAGE_FILE = 'budget.json';
 const mutex = getMutex(STORAGE_FILE);
 
+/** 默认预算配置（单一来源） */
+function getDefaultBudget(): BudgetStore {
+  return {
+    daily: { type: 'daily', limit: 10, spent: 0, lastResetDate: getTodayStr() },
+    monthly: { type: 'monthly', limit: 100, spent: 0, lastResetDate: getMonthStr() }
+  };
+}
+
 /** 获取今天的日期字符串（YYYY-MM-DD），使用本地时区 */
 function getTodayStr(): string {
   const now = new Date();
@@ -34,10 +42,8 @@ function getMonthStr(): string {
 }
 
 function getStore(): BudgetStore {
-  return loadJson<BudgetStore>(STORAGE_FILE, {
-    daily: { type: 'daily', limit: 10, spent: 0, lastResetDate: getTodayStr() },
-    monthly: { type: 'monthly', limit: 100, spent: 0, lastResetDate: getMonthStr() }
-  });
+  // 深拷贝默认值，避免 loadJson 返回引用导致默认值被修改
+  return loadJson<BudgetStore>(STORAGE_FILE, JSON.parse(JSON.stringify(getDefaultBudget())));
 }
 
 function saveStore(store: BudgetStore): void {

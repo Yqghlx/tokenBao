@@ -1,6 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import { usePolling } from '../hooks/usePolling';
+
+/**
+ * 缓存节省估算：基于平均输入价格保守估算
+ * 缓存 token 比非缓存便宜约 90%（Anthropic）或 50%（OpenAI）
+ * 取保守值 50% 折扣 × 平均输入单价
+ */
+const CACHE_SAVINGS_RATIO = 0.5;
 
 function Monitor() {
   const [loading, setLoading] = useState(true);
@@ -14,24 +21,11 @@ function Monitor() {
     byModel: {} as Record<string, { requests: number; tokens: number; cost: number }>
   });
 
-  const [cachingStats, setCachingStats] = useState({
-    cacheReadTokens: 0,
-    cacheSavings: 0
-  });
-
   const loadStats = useCallback(async () => {
     if (window.electronAPI?.stats?.summary) {
       try {
         const data = await window.electronAPI.stats.summary();
         setStats(data);
-
-        // 缓存节省费用：使用服务端记录的总成本和缓存 token 计算
-        // GPT-4o 输入价格 $0.0025/1K tokens，缓存读取 50% 折扣
-        const cacheReadTokens = data.totalCachedTokens || 0;
-        const estimatedSavingsPerToken = 0.0025 / 1000 * 0.5;
-        const cacheSavings = cacheReadTokens * estimatedSavingsPerToken;
-
-        setCachingStats({ cacheReadTokens, cacheSavings });
       } catch (err) {
         console.error('获取统计数据失败:', err);
         showToast('获取统计数据失败', 'error');
@@ -50,11 +44,15 @@ function Monitor() {
   usePolling(loadStats, 10000);
 
   const totalTokens = stats.totalInputTokens + stats.totalOutputTokens;
-  // 节省费用估算：基于 GPT-4o 输入价格 × 50% 缓存折扣
-  const estimatedSavingsPerToken = 0.0025 / 1000 * 0.5;
-  const savedCost = stats.totalCachedTokens > 0
-    ? (stats.totalCachedTokens * estimatedSavingsPerToken).toFixed(2)
-    : '0.00';
+
+  // 缓存节省估算：缓存 token 占总输入 token 的比例 × 总成本 × 折扣率
+  const cacheSavings = useMemo(() => {
+    if (stats.totalCachedTokens === 0 || stats.totalInputTokens === 0) return 0;
+    const cacheRatio = stats.totalCachedTokens / (stats.totalInputTokens + stats.totalCachedTokens);
+    return stats.totalCost * cacheRatio * CACHE_SAVINGS_RATIO;
+  }, [stats.totalCachedTokens, stats.totalInputTokens, stats.totalCost]);
+
+  const savedCost = cacheSavings.toFixed(2);
   const actualCost = stats.totalCost.toFixed(4);
 
   if (loading) {
@@ -97,26 +95,26 @@ function Monitor() {
             <div className="stat-card">
               <h3>节省金额</h3>
               <p className="stat-value">${savedCost}</p>
-              <p className="stat-detail">节省 Tokens: {stats.totalCachedTokens.toLocaleString()}</p>
+              <p className="stat-detail">缓存 Tokens: {stats.totalCachedTokens.toLocaleString()}</p>
             </div>
           </div>
 
-          {cachingStats.cacheReadTokens > 0 && (
-            <div className="stats-grid" style={{ marginTop: '16px' }}>
+          {stats.totalCachedTokens > 0 && (
+            <div className="stats-grid cache-stats-row">
               <div className="stat-card cache-card">
                 <h3>Prompt Caching 效果</h3>
-                <p className="stat-value">{cachingStats.cacheReadTokens.toLocaleString()}</p>
+                <p className="stat-value">{stats.totalCachedTokens.toLocaleString()}</p>
                 <p className="stat-detail">缓存读取 Tokens</p>
               </div>
               <div className="stat-card cache-card">
                 <h3>缓存节省费用</h3>
-                <p className="stat-value">${cachingStats.cacheSavings.toFixed(4)}</p>
-                <p className="stat-detail">90% 费率优惠</p>
+                <p className="stat-value">${cacheSavings.toFixed(4)}</p>
+                <p className="stat-detail">基于实际成本保守估算</p>
               </div>
             </div>
           )}
 
-          <div className="stats-details" style={{ marginTop: '24px' }}>
+          <div className="stats-details">
             <h3>详细统计</h3>
             <div className="stats-breakdown">
               <div className="breakdown-section">

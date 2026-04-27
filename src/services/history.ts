@@ -26,22 +26,39 @@ const MAX_HISTORY = 1000;
 const DEFAULT_RETENTION_DAYS = 30;
 const mutex = getMutex(STORAGE_FILE);
 
+/** 缓存的保留天数，避免每次清理都读配置文件 */
+let cachedRetentionDays = DEFAULT_RETENTION_DAYS;
+let retentionCacheTime = 0;
+const RETENTION_CACHE_TTL = 60000; // 缓存 60 秒
+
 function getStore(): HistoryStore {
   return loadJson<HistoryStore>(STORAGE_FILE, { requests: [], nextId: 1 });
+}
+
+/**
+ * 获取保留天数（带缓存，最多每分钟读一次配置）
+ */
+async function getRetentionDays(): Promise<number> {
+  const now = Date.now();
+  if (now - retentionCacheTime < RETENTION_CACHE_TTL) {
+    return cachedRetentionDays;
+  }
+  try {
+    const daysStr = await getConfig('dataRetentionDays');
+    const days = daysStr ? parseInt(daysStr, 10) : DEFAULT_RETENTION_DAYS;
+    cachedRetentionDays = (isNaN(days) || days < 1) ? DEFAULT_RETENTION_DAYS : days;
+  } catch {
+    cachedRetentionDays = DEFAULT_RETENTION_DAYS;
+  }
+  retentionCacheTime = now;
+  return cachedRetentionDays;
 }
 
 /**
  * 根据配置的数据保留天数清理过期记录
  */
 async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
-  let retentionDays: number;
-  try {
-    const daysStr = await getConfig('dataRetentionDays');
-    retentionDays = daysStr ? parseInt(daysStr, 10) : DEFAULT_RETENTION_DAYS;
-    if (isNaN(retentionDays) || retentionDays < 1) retentionDays = DEFAULT_RETENTION_DAYS;
-  } catch {
-    retentionDays = DEFAULT_RETENTION_DAYS;
-  }
+  const retentionDays = await getRetentionDays();
 
   const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
   const before = store.requests.length;

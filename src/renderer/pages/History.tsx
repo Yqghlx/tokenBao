@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { usePolling } from '../hooks/usePolling';
 
 interface HistoryItem {
@@ -22,6 +23,7 @@ function History() {
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const loadHistory = useCallback(async () => {
     if (window.electronAPI?.history?.list) {
@@ -109,9 +111,7 @@ function History() {
     URL.revokeObjectURL(url);
   };
 
-  const clearHistory = async () => {
-    if (!window.confirm('确定要清除所有历史记录吗？此操作不可恢复。')) return;
-
+  const clearHistory = useCallback(async () => {
     if (window.electronAPI?.history?.clear) {
       try {
         await window.electronAPI.history.clear();
@@ -123,7 +123,7 @@ function History() {
         showToast('清除失败', 'error');
       }
     }
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -151,7 +151,7 @@ function History() {
           <option value="anthropic">Anthropic</option>
         </select>
         <button className="btn-secondary" onClick={exportCsv}>导出 CSV</button>
-        <button className="btn-secondary" onClick={clearHistory}>清除历史</button>
+        <button className="btn-secondary" onClick={() => setShowClearConfirm(true)}>清除历史</button>
         <span className="record-count">
           共 {filteredHistory.length} 条记录
         </span>
@@ -213,6 +213,19 @@ function History() {
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showClearConfirm}
+        title="清除历史记录"
+        message="确定要清除所有历史记录吗？此操作不可恢复。"
+        confirmLabel="清除"
+        danger
+        onConfirm={() => {
+          clearHistory();
+          setShowClearConfirm(false);
+        }}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </div>
   );
 }
