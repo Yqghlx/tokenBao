@@ -1,4 +1,5 @@
 import { loadJson, saveJson } from '../utils/storage';
+import { getMutex } from '../utils/mutex';
 
 interface Stats {
   totalRequests: number;
@@ -11,6 +12,7 @@ interface Stats {
 }
 
 const STORAGE_FILE = 'stats.json';
+const mutex = getMutex(STORAGE_FILE);
 
 function getDefaultStats(): Stats {
   return {
@@ -41,20 +43,22 @@ export async function recordOptimization(data: {
   model: string;
   savedTokens: number;
 }): Promise<void> {
-  const stats = getStats();
-  stats.totalCachedTokens += data.savedTokens;
+  return mutex.runExclusive(() => {
+    const stats = getStats();
+    stats.totalCachedTokens += data.savedTokens;
 
-  if (!stats.byApi[data.apiType]) {
-    stats.byApi[data.apiType] = { requests: 0, tokens: 0, cost: 0 };
-  }
-  stats.byApi[data.apiType].tokens += data.savedTokens;
+    if (!stats.byApi[data.apiType]) {
+      stats.byApi[data.apiType] = { requests: 0, tokens: 0, cost: 0 };
+    }
+    stats.byApi[data.apiType].tokens += data.savedTokens;
 
-  if (!stats.byModel[data.model]) {
-    stats.byModel[data.model] = { requests: 0, tokens: 0, cost: 0 };
-  }
-  stats.byModel[data.model].tokens += data.savedTokens;
+    if (!stats.byModel[data.model]) {
+      stats.byModel[data.model] = { requests: 0, tokens: 0, cost: 0 };
+    }
+    stats.byModel[data.model].tokens += data.savedTokens;
 
-  saveStats(stats);
+    saveStats(stats);
+  });
 }
 
 /**
@@ -69,29 +73,31 @@ export async function addStats(data: {
   cachedTokens: number;
   cost: number;
 }): Promise<void> {
-  const stats = getStats();
+  return mutex.runExclusive(() => {
+    const stats = getStats();
 
-  stats.totalRequests++;
-  stats.totalInputTokens += data.inputTokens;
-  stats.totalOutputTokens += data.outputTokens;
-  stats.totalCachedTokens += data.cachedTokens;
-  stats.totalCost += data.cost;
+    stats.totalRequests++;
+    stats.totalInputTokens += data.inputTokens;
+    stats.totalOutputTokens += data.outputTokens;
+    stats.totalCachedTokens += data.cachedTokens;
+    stats.totalCost += data.cost;
 
-  if (!stats.byApi[data.apiType]) {
-    stats.byApi[data.apiType] = { requests: 0, tokens: 0, cost: 0 };
-  }
-  stats.byApi[data.apiType].requests++;
-  stats.byApi[data.apiType].tokens += data.inputTokens + data.outputTokens;
-  stats.byApi[data.apiType].cost += data.cost;
+    if (!stats.byApi[data.apiType]) {
+      stats.byApi[data.apiType] = { requests: 0, tokens: 0, cost: 0 };
+    }
+    stats.byApi[data.apiType].requests++;
+    stats.byApi[data.apiType].tokens += data.inputTokens + data.outputTokens;
+    stats.byApi[data.apiType].cost += data.cost;
 
-  if (!stats.byModel[data.model]) {
-    stats.byModel[data.model] = { requests: 0, tokens: 0, cost: 0 };
-  }
-  stats.byModel[data.model].requests++;
-  stats.byModel[data.model].tokens += data.inputTokens + data.outputTokens;
-  stats.byModel[data.model].cost += data.cost;
+    if (!stats.byModel[data.model]) {
+      stats.byModel[data.model] = { requests: 0, tokens: 0, cost: 0 };
+    }
+    stats.byModel[data.model].requests++;
+    stats.byModel[data.model].tokens += data.inputTokens + data.outputTokens;
+    stats.byModel[data.model].cost += data.cost;
 
-  saveStats(stats);
+    saveStats(stats);
+  });
 }
 
 export async function getSummary(): Promise<Stats> {
@@ -99,7 +105,9 @@ export async function getSummary(): Promise<Stats> {
 }
 
 export async function resetStats(): Promise<void> {
-  saveStats(getDefaultStats());
+  return mutex.runExclusive(() => {
+    saveStats(getDefaultStats());
+  });
 }
 
 export default {

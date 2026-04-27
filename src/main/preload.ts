@@ -16,6 +16,9 @@ const VALID_BUDGET_TYPES = ['daily', 'monthly'] as const;
 /** 有效的配置键白名单 */
 const VALID_CONFIG_KEYS = ['proxyPort', 'dataRetentionDays', 'cacheTTL'] as const;
 
+/** 优化配置允许的属性白名单 */
+const VALID_OPTIM_KEYS = ['caching', 'compression', 'routing', 'batching'] as const;
+
 contextBridge.exposeInMainWorld('electronAPI', {
   proxy: {
     start: (port?: number) => {
@@ -29,6 +32,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setKeys: (openaiKey: string, anthropicKey: string) => {
       if (typeof openaiKey !== 'string' || typeof anthropicKey !== 'string') {
         return Promise.resolve({ success: false, error: '密钥必须为字符串' });
+      }
+      if (openaiKey.length > 500 || anthropicKey.length > 500) {
+        return Promise.resolve({ success: false, error: '密钥长度超限' });
       }
       return ipcRenderer.invoke('proxy:setKeys', openaiKey, anthropicKey);
     }
@@ -89,6 +95,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
         if (options.offset !== undefined && (options.offset < 0)) {
           return Promise.resolve([]);
         }
+        if (options.search !== undefined && (typeof options.search !== 'string' || options.search.length > 200)) {
+          return Promise.resolve([]);
+        }
+        if (options.apiType !== undefined && !['openai', 'anthropic'].includes(options.apiType)) {
+          return Promise.resolve([]);
+        }
       }
       return ipcRenderer.invoke('history:list', options);
     },
@@ -118,6 +130,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setConfig: (config: Record<string, unknown>) => {
       if (!config || typeof config !== 'object') {
         return Promise.resolve({ success: false, error: '配置无效' });
+      }
+      // 属性白名单校验：只允许已知的优化开关
+      for (const key of Object.keys(config)) {
+        if (!VALID_OPTIM_KEYS.includes(key as typeof VALID_OPTIM_KEYS[number])) {
+          return Promise.resolve({ success: false, error: `未知的优化配置项: ${key}` });
+        }
+        if (typeof config[key] !== 'boolean') {
+          return Promise.resolve({ success: false, error: `配置项 ${key} 必须为布尔值` });
+        }
       }
       return ipcRenderer.invoke('optimization:setConfig', config);
     }

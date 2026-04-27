@@ -1,5 +1,6 @@
 import { loadJson, saveJson } from '../utils/storage';
 import { getConfig } from './config';
+import { getMutex } from '../utils/mutex';
 
 export interface RequestLog {
   id: number;
@@ -23,6 +24,7 @@ interface HistoryStore {
 const STORAGE_FILE = 'history.json';
 const MAX_HISTORY = 1000;
 const DEFAULT_RETENTION_DAYS = 30;
+const mutex = getMutex(STORAGE_FILE);
 
 function getStore(): HistoryStore {
   return loadJson<HistoryStore>(STORAGE_FILE, { requests: [], nextId: 1 });
@@ -30,7 +32,6 @@ function getStore(): HistoryStore {
 
 /**
  * 根据配置的数据保留天数清理过期记录
- * 在 saveStore 时调用，确保过期数据自动删除
  */
 async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
   let retentionDays: number;
@@ -59,13 +60,15 @@ function saveStore(store: HistoryStore): void {
 }
 
 export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLog> {
-  const store = getStore();
-  const request: RequestLog = { ...log, id: store.nextId++ };
-  store.requests.push(request);
-  // 异步清理过期记录，不阻塞当前写入
-  cleanupExpiredRequests(store).then(() => saveStore(store)).catch(() => {/* 清理失败不影响保存 */});
-  saveStore(store);
-  return request;
+  return mutex.runExclusive(async () => {
+    const store = getStore();
+    const request: RequestLog = { ...log, id: store.nextId++ };
+    store.requests.push(request);
+    // 在锁内同步清理过期记录，避免与后续写入冲突
+    await cleanupExpiredRequests(store);
+    saveStore(store);
+    return request;
+  });
 }
 
 export async function listRequests(options?: { limit?: number; offset?: number; apiType?: string; search?: string }): Promise<RequestLog[]> {
@@ -102,7 +105,9 @@ export async function getRequest(id: number): Promise<RequestLog | undefined> {
 }
 
 export async function clearRequests(): Promise<void> {
-  saveStore({ requests: [], nextId: 1 });
+  return mutex.runExclusive(() => {
+    saveStore({ requests: [], nextId: 1 });
+  });
 }
 
 export async function getRecentRequests(limit = 10): Promise<RequestLog[]> {

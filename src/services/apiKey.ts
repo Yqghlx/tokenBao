@@ -1,5 +1,6 @@
 import { encrypt, decrypt } from '../utils/crypto';
 import { loadJson, saveJson } from '../utils/storage';
+import { getMutex } from '../utils/mutex';
 
 interface ApiKey {
   id: number;
@@ -31,6 +32,7 @@ interface ApiKeyStore {
 }
 
 const STORAGE_FILE = 'apiKeys.json';
+const mutex = getMutex(STORAGE_FILE);
 
 function getStore(): ApiKeyStore {
   return loadJson<ApiKeyStore>(STORAGE_FILE, { keys: [], nextId: 1 });
@@ -46,29 +48,33 @@ export async function addApiKey(name: string, type: string, key: string): Promis
     throw new Error(validationError);
   }
 
-  const store = getStore();
-  const encryptedKey = encrypt(key);
-  const now = new Date().toISOString();
-  const apiKey: ApiKey = {
-    id: store.nextId++,
-    name,
-    type,
-    encryptedKey,
-    createdAt: now,
-    updatedAt: now
-  };
-  store.keys.push(apiKey);
-  saveStore(store);
-  return apiKey;
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    const encryptedKey = encrypt(key);
+    const now = new Date().toISOString();
+    const apiKey: ApiKey = {
+      id: store.nextId++,
+      name,
+      type,
+      encryptedKey,
+      createdAt: now,
+      updatedAt: now
+    };
+    store.keys.push(apiKey);
+    saveStore(store);
+    return apiKey;
+  });
 }
 
 export async function deleteApiKey(id: number): Promise<boolean> {
-  const store = getStore();
-  const index = store.keys.findIndex(k => k.id === id);
-  if (index === -1) return false;
-  store.keys.splice(index, 1);
-  saveStore(store);
-  return true;
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    const index = store.keys.findIndex(k => k.id === id);
+    if (index === -1) return false;
+    store.keys.splice(index, 1);
+    saveStore(store);
+    return true;
+  });
 }
 
 export async function listApiKeys(): Promise<Omit<ApiKey, 'encryptedKey'>[]> {

@@ -39,6 +39,26 @@ describe('responseHandler', () => {
       expect(result.stats!.model).toBe('gpt-4o');
     });
 
+    test('应正确解析 OpenAI 非流式响应的 cached_tokens', () => {
+      const body = JSON.stringify({
+        id: 'chatcmpl-456',
+        model: 'gpt-4o',
+        usage: {
+          prompt_tokens: 200,
+          completion_tokens: 80,
+          prompt_tokens_details: { cached_tokens: 150 }
+        },
+        choices: [{ message: { content: 'cached response' } }]
+      });
+
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(200);
+      expect(result.stats!.outputTokens).toBe(80);
+      expect(result.stats!.cacheReadTokens).toBe(150);
+    });
+
     test('应正确解析 Anthropic 非流式响应的 usage', () => {
       const body = JSON.stringify({
         id: 'msg_123',
@@ -89,6 +109,22 @@ describe('responseHandler', () => {
       expect(result.stats).not.toBeNull();
       expect(result.stats!.inputTokens).toBe(150);
       expect(result.stats!.outputTokens).toBe(30);
+      expect(result.stats!.model).toBe('gpt-4o');
+    });
+
+    test('应正确解析 OpenAI SSE 流的 prompt_tokens_details.cached_tokens', () => {
+      const body = [
+        'data: {"choices":[{"delta":{"content":"hi"}}]}',
+        'data: {"usage":{"prompt_tokens":200,"completion_tokens":50,"prompt_tokens_details":{"cached_tokens":120}},"model":"gpt-4o"}',
+        'data: [DONE]'
+      ].join('\n');
+
+      const result = handleResponse(body, { 'content-type': 'text/event-stream' }, 'openai');
+
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(200);
+      expect(result.stats!.outputTokens).toBe(50);
+      expect(result.stats!.cacheReadTokens).toBe(120);
       expect(result.stats!.model).toBe('gpt-4o');
     });
 

@@ -12,6 +12,7 @@ interface CacheStore {
 }
 
 const STORAGE_FILE = 'cache.json';
+const MAX_CACHE_SIZE = 1000; // 最大缓存条目数
 
 const defaultOptions: CachingOptions = {
   enabled: true,
@@ -20,20 +21,34 @@ const defaultOptions: CachingOptions = {
 };
 
 const cachePatterns: Map<string, { content: string; timestamp: number }> = new Map();
+// 记录插入顺序用于 LRU 淘汰
+const cacheOrder: string[] = [];
 
 function loadFromStorage(): void {
   try {
     const store = loadJson<CacheStore>(STORAGE_FILE, { patterns: [] });
     const now = Date.now();
     const ttlMs = defaultOptions.ttl === '5min' ? 5 * 60 * 1000 : 60 * 60 * 1000;
-    
+
     store.patterns.forEach(p => {
       if (now - p.timestamp < ttlMs) {
         cachePatterns.set(p.key, { content: p.content, timestamp: p.timestamp });
+        cacheOrder.push(p.key);
       }
     });
-  } catch (e) {
+
+    // 加载时截断超限缓存
+    evictIfNeeded();
+  } catch {
     // 首次加载可能失败
+  }
+}
+
+/** 淘汰最早的条目直到缓存大小合规 */
+function evictIfNeeded(): void {
+  while (cachePatterns.size > MAX_CACHE_SIZE && cacheOrder.length > 0) {
+    const oldest = cacheOrder.shift()!;
+    cachePatterns.delete(oldest);
   }
 }
 
@@ -62,12 +77,18 @@ export function setOptions(options: Partial<CachingOptions>): void {
 
 export function addCache(apiType: string, content: string): void {
   if (!defaultOptions.enabled) return;
-  
+
   const key = getCacheKey(apiType, content);
+  // 已存在则先从顺序中移除（会重新追加到末尾）
+  const existingIdx = cacheOrder.indexOf(key);
+  if (existingIdx !== -1) cacheOrder.splice(existingIdx, 1);
+
   cachePatterns.set(key, {
     content: content.slice(0, 1000),
     timestamp: Date.now()
   });
+  cacheOrder.push(key);
+  evictIfNeeded();
   saveToStorage();
 }
 
