@@ -66,7 +66,7 @@ typescript-language-server --version  # 需全局安装
 - **统计** (`src/services/stats.ts`): `recordOptimization` 记录节省 token，`addStats` 记录完整请求统计（含 NaN/负值校验）
 - **历史** (`src/services/history.ts`): 输入校验（apiType/model/tokens/cost），`dataRetentionDays` 缓存（60s TTL），自动清理过期记录，上限 1000 条
 - **预算** (`src/services/budget.ts`): 日/月预算自动重置（本地时区），深拷贝默认值防引用污染，`resetSpent` 支持
-- **配置** (`src/services/config.ts`): 深拷贝默认值防引用污染
+- **配置** (`src/services/config.ts`): 深拷贝默认值防引用污染，CONFIG_VALIDATORS 验证写入值
 - **存储** (`src/utils/storage.ts`): JSON 文件 + 原子写入 + 备份恢复 + `.bak` 清理
 - **加密** (`src/utils/crypto.ts`): AES-256-GCM，密钥文件权限 0o600
 - **互斥** (`src/utils/mutex.ts`): 按文件名粒度的写入串行化，异常时自动释放锁，队列上限 100 防积压
@@ -104,7 +104,7 @@ typescript-language-server --version  # 需全局安装
 
 ## 测试
 
-测试文件位于 `src/__tests__/`，18 个测试套件，246+ 测试用例：
+测试文件位于 `src/__tests__/`，18 个测试套件，255+ 测试用例：
 
 | 套件 | 用途 |
 |------|------|
@@ -120,7 +120,7 @@ typescript-language-server --version  # 需全局安装
 | pricing | 23 个模型定价完整性、归一化、各模型费用计算 |
 | pipeline | 优化管线端到端（压缩/路由/caching/禁用/token 计算） |
 | services | API Key/历史/统计/预算服务 + 输入验证拒绝 |
-| config | 配置服务（get/set/reset/optimization/引用隔离） |
+| config | 配置服务（get/set/reset/optimization/引用隔离/值验证） |
 | requestTracker | 请求生命周期、指数退避重试、自动清理、容量淘汰 |
 | responseHandler | OpenAI/Anthropic 流式非流式 usage 解析 |
 | rules | 规则引擎（增删改查/正则替换/优先级/降级） |
@@ -144,3 +144,5 @@ typescript-language-server --version  # 需全局安装
 - 代理超时/error 处理器会清理 `activeUpstreamRequests`，SSE 缓冲有 1MB 硬上限
 - 优化管线错误隔离：单个策略失败不影响其他策略，body 完整性异常时回退原始数据
 - apiKey `getDecryptedKey`/`getDecryptedKeyByType` 使用 mutex 保护防并发读取
+- 健康检查端点 `GET /health` 返回 uptime/connections/requestCount/shuttingDown
+- 懒加载 ChunkErrorBoundary 捕获 chunk 加载失败并提供重试
