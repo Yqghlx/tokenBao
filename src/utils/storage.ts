@@ -34,15 +34,35 @@ function getFilePath(filename: string): string {
 
 export function loadJson<T>(filename: string, defaultValue: T): T {
   const filePath = getFilePath(filename);
+  const backupPath = filePath + '.bak';
   try {
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, 'utf-8');
-      return JSON.parse(content) as T;
+      const data = JSON.parse(content) as T;
+      // 加载成功后创建备份，供未来损坏时恢复
+      try {
+        fs.writeFileSync(backupPath, content, 'utf-8');
+      } catch {
+        /* 备份失败不影响正常流程 */
+      }
+      return data;
     }
     // 文件不存在，返回默认值（正常情况）
   } catch (err) {
-    // 文件损坏时记录警告，返回默认值以防止应用崩溃
-    console.warn(`加载 ${filename} 失败，使用默认值:`, err);
+    // 主文件损坏，尝试从备份恢复
+    console.warn(`加载 ${filename} 失败，尝试从备份恢复:`, err);
+    try {
+      if (fs.existsSync(backupPath)) {
+        const backupContent = fs.readFileSync(backupPath, 'utf-8');
+        const restored = JSON.parse(backupContent) as T;
+        // 恢复成功，用备份数据覆盖损坏的主文件
+        fs.writeFileSync(filePath, backupContent, 'utf-8');
+        console.log(`从备份恢复 ${filename} 成功`);
+        return restored;
+      }
+    } catch (backupErr) {
+      console.error(`备份恢复 ${filename} 也失败:`, backupErr);
+    }
   }
   return defaultValue;
 }

@@ -79,37 +79,34 @@ function Settings() {
     <div className="page">
       <h2>设置</h2>
       <div className="settings-form">
-        <div className="form-group" style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px' }}>代理端口</label>
+        <div className="form-group">
+          <label>代理端口</label>
           <input
             type="number"
             value={proxyPort}
             onChange={(e) => setProxyPort(e.target.value)}
             min={1024}
             max={65535}
-            style={{ width: '200px', padding: '8px', borderRadius: '4px', border: '1px solid #333' }}
             disabled={loading}
           />
-          <span style={{ marginLeft: '8px', fontSize: '12px', color: '#888' }}>范围: 1024-65535</span>
+          <span className="toggle-desc">范围: 1024-65535</span>
         </div>
-        <div className="form-group" style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px' }}>数据保留天数</label>
+        <div className="form-group">
+          <label>数据保留天数</label>
           <input
             type="number"
             value={dataRetentionDays}
             onChange={(e) => setDataRetentionDays(e.target.value)}
             min={1}
             max={365}
-            style={{ width: '200px', padding: '8px', borderRadius: '4px', border: '1px solid #333' }}
             disabled={loading}
           />
         </div>
-        <div className="form-group" style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px' }}>缓存 TTL</label>
+        <div className="form-group">
+          <label>缓存 TTL</label>
           <select
             value={cacheTTL}
             onChange={(e) => setCacheTTL(e.target.value)}
-            style={{ width: '200px', padding: '8px', borderRadius: '4px', border: '1px solid #333' }}
             disabled={loading}
           >
             <option value="5min">5 分钟</option>

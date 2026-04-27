@@ -137,26 +137,26 @@ function History() {
   return (
     <div className="page">
       <h2>请求历史</h2>
-      <div className="history-filters" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
+      <div className="history-toolbar">
         <input
           type="text"
+          className="search-input"
           placeholder="搜索模型名或 API 类型..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #333', background: '#1a1a2e', color: '#eee', width: '220px' }}
         />
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #333', background: '#1a1a2e', color: '#eee' }}>
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="filter-select">
           <option value="">所有 API</option>
           <option value="openai">OpenAI</option>
           <option value="anthropic">Anthropic</option>
         </select>
         <button className="btn-secondary" onClick={exportCsv}>导出 CSV</button>
         <button className="btn-secondary" onClick={clearHistory}>清除历史</button>
-        <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#888' }}>
+        <span className="record-count">
           共 {filteredHistory.length} 条记录
         </span>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="table-scroll">
         <table className="data-table">
           <thead>
             <tr>
@@ -193,7 +193,7 @@ function History() {
         </table>
       </div>
       {totalPages > 1 && (
-        <div className="pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '16px' }}>
+        <div className="pagination">
           <button
             className="btn-secondary"
             disabled={safePage <= 1}
@@ -201,7 +201,7 @@ function History() {
           >
             上一页
           </button>
-          <span style={{ fontSize: '13px', color: '#aaa' }}>
+          <span className="pagination-info">
             {safePage} / {totalPages}
           </span>
           <button

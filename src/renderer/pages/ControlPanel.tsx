@@ -187,7 +187,7 @@ function ControlPanel() {
             {proxyStatus.running ? '运行中' : '已停止'}
           </p>
           <span className="status-label">端口: {proxyStatus.port}</span>
-          <div className="proxy-controls" style={{ marginTop: '12px' }}>
+          <div className="proxy-controls">
             {!proxyStatus.running ? (
               <button className="btn-primary" onClick={startProxy} disabled={togglingProxy}>
                 {togglingProxy ? '启动中...' : '启动代理'}
@@ -199,12 +199,12 @@ function ControlPanel() {
             )}
           </div>
           {proxyStatus.running && (
-            <div className="proxy-tip" style={{ marginTop: '12px', fontSize: '12px', color: '#00d4ff' }}>
+            <div className="proxy-tip">
               将 API 地址改为: http://localhost:{proxyStatus.port}
             </div>
           )}
           {proxyStatus.requests > 0 && (
-            <div style={{ marginTop: '8px', fontSize: '11px', color: '#888' }}>
+            <div className="proxy-request-count">
               已处理 {proxyStatus.requests} 个请求
             </div>
           )}
@@ -233,7 +233,7 @@ function ControlPanel() {
               onChange={() => toggleOptimization('caching')}
             />
             <span>Prompt Caching</span>
-            <span className="toggle-desc" style={{ marginLeft: '8px', fontSize: '11px', color: '#666' }}>
+            <span className="toggle-desc">
               (节省 50-90%)
             </span>
           </label>
@@ -244,7 +244,7 @@ function ControlPanel() {
               onChange={() => toggleOptimization('compression')}
             />
             <span>Prompt 压缩</span>
-            <span className="toggle-desc" style={{ marginLeft: '8px', fontSize: '11px', color: '#666' }}>
+            <span className="toggle-desc">
               (节省 20-40%)
             </span>
           </label>
@@ -255,7 +255,7 @@ function ControlPanel() {
               onChange={() => toggleOptimization('routing')}
             />
             <span>智能模型路由</span>
-            <span className="toggle-desc" style={{ marginLeft: '8px', fontSize: '11px', color: '#666' }}>
+            <span className="toggle-desc">
               (节省 60-95%)
             </span>
           </label>
@@ -270,11 +270,11 @@ function ControlPanel() {
         </div>
       </div>
 
-      <div className="usage-guide" style={{ marginTop: '24px', padding: '16px', background: '#16213e', borderRadius: '8px' }}>
-        <h3 style={{ marginBottom: '12px' }}>使用说明</h3>
-        <ol style={{ fontSize: '14px', lineHeight: '1.8', paddingLeft: '20px' }}>
+      <div className="usage-guide info-panel">
+        <h3>使用说明</h3>
+        <ol>
           <li>点击「启动代理」按钮启动本地代理服务器</li>
-          <li>将你的 API 调用地址从 <code style={{ background: '#1a1a2e', padding: '2px 6px', borderRadius: '4px' }}>https://api.openai.com</code> 改为 <code style={{ background: '#1a1a2e', padding: '2px 6px', borderRadius: '4px' }}>http://localhost:{proxyStatus.port}</code></li>
+          <li>将你的 API 调用地址从 <code className="inline-code">https://api.openai.com</code> 改为 <code className="inline-code">http://localhost:{proxyStatus.port}</code></li>
           <li>代理会自动应用优化策略并记录统计数据</li>
           <li>在「监控仪表盘」查看节省效果</li>
         </ol>

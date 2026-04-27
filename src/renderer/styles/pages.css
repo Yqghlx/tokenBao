@@ -299,3 +299,260 @@
 .status-value, .stat-value {
   transition: color 0.3s;
 }
+
+/* ===== 通用工具类 ===== */
+
+/* 页面头部（标题 + 操作按钮） */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.page-header h2 {
+  margin: 0;
+}
+
+/* 信息面板（使用说明、预算说明等） */
+.info-panel {
+  margin-top: 24px;
+  padding: 16px;
+  background: #16213e;
+  border-radius: 8px;
+}
+
+.info-panel h3 {
+  margin-bottom: 12px;
+}
+
+.info-panel ul,
+.info-panel ol {
+  font-size: 14px;
+  line-height: 1.8;
+  padding-left: 20px;
+  color: #a0a0a0;
+}
+
+/* 进度条 */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #1a1a2e;
+  border-radius: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+/* 预算卡片数值区 */
+.budget-values {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.budget-amount {
+  font-size: 28px;
+  font-weight: 600;
+  color: #00d4ff;
+}
+
+.budget-amount.over-budget {
+  color: #ef4444;
+}
+
+.budget-limit {
+  font-size: 14px;
+  color: #666;
+}
+
+.budget-remaining {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+.budget-warning {
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.budget-warning.warn {
+  color: #f59e0b;
+}
+
+.budget-warning.danger {
+  color: #ef4444;
+}
+
+/* 预算编辑行 */
+.budget-edit-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  align-items: center;
+}
+
+.budget-input {
+  width: 100px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #333;
+  background: #1a1a2e;
+  color: #eee;
+  font-size: 14px;
+}
+
+.budget-input-suffix {
+  font-size: 12px;
+  color: #666;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* 统计详情网格 */
+.stats-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* 统计分区面板 */
+.breakdown-section {
+  padding: 16px;
+  background: #16213e;
+  border-radius: 8px;
+}
+
+.breakdown-section h4 {
+  margin-bottom: 12px;
+}
+
+/* 统计条目 */
+.breakdown-item {
+  margin-bottom: 8px;
+}
+
+.breakdown-item-label {
+  font-weight: bold;
+}
+
+.breakdown-item-detail {
+  font-size: 12px;
+  color: #888;
+}
+
+/* 缓存效果卡片（绿色背景） */
+.stat-card.cache-card {
+  background: #1a472a;
+}
+
+/* 分页容器 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: #aaa;
+}
+
+/* 历史筛选栏 */
+.history-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.history-toolbar .search-input {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #333;
+  background: #1a1a2e;
+  color: #eee;
+  width: 220px;
+}
+
+.history-toolbar .filter-select {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #333;
+  background: #1a1a2e;
+  color: #eee;
+}
+
+.history-toolbar .record-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: #888;
+}
+
+/* 表格容器（横向滚动） */
+.table-scroll {
+  overflow-x: auto;
+}
+
+/* 切换描述标签 */
+.toggle-desc {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #666;
+}
+
+/* 代理提示信息 */
+.proxy-tip {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #00d4ff;
+}
+
+/* 代理请求计数 */
+.proxy-request-count {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #888;
+}
+
+/* 代理控制按钮区 */
+.proxy-controls {
+  margin-top: 12px;
+}
+
+/* 空数据占位 */
+.empty-placeholder {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+}
+
+.empty-placeholder .title {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.empty-placeholder .desc {
+  font-size: 13px;
+}
+
+/* 行内代码样式 */
+code.inline-code {
+  background: #1a1a2e;
+  padding: 2px 6px;
+  border-radius: 4px;
+}

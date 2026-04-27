@@ -11,6 +11,68 @@ import { getOptimizationConfig, setOptimizationConfig } from '../services/config
 let mainWindow: BrowserWindow | null = null;
 let proxyServer: ProxyServer | null = null;
 
+/** 代理服务器崩溃后自动重启 */
+async function restartProxy(): Promise<void> {
+  if (!proxyServer) return;
+  const port = proxyServer.getPort();
+  console.warn(`代理服务器异常停止，尝试自动重启 (端口: ${port})...`);
+  try {
+    await proxyServer.stop();
+  } catch {
+    /* 停止失败忽略 */
+  }
+  proxyServer = null;
+
+  try {
+    const openaiKey = await apiKeyService.getDecryptedKeyByType('openai');
+    const anthropicKey = await apiKeyService.getDecryptedKeyByType('anthropic');
+    proxyServer = new ProxyServer({ port, openaiKey, anthropicKey });
+    await proxyServer.start();
+    const optimConfig = await getOptimizationConfig();
+    proxyServer.updateOptimizationConfig(optimConfig);
+    console.log(`代理服务器自动重启成功 (端口: ${port})`);
+
+    // 通知渲染进程状态变更
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('proxy:statusChanged', { running: true, port });
+    }
+  } catch (err) {
+    console.error('代理服务器自动重启失败:', err);
+    proxyServer = null;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('proxy:error', { message: '代理服务器崩溃后自动重启失败' });
+    }
+  }
+}
+
+/** 每 10 秒检查代理服务器健康状态 */
+let healthCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+function startHealthCheck(): void {
+  if (healthCheckTimer) return;
+  healthCheckTimer = setInterval(() => {
+    if (proxyServer && !proxyServer.isRunning()) {
+      restartProxy().catch(err => console.error('健康检查重启失败:', err));
+    }
+  }, 10000);
+}
+
+function stopHealthCheck(): void {
+  if (healthCheckTimer) {
+    clearInterval(healthCheckTimer);
+    healthCheckTimer = null;
+  }
+}
+
+// 全局错误处理：防止单个请求错误导致进程崩溃
+process.on('uncaughtException', (err) => {
+  console.error('未捕获异常:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('未处理的 Promise 拒绝:', reason);
+});
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -47,6 +109,7 @@ function registerIpcHandlers(): void {
 
       const optimConfig = await getOptimizationConfig();
       proxyServer.updateOptimizationConfig(optimConfig);
+      startHealthCheck();
 
       return { success: true, port: proxyServer.getPort() };
     } catch (err) {
@@ -56,6 +119,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('proxy:stop', async () => {
     try {
+      stopHealthCheck();
       if (proxyServer) {
         await proxyServer.stop();
         proxyServer = null;
@@ -172,6 +236,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', async () => {
+  stopHealthCheck();
   if (proxyServer) {
     await proxyServer.stop();
     proxyServer = null;

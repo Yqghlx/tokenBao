@@ -68,15 +68,15 @@ function Monitor() {
 
   return (
     <div className="page">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <h2 style={{ margin: 0 }}>监控仪表盘</h2>
+      <div className="page-header">
+        <h2>监控仪表盘</h2>
         <button className="btn-secondary" onClick={loadStats}>刷新</button>
       </div>
 
       {stats.totalRequests === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#888' }}>
-          <p style={{ fontSize: '16px', marginBottom: '8px' }}>暂无统计数据</p>
-          <p style={{ fontSize: '13px' }}>启动代理并发送请求后，统计数据将在此处展示</p>
+        <div className="empty-placeholder">
+          <p className="title">暂无统计数据</p>
+          <p className="desc">启动代理并发送请求后，统计数据将在此处展示</p>
         </div>
       ) : (
         <>
@@ -103,12 +103,12 @@ function Monitor() {
 
           {cachingStats.cacheReadTokens > 0 && (
             <div className="stats-grid" style={{ marginTop: '16px' }}>
-              <div className="stat-card" style={{ background: '#1a472a' }}>
+              <div className="stat-card cache-card">
                 <h3>Prompt Caching 效果</h3>
                 <p className="stat-value">{cachingStats.cacheReadTokens.toLocaleString()}</p>
                 <p className="stat-detail">缓存读取 Tokens</p>
               </div>
-              <div className="stat-card" style={{ background: '#1a472a' }}>
+              <div className="stat-card cache-card">
                 <h3>缓存节省费用</h3>
                 <p className="stat-value">${cachingStats.cacheSavings.toFixed(4)}</p>
                 <p className="stat-detail">90% 费率优惠</p>
@@ -118,31 +118,31 @@ function Monitor() {
 
           <div className="stats-details" style={{ marginTop: '24px' }}>
             <h3>详细统计</h3>
-            <div className="stats-breakdown" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div className="breakdown-section" style={{ padding: '16px', background: '#16213e', borderRadius: '8px' }}>
-                <h4 style={{ marginBottom: '12px' }}>按 API 类型</h4>
+            <div className="stats-breakdown">
+              <div className="breakdown-section">
+                <h4>按 API 类型</h4>
                 {Object.keys(stats.byApi).length === 0 ? (
-                  <p style={{ fontSize: '13px', color: '#666' }}>暂无数据</p>
+                  <p className="breakdown-item-detail">暂无数据</p>
                 ) : (
                   Object.entries(stats.byApi).map(([api, data]) => (
-                    <div key={api} style={{ marginBottom: '8px' }}>
-                      <span style={{ fontWeight: 'bold' }}>{api.toUpperCase()}</span>
-                      <div style={{ fontSize: '12px', color: '#888' }}>
+                    <div key={api} className="breakdown-item">
+                      <span className="breakdown-item-label">{api.toUpperCase()}</span>
+                      <div className="breakdown-item-detail">
                         请求: {data.requests} | Tokens: {data.tokens.toLocaleString()} | 费用: ${data.cost.toFixed(4)}
                       </div>
                     </div>
                   ))
                 )}
               </div>
-              <div className="breakdown-section" style={{ padding: '16px', background: '#16213e', borderRadius: '8px' }}>
-                <h4 style={{ marginBottom: '12px' }}>按模型</h4>
+              <div className="breakdown-section">
+                <h4>按模型</h4>
                 {Object.keys(stats.byModel).length === 0 ? (
-                  <p style={{ fontSize: '13px', color: '#666' }}>暂无数据</p>
+                  <p className="breakdown-item-detail">暂无数据</p>
                 ) : (
                   Object.entries(stats.byModel).map(([model, data]) => (
-                    <div key={model} style={{ marginBottom: '8px' }}>
-                      <span style={{ fontWeight: 'bold' }}>{model}</span>
-                      <div style={{ fontSize: '12px', color: '#888' }}>
+                    <div key={model} className="breakdown-item">
+                      <span className="breakdown-item-label">{model}</span>
+                      <div className="breakdown-item-detail">
                         请求: {data.requests} | Tokens: {data.tokens.toLocaleString()} | 费用: ${data.cost.toFixed(4)}
                       </div>
                     </div>
