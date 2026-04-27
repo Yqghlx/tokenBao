@@ -77,18 +77,29 @@ function History() {
     }
 
     const headers = ['时间', 'API', '模型', '输入 Tokens', '输出 Tokens', '缓存 Tokens', '成本'];
+
+    // 标准 CSV 转义：字段含逗号/引号/换行时用双引号包裹，内部引号双写
+    const escapeCsv = (value: string | number): string => {
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
     const rows = filteredHistory.map(item => [
-      item.timestamp,
-      item.apiType,
-      item.model,
-      item.inputTokens,
-      item.outputTokens,
-      item.cachedTokens,
-      item.cost.toFixed(4)
+      escapeCsv(item.timestamp),
+      escapeCsv(item.apiType),
+      escapeCsv(item.model),
+      escapeCsv(item.inputTokens),
+      escapeCsv(item.outputTokens),
+      escapeCsv(item.cachedTokens),
+      escapeCsv(item.cost.toFixed(4))
     ]);
 
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv = [headers.map(escapeCsv).join(','), ...rows.map(r => r.join(','))].join('\n');
+    // 添加 BOM 以确保 Excel 正确识别 UTF-8 编码
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

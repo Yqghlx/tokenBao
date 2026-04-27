@@ -236,10 +236,10 @@ class ProxyServer {
         let rawBody: string;
         try {
           rawBody = await this.collectBody(clientReq);
-        } catch (err: any) {
+        } catch (err: unknown) {
           if (!clientRes.headersSent) {
             clientRes.writeHead(413, { 'Content-Type': 'application/json' });
-            clientRes.end(JSON.stringify({ error: err.message }));
+            clientRes.end(JSON.stringify({ error: err instanceof Error ? err.message : '请求体过大' }));
           }
           return;
         }
@@ -388,8 +388,8 @@ class ProxyServer {
             upstreamResult = await sendUpstream(options, optimizedBody);
             lastError = undefined;
             break;
-          } catch (err: any) {
-            lastError = err;
+          } catch (err: unknown) {
+            lastError = err instanceof Error ? err : new Error(String(err));
             if (requestId && attempt < maxAttempts - 1) {
               const retryCount = requestTracker.incrementRetry(requestId);
               console.log(`[${requestId}] 重试请求 (${retryCount}/${requestTracker.MAX_RETRIES})`);
@@ -400,13 +400,14 @@ class ProxyServer {
         }
 
         if (lastError) {
-          logProxy('error', `代理请求失败`, { requestId, error: lastError.message });
+          const errMsg = lastError instanceof Error ? lastError.message : String(lastError);
+          logProxy('error', `代理请求失败`, { requestId, error: errMsg });
           if (requestId) {
-            requestTracker.failRequest(requestId, lastError.message, 502);
+            requestTracker.failRequest(requestId, errMsg, 502);
           }
           if (!clientRes.headersSent) {
             clientRes.writeHead(502, { 'Content-Type': 'application/json' });
-            clientRes.end(JSON.stringify({ error: lastError.message }));
+            clientRes.end(JSON.stringify({ error: errMsg }));
           }
           return;
         }
