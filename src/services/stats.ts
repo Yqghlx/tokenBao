@@ -119,7 +119,7 @@ export async function addStats(data: {
 }
 
 export async function getSummary(): Promise<Stats> {
-  return getStats();
+  return mutex.runExclusive(() => getStats());
 }
 
 export async function resetStats(): Promise<void> {

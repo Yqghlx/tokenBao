@@ -54,8 +54,10 @@ function saveStore(store: ConfigStore): void {
 }
 
 export async function getConfig(key: string): Promise<string | undefined> {
-  const store = getStore();
-  return store.config[key];
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    return store.config[key];
+  });
 }
 
 export async function setConfig(key: string, value: string): Promise<void> {
@@ -71,8 +73,10 @@ export async function setConfig(key: string, value: string): Promise<void> {
 }
 
 export async function getAllConfig(): Promise<Record<string, string>> {
-  const store = getStore();
-  return { ...store.config };
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    return { ...store.config };
+  });
 }
 
 export async function resetConfig(): Promise<void> {
@@ -83,8 +87,10 @@ export async function resetConfig(): Promise<void> {
 }
 
 export async function getOptimizationConfig(): Promise<Record<string, boolean>> {
-  const store = getStore();
-  return { ...store.optimization };
+  return mutex.runExclusive(() => {
+    const store = getStore();
+    return { ...store.optimization };
+  });
 }
 
 export async function setOptimizationConfig(config: Record<string, boolean>): Promise<void> {

@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import { usePolling } from '../hooks/usePolling';
 
-/** 缓存节省保守估算：缓存 token 比非缓存便宜约 50% */
-const CACHE_SAVINGS_RATIO = 0.5;
+/**
+ * 缓存节省估算：缓存 token 的费用是非缓存的 10%（即节省 90%）
+ * Anthropic Prompt Caching 官方定价：缓存读取 = 输入价格 × 0.1
+ */
+const CACHE_SAVINGS_RATIO = 0.9;
 
 function Monitor() {
   const [loading, setLoading] = useState(true);
@@ -45,11 +48,13 @@ function Monitor() {
   );
 
   const cacheSavings = useMemo(() => {
-    const total = stats.totalInputTokens + stats.totalCachedTokens;
-    if (total === 0 || stats.totalCost === 0) return 0;
-    const cacheRatio = stats.totalCachedTokens / total;
-    return stats.totalCost * cacheRatio * CACHE_SAVINGS_RATIO;
-  }, [stats.totalCachedTokens, stats.totalInputTokens, stats.totalCost]);
+    // cachedTokens 是 inputTokens 的子集，不应重复计算
+    if (stats.totalInputTokens === 0 || stats.totalCost === 0) return 0;
+    // 用 token 比例估算缓存部分对应的输入费用，乘以节省比例
+    const inputCost = stats.totalCost * (stats.totalInputTokens / totalTokens);
+    const cacheRatio = stats.totalCachedTokens / stats.totalInputTokens;
+    return inputCost * cacheRatio * CACHE_SAVINGS_RATIO;
+  }, [stats.totalCachedTokens, stats.totalInputTokens, stats.totalCost, totalTokens]);
 
   /** 导出统计数据为 JSON 文件 */
   const exportStats = useCallback(() => {

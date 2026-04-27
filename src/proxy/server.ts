@@ -181,6 +181,7 @@ class ProxyServer {
   private proxyTimeout: number;
   private circuitBreaker = { failures: 0, openUntil: 0 };
   private budgetState: BudgetSnapshot = { monthlyLimit: 100, monthlySpent: 0, dailyLimit: 10, dailySpent: 0 };
+  private budgetSyncTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(config: ProxyConfig) {
     this.port = config.port;
@@ -308,7 +309,8 @@ class ProxyServer {
 
         const headers = this.transformHeaders(clientReq.headers, apiType);
         let rawBody: string;
-        let requestId: string | undefined;
+        // 每个请求都有唯一 ID，后续优化管线可能覆盖
+        let requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         try {
           rawBody = await this.collectBody(clientReq);
         } catch (err: unknown) {
@@ -384,12 +386,12 @@ class ProxyServer {
         // 预算超限检查：月预算用完则拦截请求
         const budgetCheck = this.checkBudget();
         if (!budgetCheck.allowed) {
-          logProxy('warn', '月预算超限，请求被拦截', { requestId, monthlySpent: this.budgetState.monthlySpent, monthlyLimit: this.budgetState.monthlyLimit });
+          logProxy('warn', '预算超限，请求被拦截', { requestId, reason: budgetCheck.reason });
           if (!clientRes.headersSent) {
             clientRes.writeHead(429, { 'Content-Type': 'application/json' });
             clientRes.end(JSON.stringify({
               error: 'Budget Exceeded',
-              message: `月预算已用尽 ($${this.budgetState.monthlySpent.toFixed(2)} / $${this.budgetState.monthlyLimit.toFixed(2)})`,
+              message: budgetCheck.reason || '预算已用尽',
               requestId
             }));
           }
@@ -626,6 +628,13 @@ class ProxyServer {
         console.log(`OpenAI: http://localhost:${this.port}/v1/chat/completions`);
         console.log(`Anthropic: http://localhost:${this.port}/v1/messages`);
         await this.loadBudgetSnapshot();
+        // 每 60 秒从 budgetService 重新同步预算快照，纠正浮点漂移
+        this.budgetSyncTimer = setInterval(() => {
+          this.loadBudgetSnapshot().catch(() => {});
+        }, 60000);
+        if (this.budgetSyncTimer && typeof this.budgetSyncTimer === 'object' && 'unref' in this.budgetSyncTimer) {
+          this.budgetSyncTimer.unref();
+        }
         resolve();
       });
     });
@@ -635,6 +644,10 @@ class ProxyServer {
     return new Promise((resolve) => {
       if (this.server) {
         this.shuttingDown = true;
+        if (this.budgetSyncTimer) {
+          clearInterval(this.budgetSyncTimer);
+          this.budgetSyncTimer = null;
+        }
 
         // 停止接收新连接
         this.server.close(() => {
@@ -722,17 +735,22 @@ class ProxyServer {
   }
 
   /** 检查月预算是否超限，返回 true 表示允许请求 */
-  private checkBudget(): { allowed: boolean; warning?: string } {
-    const { monthlyLimit, monthlySpent } = this.budgetState;
-    if (monthlyLimit <= 0) return { allowed: true };
+  private checkBudget(): { allowed: boolean; warning?: string; reason?: string } {
+    const { monthlyLimit, monthlySpent, dailyLimit, dailySpent } = this.budgetState;
 
-    if (monthlySpent >= monthlyLimit) {
-      return { allowed: false };
+    // 日预算检查
+    if (dailyLimit > 0 && dailySpent >= dailyLimit) {
+      return { allowed: false, reason: `日预算已用尽 ($${dailySpent.toFixed(2)} / $${dailyLimit.toFixed(2)})` };
     }
 
-    const percent = (monthlySpent / monthlyLimit) * 100;
-    if (percent >= 80) {
-      return { allowed: true, warning: `Budget usage at ${Math.round(percent)}%` };
+    // 月预算检查
+    if (monthlyLimit > 0 && monthlySpent >= monthlyLimit) {
+      return { allowed: false, reason: `月预算已用尽 ($${monthlySpent.toFixed(2)} / $${monthlyLimit.toFixed(2)})` };
+    }
+
+    const monthlyPercent = monthlyLimit > 0 ? (monthlySpent / monthlyLimit) * 100 : 0;
+    if (monthlyPercent >= 80) {
+      return { allowed: true, warning: `Budget usage at ${Math.round(monthlyPercent)}%` };
     }
 
     return { allowed: true };

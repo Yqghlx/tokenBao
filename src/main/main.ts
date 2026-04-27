@@ -270,6 +270,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('optimization:setConfig', async (_, config: Record<string, unknown>) => {
     await setOptimizationConfig(config as Record<string, boolean>);
+    // 同步到运行中的代理服务器，否则运行时修改优化开关不生效
+    if (proxyServer) {
+      proxyServer.updateOptimizationConfig(config as Record<string, boolean>);
+    }
     return { success: true, config };
   });
 
