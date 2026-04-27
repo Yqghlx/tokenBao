@@ -18,8 +18,41 @@ interface OptimizationConfig {
   rules: boolean;
 }
 
+/** 聊天消息中的文本内容块 */
+interface TextContentBlock {
+  type: 'text';
+  text: string;
+  cache?: boolean;
+}
+
+/** 聊天消息中的其他内容块（图片等） */
+interface OtherContentBlock {
+  type: string;
+  [key: string]: unknown;
+}
+
+/** 聊天消息的内容：纯字符串或内容块数组 */
+type MessageContent = string | Array<TextContentBlock | OtherContentBlock>;
+
+/** API 请求中的单条消息 */
+interface ChatMessage {
+  role: string;
+  content: MessageContent;
+}
+
+/** API 请求体结构 */
+interface ApiRequestBody {
+  model?: string;
+  messages: ChatMessage[];
+  stream?: boolean;
+  max_tokens?: number;
+  temperature?: number;
+  system?: string | unknown;
+  [key: string]: unknown;
+}
+
 interface OptimizationResult {
-  modifiedBody: any;
+  modifiedBody: ApiRequestBody;
   originalTokens: number;
   optimizedTokens: number;
   savedTokens: number;
@@ -45,7 +78,7 @@ export function getOptimizationConfig(): OptimizationConfig {
   return { ...config };
 }
 
-export function applyOptimizations(apiType: string, body: any): OptimizationResult {
+export function applyOptimizations(apiType: string, body: ApiRequestBody): OptimizationResult {
   const result: OptimizationResult = {
     modifiedBody: body,
     originalTokens: 0,
@@ -63,7 +96,7 @@ export function applyOptimizations(apiType: string, body: any): OptimizationResu
   let modifiedBody = { ...body };
 
   if (config.rules) {
-    modifiedBody.messages = body.messages.map((msg: any) => {
+    modifiedBody.messages = body.messages.map((msg: ChatMessage) => {
       if (typeof msg.content === 'string') {
         const processed = rulesModule.applyRules(msg.content);
         if (processed !== msg.content) {
@@ -73,10 +106,11 @@ export function applyOptimizations(apiType: string, body: any): OptimizationResu
       if (Array.isArray(msg.content)) {
         return {
           ...msg,
-          content: msg.content.map((block: any) => {
-            if (block.type === 'text' && block.text) {
-              const processed = rulesModule.applyRules(block.text);
-              if (processed !== block.text) {
+          content: msg.content.map((block) => {
+            if (block.type === 'text' && (block as TextContentBlock).text) {
+              const textBlock = block as TextContentBlock;
+              const processed = rulesModule.applyRules(textBlock.text);
+              if (processed !== textBlock.text) {
                 return { ...block, text: processed };
               }
             }
@@ -93,7 +127,7 @@ export function applyOptimizations(apiType: string, body: any): OptimizationResu
   }
 
   if (config.compression) {
-    modifiedBody.messages = modifiedBody.messages.map((msg: any) => {
+    modifiedBody.messages = modifiedBody.messages.map((msg: ChatMessage) => {
       if (typeof msg.content === 'string') {
         const compressed = compressionModule.compress(msg.content);
         return { ...msg, content: compressed.text };
@@ -101,9 +135,10 @@ export function applyOptimizations(apiType: string, body: any): OptimizationResu
       if (Array.isArray(msg.content)) {
         return {
           ...msg,
-          content: msg.content.map((block: any) => {
-            if (block.type === 'text' && block.text) {
-              const compressed = compressionModule.compress(block.text);
+          content: msg.content.map((block) => {
+            if (block.type === 'text' && (block as TextContentBlock).text) {
+              const textBlock = block as TextContentBlock;
+              const compressed = compressionModule.compress(textBlock.text);
               return { ...block, text: compressed.text };
             }
             return block;
@@ -138,14 +173,14 @@ export function applyOptimizations(apiType: string, body: any): OptimizationResu
   return result;
 }
 
-function messagesToText(messages: any[]): string {
+function messagesToText(messages: ChatMessage[]): string {
   return messages
-    .map((msg: any) => {
+    .map((msg) => {
       if (typeof msg.content === 'string') return msg.content;
       if (Array.isArray(msg.content)) {
         return msg.content
-          .filter((block: any) => block.type === 'text')
-          .map((block: any) => block.text)
+          .filter((block): block is TextContentBlock => block.type === 'text')
+          .map((block) => block.text)
           .join(' ');
       }
       return '';
@@ -153,10 +188,10 @@ function messagesToText(messages: any[]): string {
     .join(' ');
 }
 
-function hasCacheMarkers(messages: any[]): boolean {
-  return messages.some((msg: any) => {
+function hasCacheMarkers(messages: ChatMessage[]): boolean {
+  return messages.some((msg) => {
     if (Array.isArray(msg.content)) {
-      return msg.content.some((block: any) => block.cache === true);
+      return msg.content.some((block) => block.type === 'text' && (block as TextContentBlock).cache === true);
     }
     return false;
   });

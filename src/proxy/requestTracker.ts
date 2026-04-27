@@ -1,8 +1,8 @@
 interface RequestMetadata {
   requestId: string;
   apiType: string;
-  originalBody: any;
-  optimizedBody: any;
+  originalBody: Record<string, unknown>;
+  optimizedBody: Record<string, unknown>;
   originalTokens: number;
   optimizedTokens: number;
   savedTokens: number;
@@ -37,8 +37,8 @@ function generateRequestId(): string {
 
 function createRequestMetadata(
   apiType: string,
-  originalBody: any,
-  optimizedBody: any,
+  originalBody: Record<string, unknown>,
+  optimizedBody: Record<string, unknown>,
   originalTokens: number,
   optimizedTokens: number,
   savedTokens: number,
@@ -117,7 +117,7 @@ function failRequest(requestId: string, errorMessage: string, statusCode: number
       cacheReadTokens: 0,
       cacheCreationTokens: 0,
       cost: 0,
-      model: metadata.originalBody?.model || 'unknown',
+      model: (metadata.originalBody?.model as string) || 'unknown',
       duration: Date.now() - metadata.startTime,
       completedAt: Date.now(),
       status: statusCode,

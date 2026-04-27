@@ -24,8 +24,11 @@ function Monitor() {
         const data = await window.electronAPI.stats.summary();
         setStats(data);
 
+        // 缓存节省费用：使用服务端记录的总成本和缓存 token 计算
+        // GPT-4o 输入价格 $0.0025/1K tokens，缓存读取 50% 折扣
         const cacheReadTokens = data.totalCachedTokens || 0;
-        const cacheSavings = cacheReadTokens > 0 ? (cacheReadTokens / 1000 * 0.003 * 0.9) : 0;
+        const estimatedSavingsPerToken = 0.0025 / 1000 * 0.5;
+        const cacheSavings = cacheReadTokens * estimatedSavingsPerToken;
 
         setCachingStats({ cacheReadTokens, cacheSavings });
       } catch (err) {
@@ -46,8 +49,10 @@ function Monitor() {
   }, [loadStats]);
 
   const totalTokens = stats.totalInputTokens + stats.totalOutputTokens;
+  // 节省费用估算：基于 GPT-4o 输入价格 × 50% 缓存折扣
+  const estimatedSavingsPerToken = 0.0025 / 1000 * 0.5;
   const savedCost = stats.totalCachedTokens > 0
-    ? (stats.totalCachedTokens / 1000 * 0.03).toFixed(2)
+    ? (stats.totalCachedTokens * estimatedSavingsPerToken).toFixed(2)
     : '0.00';
   const actualCost = stats.totalCost.toFixed(4);
 

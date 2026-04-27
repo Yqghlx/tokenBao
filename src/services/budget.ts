@@ -14,14 +14,21 @@ interface BudgetStore {
 
 const STORAGE_FILE = 'budget.json';
 
-/** 获取今天的日期字符串（YYYY-MM-DD） */
+/** 获取今天的日期字符串（YYYY-MM-DD），使用本地时区 */
 function getTodayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
-/** 获取本月的标识字符串（YYYY-MM） */
+/** 获取本月的标识字符串（YYYY-MM），使用本地时区 */
 function getMonthStr(): string {
-  return new Date().toISOString().slice(0, 7);
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
 }
 
 function getStore(): BudgetStore {
