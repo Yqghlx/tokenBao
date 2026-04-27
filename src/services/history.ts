@@ -1,4 +1,5 @@
 import { loadJson, saveJson } from '../utils/storage';
+import { getConfig } from './config';
 
 export interface RequestLog {
   id: number;
@@ -21,9 +22,33 @@ interface HistoryStore {
 
 const STORAGE_FILE = 'history.json';
 const MAX_HISTORY = 1000;
+const DEFAULT_RETENTION_DAYS = 30;
 
 function getStore(): HistoryStore {
   return loadJson<HistoryStore>(STORAGE_FILE, { requests: [], nextId: 1 });
+}
+
+/**
+ * 根据配置的数据保留天数清理过期记录
+ * 在 saveStore 时调用，确保过期数据自动删除
+ */
+async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
+  let retentionDays: number;
+  try {
+    const daysStr = await getConfig('dataRetentionDays');
+    retentionDays = daysStr ? parseInt(daysStr, 10) : DEFAULT_RETENTION_DAYS;
+    if (isNaN(retentionDays) || retentionDays < 1) retentionDays = DEFAULT_RETENTION_DAYS;
+  } catch {
+    retentionDays = DEFAULT_RETENTION_DAYS;
+  }
+
+  const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+  const before = store.requests.length;
+  store.requests = store.requests.filter(r => new Date(r.timestamp).getTime() >= cutoff);
+
+  if (store.requests.length < before) {
+    console.log(`历史记录清理: 删除 ${before - store.requests.length} 条过期记录（保留 ${retentionDays} 天）`);
+  }
 }
 
 function saveStore(store: HistoryStore): void {
@@ -37,6 +62,8 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
   const store = getStore();
   const request: RequestLog = { ...log, id: store.nextId++ };
   store.requests.push(request);
+  // 异步清理过期记录，不阻塞当前写入
+  cleanupExpiredRequests(store).then(() => saveStore(store)).catch(() => {/* 清理失败不影响保存 */});
   saveStore(store);
   return request;
 }

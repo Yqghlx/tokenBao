@@ -39,15 +39,19 @@ function countTokensAnthropic(text: string): number {
   
   return chineseTokens + nonChineseTokens + 3;
 }
+/**
+ * Token \u4f30\u7b97 fallback\uff1atiktoken \u4e0d\u53ef\u7528\u65f6\u4f7f\u7528
+ * \u6bd4\u7387\u4e0e countTokensAnthropic \u4fdd\u6301\u4e00\u81f4
+ */
 function estimateTokensFallback(text: string): number {
   if (!text) return 0;
-  
+
   const chineseChars = text.match(/[\u4e00-\u9fff]/g)?.length || 0;
   const nonChineseLength = text.length - chineseChars;
-  
+
   const chineseTokens = Math.ceil(chineseChars / 1.5);
-  const nonChineseTokens = Math.ceil(nonChineseLength / 4);
-  
+  const nonChineseTokens = Math.ceil(nonChineseLength / 3.5);
+
   return chineseTokens + nonChineseTokens + 3;
 }
 

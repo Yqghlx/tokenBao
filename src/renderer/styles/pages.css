@@ -187,6 +187,20 @@
   font-size: 14px;
 }
 
+/* 表格行 hover 高亮，便于大数据量时追踪行 */
+.data-table tbody tr:hover {
+  background: rgba(0, 212, 255, 0.05);
+}
+
+/* 表格行交替背景色 */
+.data-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.data-table tbody tr:nth-child(even):hover {
+  background: rgba(0, 212, 255, 0.07);
+}
+
 .empty-state {
   text-align: center;
   color: #666;
@@ -243,4 +257,45 @@
 .rule-type {
   font-size: 12px;
   color: #666;
+}
+
+/* 分页按钮样式 */
+.pagination .btn-secondary {
+  padding: 6px 16px;
+  font-size: 13px;
+  min-width: 80px;
+}
+
+.pagination .btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination .btn-secondary:disabled:hover {
+  background: transparent;
+}
+
+/* 按钮禁用态 */
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary:disabled:hover {
+  background: #00d4ff;
+}
+
+.btn-secondary:disabled:hover {
+  background: transparent;
+}
+
+/* 空状态引导文字 */
+.empty-state p {
+  margin: 0;
+}
+
+/* 状态卡片数值动画 */
+.status-value, .stat-value {
+  transition: color 0.3s;
 }
