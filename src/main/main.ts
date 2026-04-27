@@ -68,10 +68,21 @@ function stopHealthCheck(): void {
 // 全局错误处理：防止单个请求错误导致进程崩溃
 process.on('uncaughtException', (err) => {
   console.error('未捕获异常:', err);
+  // 通知渲染进程显示错误提示
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('proxy:error', {
+      message: `应用异常: ${err instanceof Error ? err.message : String(err)}`
+    });
+  }
 });
 
 process.on('unhandledRejection', (reason) => {
   console.error('未处理的 Promise 拒绝:', reason);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('proxy:error', {
+      message: `异步操作异常: ${reason instanceof Error ? reason.message : String(reason)}`
+    });
+  }
 });
 
 function createWindow(): void {

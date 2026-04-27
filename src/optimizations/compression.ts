@@ -9,17 +9,29 @@ const defaultOptions: CompressionOptions = {
 };
 
 const replacements = [
+  // 冗余礼貌用语
   { pattern: /please/gi, replacement: '' },
   { pattern: /I would like you to/gi, replacement: '' },
   { pattern: /Could you/gi, replacement: '' },
+  { pattern: /I need you to/gi, replacement: '' },
+  { pattern: /please provide/gi, replacement: 'provide' },
+  // 冗余短语缩写
+  { pattern: /in order to/gi, replacement: 'to' },
+  { pattern: /make sure to/gi, replacement: 'ensure' },
+  { pattern: /as well as/gi, replacement: '&' },
+  { pattern: /for the purpose of/gi, replacement: 'to' },
+  { pattern: /at this point in time/gi, replacement: 'now' },
+  { pattern: /in the event that/gi, replacement: 'if' },
+  { pattern: /a large number of/gi, replacement: 'many' },
+  { pattern: /and so on/gi, replacement: 'etc' },
+  { pattern: /for example/gi, replacement: 'e.g.' },
+  { pattern: /that is to say/gi, replacement: 'i.e.' },
+  // 格式描述缩写
   { pattern: /in JSON format/gi, replacement: 'resp: JSON' },
   { pattern: /response in JSON format/gi, replacement: 'resp: JSON' },
   { pattern: /field name is string type/gi, replacement: 'name: str' },
   { pattern: /field name is number type/gi, replacement: 'name: num' },
-  { pattern: /field name is boolean type/gi, replacement: 'name: bool' },
-  { pattern: /and so on/gi, replacement: 'etc' },
-  { pattern: /for example/gi, replacement: 'e.g.' },
-  { pattern: /that is to say/gi, replacement: 'i.e.' }
+  { pattern: /field name is boolean type/gi, replacement: 'name: bool' }
 ];
 
 function getOptions(): CompressionOptions {
@@ -31,10 +43,10 @@ function setOptions(options: Partial<CompressionOptions>): void {
 }
 
 function estimateTokens(text: string): number {
-  // 中文字符约 1.5 字符/token，英文约 4 字符/token
+  // 英文约 4 chars/token，中文约 2 chars/token
   let count = 0;
   for (const char of text) {
-    count += char.charCodeAt(0) > 127 ? 0.67 : 0.25;
+    count += char.charCodeAt(0) > 127 ? 0.5 : 0.25;
   }
   return Math.ceil(count);
 }
@@ -81,6 +93,11 @@ function compress(text: string): { text: string; tokensSaved: number } {
   compressed = restore(compressed);
 
   const newTokens = estimateTokens(compressed);
+
+  // 膨胀安全检查：如果压缩后 token 数反而增加，回退到原文
+  if (newTokens > originalTokens) {
+    return { text, tokensSaved: 0 };
+  }
 
   return {
     text: compressed,

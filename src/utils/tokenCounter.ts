@@ -30,18 +30,19 @@ function countTokensOpenAI(text: string): number {
 }
 function countTokensAnthropic(text: string): number {
   if (!text) return 0;
-  
+
+  // Anthropic \u5b98\u65b9\u5efa\u8bae\uff1a\u82f1\u6587\u7ea6 4 chars/token\uff0c\u4e2d\u6587\u7ea6 2 chars/token
   const chineseChars = text.match(/[\u4e00-\u9fff]/g)?.length || 0;
   const nonChineseLength = text.length - chineseChars;
-  
-  const chineseTokens = Math.ceil(chineseChars / 1.5);
-  const nonChineseTokens = Math.ceil(nonChineseLength / 3.5);
-  
+
+  const chineseTokens = Math.ceil(chineseChars / 2);
+  const nonChineseTokens = Math.ceil(nonChineseLength / 4);
+
   return chineseTokens + nonChineseTokens + 3;
 }
 /**
  * Token \u4f30\u7b97 fallback\uff1atiktoken \u4e0d\u53ef\u7528\u65f6\u4f7f\u7528
- * \u6bd4\u7387\u4e0e countTokensAnthropic \u4fdd\u6301\u4e00\u81f4
+ * \u82f1\u6587 4 chars/token\uff0c\u4e2d\u6587 2 chars/token\uff08\u4e0e countTokensAnthropic \u4e00\u81f4\uff09
  */
 function estimateTokensFallback(text: string): number {
   if (!text) return 0;
@@ -49,8 +50,8 @@ function estimateTokensFallback(text: string): number {
   const chineseChars = text.match(/[\u4e00-\u9fff]/g)?.length || 0;
   const nonChineseLength = text.length - chineseChars;
 
-  const chineseTokens = Math.ceil(chineseChars / 1.5);
-  const nonChineseTokens = Math.ceil(nonChineseLength / 3.5);
+  const chineseTokens = Math.ceil(chineseChars / 2);
+  const nonChineseTokens = Math.ceil(nonChineseLength / 4);
 
   return chineseTokens + nonChineseTokens + 3;
 }

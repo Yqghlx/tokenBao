@@ -27,6 +27,7 @@ mac:
   target:
     - dmg
   category: "public.app-category.utilities"
+  hardenedRuntime: true
   artifactName: "${productName}-${version}-mac-${arch}.${ext}"
 win:
   target:
