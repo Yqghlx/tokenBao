@@ -22,22 +22,49 @@ const MAX_BODY_SIZE = 10 * 1024 * 1024; // 请求体最大 10MB
 
 /**
  * 模型定价表（每 1000 tokens 价格，美元）
+ * 数据来源：OpenAI / Anthropic 官方定价，2026 年 4 月更新
  */
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  // OpenAI
   'gpt-4': { input: 0.03, output: 0.06 },
   'gpt-4-turbo': { input: 0.01, output: 0.03 },
-  'gpt-4o': { input: 0.005, output: 0.015 },
+  'gpt-4o': { input: 0.0025, output: 0.01 },
   'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+  'gpt-4.1': { input: 0.002, output: 0.008 },
+  'gpt-4.1-mini': { input: 0.0004, output: 0.0016 },
+  'gpt-4.1-nano': { input: 0.0001, output: 0.0004 },
   'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
+  'o3': { input: 0.002, output: 0.008 },
+  'o4-mini': { input: 0.0011, output: 0.0044 },
+  // Anthropic
   'claude-3-opus': { input: 0.015, output: 0.075 },
   'claude-3-sonnet': { input: 0.003, output: 0.015 },
   'claude-3-haiku': { input: 0.00025, output: 0.00125 },
   'claude-3.5-sonnet': { input: 0.003, output: 0.015 },
+  'claude-3.5-haiku': { input: 0.001, output: 0.005 },
+  'claude-sonnet-4': { input: 0.003, output: 0.015 },
+  'claude-opus-4': { input: 0.005, output: 0.025 },
 };
 
+/**
+ * 结构化日志辅助函数
+ */
 function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
   const pricing = MODEL_PRICING[model] || { input: 0.001, output: 0.002 };
   return (inputTokens / 1000) * pricing.input + (outputTokens / 1000) * pricing.output;
+}
+
+/**
+ * 结构化日志辅助函数
+ */
+function logProxy(level: 'info' | 'warn' | 'error', msg: string, data?: Record<string, unknown>): void {
+  const timestamp = new Date().toISOString();
+  const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
+  if (data) {
+    console.log(`${prefix} ${msg}`, JSON.stringify(data));
+  } else {
+    console.log(`${prefix} ${msg}`);
+  }
 }
 
 /**
@@ -177,7 +204,7 @@ class ProxyServer {
         const apiType = this.detectApiType(path);
         const targetBase = this.getTargetBase(apiType);
 
-        console.log(`[${apiType}] ${clientReq.method} ${path}`);
+        logProxy('info', `${clientReq.method} ${path}`, { apiType, method: clientReq.method });
 
         const headers = this.transformHeaders(clientReq.headers, apiType);
         let rawBody: string;
@@ -217,8 +244,7 @@ class ProxyServer {
 
               requestId = requestMeta.requestId;
 
-              console.log(`[${requestId}] 优化策略: ${result.appliedStrategies.join(', ')}`);
-              console.log(`[${requestId}] 节省 Tokens: ${savedTokens} (累计: ${this.totalSavedTokens})`);
+              logProxy('info', `优化请求`, { requestId, strategies: result.appliedStrategies, savedTokens, totalSaved: this.totalSavedTokens });
 
               await statsService.recordRequest({
                 apiType,
@@ -302,7 +328,7 @@ class ProxyServer {
         }
 
         if (lastError) {
-          console.error('代理请求失败:', lastError.message);
+          logProxy('error', `代理请求失败`, { requestId, error: lastError.message });
           if (requestId) {
             requestTracker.failRequest(requestId, lastError.message, 502);
           }
@@ -318,7 +344,7 @@ class ProxyServer {
         const statusCode = upstreamResult.statusCode;
 
         if (statusCode >= 400) {
-          console.error(`请求失败: status=${statusCode}`);
+          logProxy('error', `请求失败`, { requestId, statusCode });
           if (requestId) {
             requestTracker.failRequest(requestId, upstreamResult.body, statusCode);
           }

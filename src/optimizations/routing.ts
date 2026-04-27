@@ -12,11 +12,18 @@ interface RoutingOptions {
 const defaultOptions: RoutingOptions = {
   enabled: true,
   rules: [
-    { sourceModel: 'gpt-4', targetModel: 'gpt-3.5-turbo', condition: 'simple' },
-    { sourceModel: 'gpt-4', targetModel: 'gpt-3.5-turbo', condition: 'classification' },
-    { sourceModel: 'gpt-4', targetModel: 'gpt-3.5-turbo', condition: 'extraction' },
+    { sourceModel: 'gpt-4', targetModel: 'gpt-4o-mini', condition: 'simple' },
+    { sourceModel: 'gpt-4', targetModel: 'gpt-4o-mini', condition: 'classification' },
+    { sourceModel: 'gpt-4', targetModel: 'gpt-4o-mini', condition: 'extraction' },
+    { sourceModel: 'gpt-4o', targetModel: 'gpt-4o-mini', condition: 'simple' },
+    { sourceModel: 'gpt-4.1', targetModel: 'gpt-4.1-mini', condition: 'simple' },
+    { sourceModel: 'gpt-4.1', targetModel: 'gpt-4.1-mini', condition: 'classification' },
     { sourceModel: 'claude-3-opus', targetModel: 'claude-3-haiku', condition: 'simple' },
-    { sourceModel: 'claude-3-opus', targetModel: 'claude-3-haiku', condition: 'classification' }
+    { sourceModel: 'claude-3-opus', targetModel: 'claude-3-haiku', condition: 'classification' },
+    { sourceModel: 'claude-3.5-sonnet', targetModel: 'claude-3.5-haiku', condition: 'simple' },
+    { sourceModel: 'claude-sonnet-4', targetModel: 'claude-3.5-haiku', condition: 'simple' },
+    { sourceModel: 'claude-opus-4', targetModel: 'claude-3.5-haiku', condition: 'simple' },
+    { sourceModel: 'claude-opus-4', targetModel: 'claude-3.5-haiku', condition: 'classification' }
   ]
 };
 

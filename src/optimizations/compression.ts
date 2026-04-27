@@ -30,12 +30,21 @@ function setOptions(options: Partial<CompressionOptions>): void {
   Object.assign(defaultOptions, options);
 }
 
+function estimateTokens(text: string): number {
+  // 中文字符约 1.5 字符/token，英文约 4 字符/token
+  let count = 0;
+  for (const char of text) {
+    count += char.charCodeAt(0) > 127 ? 0.67 : 0.25;
+  }
+  return Math.ceil(count);
+}
+
 function compress(text: string): { text: string; tokensSaved: number } {
   if (!defaultOptions.enabled) {
     return { text, tokensSaved: 0 };
   }
 
-  const originalTokens = Math.ceil(text.length / 4);
+  const originalTokens = estimateTokens(text);
   let compressed = text;
 
   for (const { pattern, replacement } of replacements) {
@@ -47,8 +56,8 @@ function compress(text: string): { text: string; tokensSaved: number } {
     .replace(/\n\s*\n/g, '\n')
     .trim();
 
-  const newTokens = Math.ceil(compressed.length / 4);
-  
+  const newTokens = estimateTokens(compressed);
+
   return {
     text: compressed,
     tokensSaved: Math.max(0, originalTokens - newTokens)

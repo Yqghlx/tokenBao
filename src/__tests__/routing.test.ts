@@ -21,8 +21,8 @@ describe('routing 模块', () => {
     expect(routing.detectComplexity('Design a scalable architecture for this system')).toBe('complex');
   });
 
-  test('简单任务应将 gpt-4 降级为 gpt-3.5-turbo', () => {
-    expect(routing.routeModel('openai', 'gpt-4', 'Classify this feedback')).toBe('gpt-3.5-turbo');
+  test('简单任务应将 gpt-4 降级为 gpt-4o-mini', () => {
+    expect(routing.routeModel('openai', 'gpt-4', 'Classify this feedback')).toBe('gpt-4o-mini');
   });
 
   test('复杂任务应保持 gpt-4 不变', () => {

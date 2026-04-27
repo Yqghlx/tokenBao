@@ -33,18 +33,22 @@ function createWindow(): void {
 }
 
 function registerIpcHandlers(): void {
-  ipcMain.handle('proxy:start', async (_, port: number) => {
+  ipcMain.handle('proxy:start', async (_, port?: number) => {
     try {
+      // 优先使用传入端口，否则从配置读取，最终默认 3000
+      const configPort = await configService.getConfig('proxyPort');
+      const effectivePort = port || (configPort ? parseInt(configPort, 10) : 3000);
+
       const openaiKey = await apiKeyService.getDecryptedKeyByType('openai');
       const anthropicKey = await apiKeyService.getDecryptedKeyByType('anthropic');
-      
-      proxyServer = new ProxyServer({ port, openaiKey, anthropicKey });
+
+      proxyServer = new ProxyServer({ port: effectivePort, openaiKey, anthropicKey });
       await proxyServer.start();
-      
+
       const optimConfig = await getOptimizationConfig();
       proxyServer.updateOptimizationConfig(optimConfig);
-      
-      return { success: true, port };
+
+      return { success: true, port: proxyServer.getPort() };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
