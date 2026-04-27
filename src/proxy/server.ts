@@ -436,9 +436,14 @@ class ProxyServer {
                 passThrough.destroy(new Error('SSE buffer exceeded hard limit'));
                 return;
               }
-              // 只保留最后 10KB 用于提取 usage，避免内存增长
+              // 保留最后 10KB 用于提取 usage，但确保不截断最后一个完整的 data: 行
               if (sseBuffer.length > 10240) {
-                sseBuffer = sseBuffer.slice(-10240);
+                const lastDataIdx = sseBuffer.lastIndexOf('\ndata: ');
+                if (lastDataIdx > 0) {
+                  sseBuffer = sseBuffer.slice(lastDataIdx + 1);
+                } else {
+                  sseBuffer = sseBuffer.slice(-10240);
+                }
               }
             });
             passThrough.on('end', async () => {
@@ -483,6 +488,10 @@ class ProxyServer {
             if (!clientRes.headersSent) {
               clientRes.writeHead(504, { 'Content-Type': 'application/json' });
               clientRes.end(JSON.stringify({ error: 'Gateway Timeout', message: '上游 API 响应超时' }));
+            } else if (!clientRes.writableEnded) {
+              // 响应头已发送，注入 SSE 错误事件让客户端区分正常结束和异常中断
+              clientRes.write('\ndata: {"error":"timeout","message":"上游 API 响应超时，流被截断"}\n\n');
+              clientRes.end();
             }
           });
 
@@ -492,6 +501,10 @@ class ProxyServer {
             if (!clientRes.headersSent) {
               clientRes.writeHead(502, { 'Content-Type': 'application/json' });
               clientRes.end(JSON.stringify({ error: err.message }));
+            } else if (!clientRes.writableEnded) {
+              // 响应头已发送，注入 SSE 错误事件
+              clientRes.write(`\ndata: {"error":"upstream_error","message":"${err.message}"}\n\n`);
+              clientRes.end();
             }
           });
 
