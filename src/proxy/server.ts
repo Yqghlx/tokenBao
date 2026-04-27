@@ -391,8 +391,13 @@ class ProxyServer {
           }
         }
 
-        // 熔断器检查：按提供商独立判断
-        if (this.isCircuitOpen(apiType)) {
+        // 只读 GET 请求（如 /v1/models）跳过预算和熔断检查
+        const isReadOnlyGet = clientReq.method === 'GET' && (
+          path.includes('/v1/models') || path.includes('/v1/files')
+        );
+
+        // 熔断器检查：按提供商独立判断（只读请求跳过）
+        if (!isReadOnlyGet && this.isCircuitOpen(apiType)) {
           if (!clientRes.headersSent) {
             clientRes.writeHead(503, { 'Content-Type': 'application/json' });
             clientRes.end(JSON.stringify({ error: 'Service Unavailable', message: '上游 API 暂时不可达，熔断冷却中', requestId }));
@@ -400,8 +405,8 @@ class ProxyServer {
           return;
         }
 
-        // 预算超限检查：月预算用完则拦截请求
-        const budgetCheck = this.checkBudget();
+        // 预算超限检查：只读请求跳过
+        const budgetCheck = isReadOnlyGet ? { allowed: true as const } : this.checkBudget();
         if (!budgetCheck.allowed) {
           logProxy('warn', '预算超限，请求被拦截', { requestId, reason: budgetCheck.reason });
           if (!clientRes.headersSent) {

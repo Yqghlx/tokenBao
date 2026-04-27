@@ -71,6 +71,8 @@ function App() {
                 <Route path="history" element={<History />} />
                 <Route path="optimization" element={<Optimization />} />
                 <Route path="budget" element={<Budget />} />
+                {/* 兜底路由：未匹配路径重定向到首页 */}
+                <Route path="*" element={<Navigate to="/control" replace />} />
               </Route>
             </Routes>
           </Suspense>
