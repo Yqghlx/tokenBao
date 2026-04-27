@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface RuleItem {
   id: number;
@@ -23,17 +24,25 @@ function Optimization() {
   const [rules, setRules] = useState<RuleItem[]>([]);
   const [showRuleForm, setShowRuleForm] = useState(false);
   const [newRule, setNewRule] = useState({ name: '', pattern: '', replacement: '', priority: 0 });
+  const [operatingRuleId, setOperatingRuleId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RuleItem | null>(null);
 
   const loadConfig = useCallback(async () => {
     try {
-      const results = await Promise.all([
+      const results = await Promise.allSettled([
         window.electronAPI?.optimization?.getConfig?.(),
         window.electronAPI?.config?.get?.('cacheTTL'),
         window.electronAPI?.rules?.list?.()
       ]);
-      if (results[0]) setOptimizationConfig(results[0]);
-      setCacheTTL(results[1] || '5min');
-      if (results[2]) setRules(results[2] as RuleItem[]);
+      if (results[0].status === 'fulfilled' && results[0].value) {
+        setOptimizationConfig(results[0].value);
+      }
+      if (results[1].status === 'fulfilled') {
+        setCacheTTL(results[1].value || '5min');
+      }
+      if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
+        setRules(results[2].value as RuleItem[]);
+      }
     } catch (err) {
       console.error('获取优化配置失败:', err);
       showToast('获取优化配置失败', 'error');
@@ -74,11 +83,51 @@ function Optimization() {
     }
   };
 
+  /** 切换单条规则启用/禁用 */
+  const toggleRule = async (rule: RuleItem) => {
+    setOperatingRuleId(rule.id);
+    try {
+      await window.electronAPI?.rules?.update?.(rule.id, { enabled: !rule.enabled });
+      loadConfig();
+    } finally {
+      setOperatingRuleId(null);
+    }
+  };
+
+  /** 确认删除规则 */
+  const confirmDeleteRule = async () => {
+    if (!deleteTarget) return;
+    setOperatingRuleId(deleteTarget.id);
+    try {
+      await window.electronAPI?.rules?.delete?.(deleteTarget.id);
+      loadConfig();
+      showToast('规则已删除', 'info');
+    } finally {
+      setOperatingRuleId(null);
+      setDeleteTarget(null);
+    }
+  };
+
+  /** 批量启用/禁用所有规则 */
+  const setAllRules = async (enabled: boolean) => {
+    for (const rule of rules) {
+      if (rule.enabled !== enabled) {
+        await window.electronAPI?.rules?.update?.(rule.id, { enabled });
+      }
+    }
+    loadConfig();
+    showToast(enabled ? '已启用全部规则' : '已禁用全部规则', 'success');
+  };
+
   if (loading) {
     return (
       <div className="page">
         <h2>优化策略配置</h2>
-        <p>加载中...</p>
+        <div className="optimization-sections">
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+        </div>
       </div>
     );
   }
@@ -95,6 +144,7 @@ function Optimization() {
                 type="checkbox"
                 checked={optimizationConfig.caching}
                 onChange={(e) => updateConfig('caching', e.target.checked)}
+                aria-label="启用 Prompt Caching"
               />
               <span>启用 Prompt Caching</span>
             </label>
@@ -102,7 +152,7 @@ function Optimization() {
           </div>
           <div className="form-group">
             <label>TTL 设置</label>
-            <select value={cacheTTL} onChange={(e) => updateTTL(e.target.value)}>
+            <select value={cacheTTL} onChange={(e) => updateTTL(e.target.value)} aria-label="缓存 TTL">
               <option value="5min">5 分钟（1.25x 写费用）</option>
               <option value="1hour">1 小时（2x 写费用）</option>
             </select>
@@ -117,6 +167,7 @@ function Optimization() {
                 type="checkbox"
                 checked={optimizationConfig.compression}
                 onChange={(e) => updateConfig('compression', e.target.checked)}
+                aria-label="启用 Prompt 压缩"
               />
               <span>启用 Prompt 压缩</span>
             </label>
@@ -132,6 +183,7 @@ function Optimization() {
                 type="checkbox"
                 checked={optimizationConfig.routing}
                 onChange={(e) => updateConfig('routing', e.target.checked)}
+                aria-label="启用智能模型路由"
               />
               <span>启用智能模型路由</span>
             </label>
@@ -157,6 +209,7 @@ function Optimization() {
                 type="checkbox"
                 checked={optimizationConfig.batching}
                 onChange={(e) => updateConfig('batching', e.target.checked)}
+                aria-label="启用请求批处理"
               />
               <span>启用请求批处理（实验性）</span>
             </label>
@@ -167,9 +220,17 @@ function Optimization() {
         <section className="optim-section">
           <h3>自定义替换规则</h3>
           <span className="feature-desc">通过正则表达式替换请求内容中的文本，优先级越高越先执行。</span>
-          <button className="btn-primary btn-sm btn-add-rule" onClick={() => setShowRuleForm(true)}>
-            添加规则
-          </button>
+          <div className="form-actions">
+            <button className="btn-primary btn-sm" onClick={() => setShowRuleForm(true)}>
+              添加规则
+            </button>
+            {rules.length > 0 && (
+              <>
+                <button className="btn-secondary btn-sm" onClick={() => setAllRules(true)}>全部启用</button>
+                <button className="btn-secondary btn-sm" onClick={() => setAllRules(false)}>全部禁用</button>
+              </>
+            )}
+          </div>
 
           {showRuleForm && (
             <div className="info-panel">
@@ -187,7 +248,10 @@ function Optimization() {
               </div>
               <div className="form-group">
                 <label>优先级（数字越大越先执行）</label>
-                <input type="number" value={newRule.priority} onChange={(e) => setNewRule(p => ({ ...p, priority: parseInt(e.target.value) || 0 }))} />
+                <input type="number" value={newRule.priority} onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setNewRule(p => ({ ...p, priority: isNaN(val) ? 0 : val }));
+                }} />
               </div>
               <div className="form-actions">
                 <button className="btn-primary btn-sm" onClick={async () => {
@@ -236,15 +300,20 @@ function Optimization() {
                     <td>{rule.priority}</td>
                     <td>{rule.enabled ? '启用' : '禁用'}</td>
                     <td>
-                      <button className="btn-secondary btn-sm" onClick={async () => {
-                        await window.electronAPI?.rules?.update?.(rule.id, { enabled: !rule.enabled });
-                        loadConfig();
-                      }}>{rule.enabled ? '禁用' : '启用'}</button>
-                      <button className="btn-secondary btn-sm" onClick={async () => {
-                        await window.electronAPI?.rules?.delete?.(rule.id);
-                        loadConfig();
-                        showToast('规则已删除', 'info');
-                      }}>删除</button>
+                      <button
+                        className="btn-secondary btn-sm"
+                        onClick={() => toggleRule(rule)}
+                        disabled={operatingRuleId === rule.id}
+                      >
+                        {operatingRuleId === rule.id ? '...' : (rule.enabled ? '禁用' : '启用')}
+                      </button>
+                      <button
+                        className="btn-secondary btn-sm"
+                        onClick={() => setDeleteTarget(rule)}
+                        disabled={operatingRuleId === rule.id}
+                      >
+                        删除
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -253,6 +322,16 @@ function Optimization() {
           )}
         </section>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="删除规则"
+        message={`确定要删除规则「${deleteTarget?.name}」吗？此操作不可撤销。`}
+        confirmLabel="删除"
+        danger
+        onConfirm={confirmDeleteRule}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

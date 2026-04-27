@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import { usePolling } from '../hooks/usePolling';
 
@@ -33,7 +33,6 @@ function ControlPanel() {
       try {
         const status = await window.electronAPI.proxy.status();
         let port = status.port;
-        // 代理未运行时从配置加载默认端口
         if (!port && window.electronAPI?.config?.get) {
           const configPort = await window.electronAPI.config.get('proxyPort');
           port = configPort ? parseInt(configPort, 10) : 3000;
@@ -53,7 +52,8 @@ function ControlPanel() {
   const loadBudgetStatus = useCallback(async () => {
     if (window.electronAPI?.budget?.status) {
       try {
-        const status = await window.electronAPI.budget.status();
+        const raw = await window.electronAPI.budget.status();
+        const status = raw as unknown as { monthly?: { spent: number; limit: number; remaining: number } };
         const monthly = status.monthly ?? { spent: 0, limit: 100, remaining: 100 };
         setBudgetStatus({
           spent: monthly.spent ?? 0,
@@ -107,8 +107,20 @@ function ControlPanel() {
   }, []);
 
   useEffect(() => {
-    Promise.all([loadProxyStatus(), loadBudgetStatus(), loadStats(), loadOptimizations()])
-      .finally(() => setLoading(false));
+    const loadAll = async () => {
+      const results = await Promise.allSettled([
+        loadProxyStatus(),
+        loadBudgetStatus(),
+        loadStats(),
+        loadOptimizations()
+      ]);
+      const failed = results.filter(r => r.status === 'rejected');
+      if (failed.length > 0) {
+        console.warn(`${failed.length} 个数据加载失败`);
+      }
+      setLoading(false);
+    };
+    loadAll();
   }, [loadProxyStatus, loadBudgetStatus, loadStats, loadOptimizations]);
 
   const pollStats = useCallback(() => {
@@ -171,8 +183,23 @@ function ControlPanel() {
     }
   }, [optimizations]);
 
+  /** 预算使用百分比 */
+  const budgetPercent = useMemo(() =>
+    budgetStatus.limit > 0 ? Math.min(100, Math.round((budgetStatus.spent / budgetStatus.limit) * 100)) : 0,
+    [budgetStatus.spent, budgetStatus.limit]
+  );
+
   if (loading) {
-    return <div className="page"><h2>控制面板</h2><p>加载中...</p></div>;
+    return (
+      <div className="page">
+        <h2>控制面板</h2>
+        <div className="status-cards">
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -213,6 +240,17 @@ function ControlPanel() {
           <h3>本月成本</h3>
           <p className="status-value">${budgetStatus.spent.toFixed(2)}</p>
           <span className="status-label">预算: ${budgetStatus.limit.toFixed(2)}</span>
+          {budgetStatus.limit > 0 && (
+            <div className="progress-bar">
+              <div
+                className="progress-bar-fill"
+                style={{
+                  width: `${budgetPercent}%`,
+                  background: budgetPercent > 80 ? '#ef4444' : budgetPercent > 50 ? '#f59e0b' : '#4ade80'
+                }}
+              />
+            </div>
+          )}
         </div>
 
         <div className="status-card">
@@ -230,39 +268,37 @@ function ControlPanel() {
               type="checkbox"
               checked={optimizations.caching}
               onChange={() => toggleOptimization('caching')}
+              aria-label="Prompt Caching 优化开关"
             />
             <span>Prompt Caching</span>
-            <span className="toggle-desc">
-              (节省 50-90%)
-            </span>
+            <span className="toggle-desc">(节省 50-90%)</span>
           </label>
           <label className="toggle">
             <input
               type="checkbox"
               checked={optimizations.compression}
               onChange={() => toggleOptimization('compression')}
+              aria-label="Prompt 压缩优化开关"
             />
             <span>Prompt 压缩</span>
-            <span className="toggle-desc">
-              (节省 20-40%)
-            </span>
+            <span className="toggle-desc">(节省 20-40%)</span>
           </label>
           <label className="toggle">
             <input
               type="checkbox"
               checked={optimizations.routing}
               onChange={() => toggleOptimization('routing')}
+              aria-label="智能模型路由优化开关"
             />
             <span>智能模型路由</span>
-            <span className="toggle-desc">
-              (节省 60-95%)
-            </span>
+            <span className="toggle-desc">(节省 60-95%)</span>
           </label>
           <label className="toggle">
             <input
               type="checkbox"
               checked={optimizations.batching}
               onChange={() => toggleOptimization('batching')}
+              aria-label="请求批处理优化开关"
             />
             <span>请求批处理</span>
           </label>

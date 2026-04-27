@@ -2,11 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import { usePolling } from '../hooks/usePolling';
 
-/**
- * 缓存节省估算：基于平均输入价格保守估算
- * 缓存 token 比非缓存便宜约 90%（Anthropic）或 50%（OpenAI）
- * 取保守值 50% 折扣 × 平均输入单价
- */
+/** 缓存节省保守估算：缓存 token 比非缓存便宜约 50% */
 const CACHE_SAVINGS_RATIO = 0.5;
 
 function Monitor() {
@@ -43,32 +39,68 @@ function Monitor() {
 
   usePolling(loadStats, 10000);
 
-  const totalTokens = stats.totalInputTokens + stats.totalOutputTokens;
+  const totalTokens = useMemo(() =>
+    stats.totalInputTokens + stats.totalOutputTokens,
+    [stats.totalInputTokens, stats.totalOutputTokens]
+  );
 
-  // 缓存节省估算：缓存 token 占总输入 token 的比例 × 总成本 × 折扣率
   const cacheSavings = useMemo(() => {
-    if (stats.totalCachedTokens === 0 || stats.totalInputTokens === 0) return 0;
-    const cacheRatio = stats.totalCachedTokens / (stats.totalInputTokens + stats.totalCachedTokens);
+    const total = stats.totalInputTokens + stats.totalCachedTokens;
+    if (total === 0 || stats.totalCost === 0) return 0;
+    const cacheRatio = stats.totalCachedTokens / total;
     return stats.totalCost * cacheRatio * CACHE_SAVINGS_RATIO;
   }, [stats.totalCachedTokens, stats.totalInputTokens, stats.totalCost]);
 
-  const savedCost = cacheSavings.toFixed(2);
-  const actualCost = stats.totalCost.toFixed(4);
+  /** 导出统计数据为 JSON 文件 */
+  const exportStats = useCallback(() => {
+    const data = {
+      exportedAt: new Date().toISOString(),
+      summary: {
+        totalRequests: stats.totalRequests,
+        totalTokens,
+        totalCost: stats.totalCost,
+        cacheSavings
+      },
+      byApi: stats.byApi,
+      byModel: stats.byModel
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tokenbao-stats-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('统计数据已导出', 'success');
+  }, [stats, totalTokens, cacheSavings]);
 
   if (loading) {
     return (
       <div className="page">
         <h2>监控仪表盘</h2>
-        <p>加载中...</p>
+        <div className="stats-grid">
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+        </div>
       </div>
     );
   }
+
+  const savedCost = cacheSavings.toFixed(2);
+  const actualCost = stats.totalCost.toFixed(4);
 
   return (
     <div className="page">
       <div className="page-header">
         <h2>监控仪表盘</h2>
-        <button className="btn-secondary" onClick={loadStats}>刷新</button>
+        <div className="page-header-actions">
+          {stats.totalRequests > 0 && (
+            <button className="btn-secondary btn-sm" onClick={exportStats}>导出数据</button>
+          )}
+          <button className="btn-secondary btn-sm" onClick={loadStats}>刷新</button>
+        </div>
       </div>
 
       {stats.totalRequests === 0 ? (
@@ -100,7 +132,7 @@ function Monitor() {
           </div>
 
           {stats.totalCachedTokens > 0 && (
-            <div className="stats-grid cache-stats-row">
+            <div className="stats-grid">
               <div className="stat-card cache-card">
                 <h3>Prompt Caching 效果</h3>
                 <p className="stat-value">{stats.totalCachedTokens.toLocaleString()}</p>
