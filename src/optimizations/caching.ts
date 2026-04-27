@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { loadJson, saveJson } from '../utils/storage';
 
 interface CachingOptions {
@@ -46,7 +47,9 @@ function saveToStorage(): void {
 loadFromStorage();
 
 function getCacheKey(apiType: string, content: string): string {
-  return `${apiType}:${content.slice(0, 100)}`;
+  // 使用 SHA-256 哈希避免前缀碰撞
+  const hash = crypto.createHash('sha256').update(content).digest('hex');
+  return `${apiType}:${hash}`;
 }
 
 export function getOptions(): CachingOptions {

@@ -39,8 +39,10 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
       const content = fs.readFileSync(filePath, 'utf-8');
       return JSON.parse(content) as T;
     }
+    // 文件不存在，返回默认值（正常情况）
   } catch (err) {
-    console.error(`加载 ${filename} 失败:`, err);
+    // 文件损坏时记录警告，返回默认值以防止应用崩溃
+    console.warn(`加载 ${filename} 失败，使用默认值:`, err);
   }
   return defaultValue;
 }
@@ -48,7 +50,11 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
 export function saveJson<T>(filename: string, data: T): void {
   const filePath = getFilePath(filename);
   try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    const content = JSON.stringify(data, null, 2);
+    // 原子写入：先写临时文件再重命名，防止写入中断导致数据损坏
+    const tmpPath = filePath + '.tmp';
+    fs.writeFileSync(tmpPath, content, 'utf-8');
+    fs.renameSync(tmpPath, filePath);
   } catch (err) {
     console.error(`保存 ${filename} 失败:`, err);
   }

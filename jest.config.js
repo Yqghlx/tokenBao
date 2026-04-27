@@ -1,9 +1,11 @@
 module.exports = {
   testEnvironment: 'node',
-  roots: ['<rootDir>/dist', '<rootDir>/src/__tests__'],
+  roots: ['<rootDir>/src/__tests__'],
   testMatch: ['**/__tests__/**/*.test.ts'],
   moduleFileExtensions: ['ts', 'js', 'json'],
-  transform: {},
+  transform: {
+    '^.+\\.ts$': 'ts-jest'
+  },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.ts$': '$1.js'
   }

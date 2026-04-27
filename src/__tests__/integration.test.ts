@@ -1,81 +1,66 @@
-const ProxyServer = require('../proxy/server').default;
-const { applyOptimizations } = require('../optimizations/index');
-const http = require('http');
+import ProxyServer from '../proxy/server';
+import { applyOptimizations } from '../optimizations/index';
+import http from 'http';
 
-function runIntegrationTests() {
-  let passed = 0;
-  let failed = 0;
-  
-  const server = new ProxyServer({ port: 18091 });
+describe('集成测试', () => {
+  let server: ProxyServer;
 
-  server.start().then(async () => {
-    console.log('代理启动成功');
-    
-    try {
-      const requestBody = {
-        model: 'gpt-4',
-        messages: [{ role: 'user', content: 'Please help me analyze this data' }]
-      };
-      
-      const optimizationResult = applyOptimizations('openai', requestBody);
-      if (optimizationResult.appliedStrategies.length > 0) { passed++; console.log('✓ 优化策略应用成功'); }
-      else { failed++; console.log('✗ 优化策略未应用'); }
-    } catch (e: any) { failed++; console.log('✗ 优化测试失败:', e.message); }
+  beforeAll(async () => {
+    server = new ProxyServer({ port: 18091 });
+    await server.start();
+  });
 
-    try {
-      const stats = server.getStats();
-      if (stats.hasOwnProperty('requests') && stats.hasOwnProperty('savedTokens')) { passed++; console.log('✓ 统计接口正常'); }
-      else { failed++; console.log('✗ 统计接口异常'); }
-    } catch (e: any) { failed++; console.log('✗ 统计测试失败:', e.message); }
+  afterAll(async () => {
+    await server.stop();
+  });
 
-    try {
-      server.setKeys('sk-test-openai', 'sk-test-anthropic');
-      if (server.openaiKey === 'sk-test-openai' && server.anthropicKey === 'sk-test-anthropic') { passed++; console.log('✓ API Key 设置成功'); }
-      else { failed++; console.log('✗ API Key 设置失败'); }
-    } catch (e: any) { failed++; console.log('✗ API Key 测试失败:', e.message); }
+  test('优化策略应正确应用', () => {
+    const requestBody = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Please help me analyze this data' }]
+    };
+    const result = applyOptimizations('openai', requestBody);
+    expect(result.appliedStrategies.length).toBeGreaterThan(0);
+  });
 
-    try {
-      if (server.isRunning()) { passed++; console.log('✓ 代理运行状态正确'); }
-      else { failed++; console.log('✗ 代理运行状态异常'); }
-    } catch (e: any) { failed++; console.log('✗ 状态测试失败:', e.message); }
+  test('代理服务器统计接口应正常', () => {
+    const stats = server.getStats();
+    expect(stats).toHaveProperty('requests');
+    expect(stats).toHaveProperty('savedTokens');
+  });
 
-    try {
-      const apiType1 = server.detectApiType('/v1/chat/completions');
-      const apiType2 = server.detectApiType('/v1/messages');
-      if (apiType1 === 'openai' && apiType2 === 'anthropic') { passed++; console.log('✓ API 类型检测正确'); }
-      else { failed++; console.log('✗ API 类型检测异常'); }
-    } catch (e: any) { failed++; console.log('✗ API类型测试失败:', e.message); }
+  test('API Key 设置应生效', () => {
+    server.setKeys('sk-test-openai', 'sk-test-anthropic');
+    expect((server as any).openaiKey).toBe('sk-test-openai');
+    expect((server as any).anthropicKey).toBe('sk-test-anthropic');
+  });
 
-    try {
+  test('代理应处于运行状态', () => {
+    expect(server.isRunning()).toBe(true);
+  });
+
+  test('API 类型检测应正确', () => {
+    expect(server.detectApiType('/v1/chat/completions')).toBe('openai');
+    expect(server.detectApiType('/v1/messages')).toBe('anthropic');
+  });
+
+  test('代理请求应返回错误状态码（无有效上游 Key）', async () => {
+    const response = await new Promise<number>((resolve) => {
       const req = http.request({
         hostname: 'localhost',
         port: 18091,
         path: '/v1/chat/completions',
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test' },
-        timeout: 5000
-      }, (res: { statusCode: number }) => {
-        if (res.statusCode === 401 || res.statusCode === 502 || res.statusCode === 504) { passed++; console.log('✓ 代理请求处理正确'); }
-        else { failed++; console.log('✗ 代理请求状态异常: ' + res.statusCode); }
+        timeout: 10000
+      }, (res) => {
+        resolve(res.statusCode ?? 0);
       });
-      
-      req.on('error', (e: Error) => { passed++; console.log('✓ 代理请求错误处理正确'); });
+      req.on('error', () => resolve(0));
       req.write(JSON.stringify({ model: 'gpt-4', messages: [{ role: 'user', content: 'test' }] }));
       req.end();
-      
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } catch (e: any) { passed++; console.log('✓ 请求处理异常捕获'); }
-
-    await server.stop();
-    
-    console.log('');
-    console.log('SUMMARY: ' + passed + '/7 passed');
-    if (failed > 0) process.exit(1);
-    
-  }).catch((err: Error) => {
-    console.log('✗ 代理启动失败:', err.message);
-    process.exit(1);
+    });
+    // 无有效 Key 时应返回 502（上游连接失败）或 504（超时）
+    expect([0, 401, 502, 504]).toContain(response);
   });
-}
-
-runIntegrationTests();
+});

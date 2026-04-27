@@ -33,6 +33,7 @@ const OPENAI_BASE = 'https://api.openai.com';
 const ANTHROPIC_BASE = 'https://api.anthropic.com';
 
 const PROXY_TIMEOUT = 60000;
+const MAX_BODY_SIZE = 10 * 1024 * 1024; // 请求体最大 10MB
 
 /**
  * 模型定价表（每 1000 tokens 价格，美元）
@@ -56,6 +57,39 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
 function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
   const pricing = MODEL_PRICING[model] || { input: 0.001, output: 0.002 };
   return (inputTokens / 1000) * pricing.input + (outputTokens / 1000) * pricing.output;
+}
+
+/**
+ * 向上游 API 发送请求，返回响应状态码、响应头和响应体
+ */
+function sendUpstream(
+  options: https.RequestOptions,
+  body: string
+): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        resolve({
+          statusCode: res.statusCode || 500,
+          headers: res.headers,
+          body: Buffer.concat(chunks).toString()
+        });
+      });
+    });
+
+    req.setTimeout(PROXY_TIMEOUT, () => {
+      req.destroy(new Error('上游 API 响应超时'));
+    });
+
+    req.on('error', reject);
+
+    if (body) {
+      req.write(body);
+    }
+    req.end();
+  });
 }
 
 class ProxyServer {
@@ -102,12 +136,17 @@ class ProxyServer {
       const stringValue = Array.isArray(value) ? value[0] : value;
       
       if (key.toLowerCase() === 'authorization') {
+        // 始终替换为代理配置的 Key，不透传客户端原始凭证
         if (apiType === 'anthropic' && this.anthropicKey) {
           result['x-api-key'] = this.anthropicKey;
         } else if (apiType === 'openai' && this.openaiKey) {
           result['authorization'] = `Bearer ${this.openaiKey}`;
-        } else if (stringValue) {
-          result[key] = stringValue;
+        }
+        // 未配置代理 Key 时不发送认证头，避免泄漏客户端凭证
+      } else if (key.toLowerCase() === 'x-api-key') {
+        // 同样替换 Anthropic 的 x-api-key
+        if (apiType === 'anthropic' && this.anthropicKey) {
+          result['x-api-key'] = this.anthropicKey;
         }
       } else if (stringValue) {
         result[key] = stringValue;
@@ -122,10 +161,20 @@ class ProxyServer {
   }
 
   private collectBody(req: http.IncomingMessage): Promise<string> {
-    return new Promise((resolve) => {
-      const chunks: string[] = [];
-      req.on('data', (chunk) => chunks.push(chunk.toString()));
-      req.on('end', () => resolve(chunks.join('')));
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      let totalSize = 0;
+      req.on('data', (chunk: Buffer) => {
+        totalSize += chunk.length;
+        if (totalSize > MAX_BODY_SIZE) {
+          req.destroy();
+          reject(new Error(`请求体超过最大限制 (${MAX_BODY_SIZE / 1024 / 1024}MB)`));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on('end', () => resolve(Buffer.concat(chunks).toString()));
+      req.on('error', reject);
     });
   }
 
@@ -141,7 +190,16 @@ class ProxyServer {
         console.log(`[${apiType}] ${clientReq.method} ${path}`);
 
         const headers = this.transformHeaders(clientReq.headers, apiType);
-        const rawBody = await this.collectBody(clientReq);
+        let rawBody: string;
+        try {
+          rawBody = await this.collectBody(clientReq);
+        } catch (err: any) {
+          if (!clientRes.headersSent) {
+            clientRes.writeHead(413, { 'Content-Type': 'application/json' });
+            clientRes.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
 
         let optimizedBody = rawBody;
         let savedTokens = 0;
@@ -150,12 +208,12 @@ class ProxyServer {
           try {
             const parsed = JSON.parse(rawBody);
             const result = applyOptimizations(apiType, parsed);
-            
+
             if (result.appliedStrategies.length > 0) {
               optimizedBody = JSON.stringify(result.modifiedBody);
               savedTokens = result.savedTokens;
               this.totalSavedTokens += savedTokens;
-              
+
               const requestMeta = requestTracker.createRequestMetadata(
                 apiType,
                 parsed,
@@ -165,10 +223,10 @@ class ProxyServer {
                 savedTokens,
                 result.appliedStrategies
               );
-              
+
               console.log(`[${requestMeta.requestId}] 优化策略: ${result.appliedStrategies.join(', ')}`);
               console.log(`[${requestMeta.requestId}] 节省 Tokens: ${savedTokens} (累计: ${this.totalSavedTokens})`);
-              
+
               await statsService.recordRequest({
                 apiType,
                 model: parsed.model || 'unknown',
@@ -177,9 +235,9 @@ class ProxyServer {
                 savedTokens: savedTokens,
                 strategies: result.appliedStrategies
               });
-              
+
               (parsed as any).__requestId = requestMeta.requestId;
-              
+
               const estimatedCost = result.optimizedTokens / 1000 * 0.001;
               await budgetService.updateSpent('daily', estimatedCost);
               await budgetService.updateSpent('monthly', estimatedCost);
@@ -189,7 +247,7 @@ class ProxyServer {
           }
         }
 
-        const options = {
+        const options: https.RequestOptions = {
           hostname: targetBase.replace('https://', ''),
           port: 443,
           path: path,
@@ -197,93 +255,81 @@ class ProxyServer {
           headers: headers
         };
 
-        const proxyReq = https.request(options, (proxyRes) => {
-          const chunks: Buffer[] = [];
-          proxyRes.on('data', (chunk) => chunks.push(chunk));
-          proxyRes.on('end', () => {
-            const responseBody = Buffer.concat(chunks).toString();
-            const headers = proxyRes.headers as Record<string, string>;
-            const statusCode = proxyRes.statusCode || 500;
-            
-            let requestId: string | undefined;
-            try {
-              const bodyParsed = JSON.parse(optimizedBody);
-              requestId = bodyParsed.__requestId;
-            } catch {}
-            
-            if (statusCode >= 400) {
-              console.error(`请求失败: status=${statusCode}`);
-              if (requestId) {
-                requestTracker.failRequest(requestId, responseBody, statusCode);
-              }
-            } else {
-              const result = handleResponse(responseBody, headers, apiType);
-              
-              if (result.stats && requestId) {
-                requestTracker.completeRequest(requestId, {
-                  requestId,
-                  inputTokens: result.stats.inputTokens,
-                  outputTokens: result.stats.outputTokens,
-                  cacheReadTokens: result.stats.cacheReadTokens,
-                  cacheCreationTokens: result.stats.cacheCreationTokens,
-                  cost: calculateCost(result.stats.model, result.stats.inputTokens, result.stats.outputTokens),
-                  model: result.stats.model,
-                  duration: 0,
-                  status: statusCode
-                });
-                
-                recordStats(result.stats, apiType).catch(err => console.error('记录统计失败:', err));
-              }
-            }
-            
-            clientRes.writeHead(statusCode, proxyRes.headers);
-            clientRes.end(responseBody);
-          });
-        });
+        // 带重试的上游请求
+        let requestId: string | undefined;
+        try {
+          const bodyParsed = JSON.parse(optimizedBody);
+          requestId = bodyParsed?.__requestId;
+        } catch {}
 
-        proxyReq.setTimeout(PROXY_TIMEOUT, () => {
-          console.error('请求超时:', path);
-          proxyReq.destroy();
-          if (!clientRes.headersSent) {
-            clientRes.writeHead(504, { 'Content-Type': 'application/json' });
-            clientRes.end(JSON.stringify({ error: 'Gateway Timeout', message: '上游 API 响应超时' }));
-          }
-        });
+        let lastError: Error | undefined;
+        let upstreamResult: { statusCode: number; headers: http.IncomingHttpHeaders; body: string } | undefined;
+        const maxAttempts = requestId ? requestTracker.MAX_RETRIES + 1 : 1;
 
-        proxyReq.on('error', (err) => {
-          console.error('Proxy error:', err.message);
-          
-          let requestId: string | undefined;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
           try {
-            const bodyParsed = JSON.parse(optimizedBody);
-            requestId = bodyParsed.__requestId;
-          } catch {}
-          
-          if (requestId && requestTracker.canRetry(requestId)) {
-            const retryCount = requestTracker.incrementRetry(requestId);
-            console.log(`[${requestId}] 重试请求 (${retryCount}/${requestTracker.MAX_RETRIES})`);
-            
-            setTimeout(() => {
-              const metadata = requestTracker.getRequestMetadata(requestId);
-              if (metadata) {
-                console.log(`[${requestId}] 重试中...`);
-                requestTracker.updateRequestStatus(requestId, 'retrying');
-              }
-            }, requestTracker.RETRY_DELAY);
-          } else if (requestId) {
-            requestTracker.failRequest(requestId, err.message, 502);
+            upstreamResult = await sendUpstream(options, optimizedBody);
+            lastError = undefined;
+            break;
+          } catch (err: any) {
+            lastError = err;
+            if (requestId && attempt < maxAttempts - 1) {
+              const retryCount = requestTracker.incrementRetry(requestId);
+              console.log(`[${requestId}] 重试请求 (${retryCount}/${requestTracker.MAX_RETRIES})`);
+              requestTracker.updateRequestStatus(requestId, 'retrying');
+              // 等待重试间隔
+              await new Promise(r => setTimeout(r, requestTracker.RETRY_DELAY));
+            }
           }
-          
+        }
+
+        if (lastError) {
+          // 所有重试耗尽
+          console.error('代理请求失败:', lastError.message);
+          if (requestId) {
+            requestTracker.failRequest(requestId, lastError.message, 502);
+          }
           if (!clientRes.headersSent) {
             clientRes.writeHead(502, { 'Content-Type': 'application/json' });
-            clientRes.end(JSON.stringify({ error: err.message }));
+            clientRes.end(JSON.stringify({ error: lastError.message }));
           }
-        });
-
-        if (optimizedBody) {
-          proxyReq.write(optimizedBody);
+          return;
         }
-        proxyReq.end();
+
+        if (!upstreamResult) return;
+
+        const statusCode = upstreamResult.statusCode;
+
+        if (statusCode >= 400) {
+          console.error(`请求失败: status=${statusCode}`);
+          if (requestId) {
+            requestTracker.failRequest(requestId, upstreamResult.body, statusCode);
+          }
+        } else {
+          const handleResult = handleResponse(upstreamResult.body, upstreamResult.headers as Record<string, string>, apiType);
+
+          if (handleResult.stats && requestId) {
+            requestTracker.completeRequest(requestId, {
+              requestId,
+              inputTokens: handleResult.stats.inputTokens,
+              outputTokens: handleResult.stats.outputTokens,
+              cacheReadTokens: handleResult.stats.cacheReadTokens,
+              cacheCreationTokens: handleResult.stats.cacheCreationTokens,
+              cost: calculateCost(handleResult.stats.model, handleResult.stats.inputTokens, handleResult.stats.outputTokens),
+              model: handleResult.stats.model,
+              duration: 0,
+              completedAt: Date.now(),
+              status: statusCode
+            });
+
+            recordStats(handleResult.stats, apiType).catch(err => console.error('记录统计失败:', err));
+          }
+        }
+
+        if (!clientRes.headersSent) {
+          clientRes.writeHead(statusCode, upstreamResult.headers);
+          clientRes.end(upstreamResult.body);
+        }
       });
 
       this.server.on('error', reject);

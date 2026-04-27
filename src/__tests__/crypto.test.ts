@@ -1,92 +1,35 @@
-const cryptoModule = require('../utils/crypto');
+import { encrypt, decrypt, generateId } from '../utils/crypto';
 
-function runCryptoTests() {
-  let passed = 0;
-  let failed = 0;
-
-  try {
+describe('crypto 模块', () => {
+  test('加密后解密应还原原文', () => {
     const original = 'sk-test-key-123456';
-    const encrypted = cryptoModule.encrypt(original);
-    const decrypted = cryptoModule.decrypt(encrypted);
-    if (decrypted === original) {
-      passed++;
-      console.log('✓ encrypt and decrypt should work correctly');
-    } else {
-      failed++;
-      console.log('✗ encrypt and decrypt failed');
-    }
-  } catch (e: any) {
-    failed++;
-    console.log('✗ encrypt and decrypt failed:', e.message);
-  }
+    const encrypted = encrypt(original);
+    const decrypted = decrypt(encrypted);
+    expect(decrypted).toBe(original);
+  });
 
-  try {
+  test('相同文本每次加密结果不同（随机 IV）', () => {
     const original = 'test-key';
-    const encrypted1 = cryptoModule.encrypt(original);
-    const encrypted2 = cryptoModule.encrypt(original);
-    if (encrypted1 !== encrypted2) {
-      passed++;
-      console.log('✓ encrypt should produce different outputs');
-    } else {
-      failed++;
-      console.log('✗ encrypt produces same output');
-    }
-  } catch (e: any) {
-    failed++;
-    console.log('✗ encrypt uniqueness test failed:', e.message);
-  }
+    const encrypted1 = encrypt(original);
+    const encrypted2 = encrypt(original);
+    expect(encrypted1).not.toBe(encrypted2);
+  });
 
-  try {
-    cryptoModule.decrypt('invalid-format');
-    failed++;
-    console.log('✗ decrypt should throw for invalid format');
-  } catch (e: any) {
-    if (e.message.includes('Invalid ciphertext format')) {
-      passed++;
-      console.log('✓ decrypt should throw for invalid format');
-    } else {
-      failed++;
-      console.log('✗ wrong error message');
-    }
-  }
+  test('解密无效格式应抛出异常', () => {
+    expect(() => decrypt('invalid-format')).toThrow('Invalid ciphertext format');
+  });
 
-  try {
-    const id1 = cryptoModule.generateId();
-    const id2 = cryptoModule.generateId();
-    if (id1 !== id2 && id1.length === 32) {
-      passed++;
-      console.log('✓ generateId should produce unique IDs');
-    } else {
-      failed++;
-      console.log('✗ generateId uniqueness test failed');
-    }
-  } catch (e: any) {
-    failed++;
-    console.log('✗ generateId test failed:', e.message);
-  }
+  test('generateId 应生成唯一且长度为 32 的 ID', () => {
+    const id1 = generateId();
+    const id2 = generateId();
+    expect(id1).not.toBe(id2);
+    expect(id1).toHaveLength(32);
+  });
 
-  try {
+  test('加密解密应支持中文字符', () => {
     const original = '中文密钥测试';
-    const encrypted = cryptoModule.encrypt(original);
-    const decrypted = cryptoModule.decrypt(encrypted);
-    if (decrypted === original) {
-      passed++;
-      console.log('✓ encrypt should handle Chinese characters');
-    } else {
-      failed++;
-      console.log('✗ Chinese character test failed');
-    }
-  } catch (e: any) {
-    failed++;
-    console.log('✗ Chinese character test failed:', e.message);
-  }
-
-  console.log('');
-  console.log('SUMMARY: ' + passed + '/5 passed');
-  
-  if (failed > 0) {
-    process.exit(1);
-  }
-}
-
-runCryptoTests();
+    const encrypted = encrypt(original);
+    const decrypted = decrypt(encrypted);
+    expect(decrypted).toBe(original);
+  });
+});

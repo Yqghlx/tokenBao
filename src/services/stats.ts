@@ -79,26 +79,40 @@ export async function recordRequest(data: {
   originalTokens: number;
   optimizedTokens: number;
   savedTokens: number;
+  outputTokens?: number;
+  cost?: number;
   strategies: string[];
 }): Promise<void> {
   const stats = getStats();
-  
+
   stats.totalRequests++;
-  stats.totalInputTokens += data.originalTokens;
+  stats.totalInputTokens += data.optimizedTokens;
   stats.totalCachedTokens += data.savedTokens;
+  if (data.outputTokens) {
+    stats.totalOutputTokens += data.outputTokens;
+  }
+  if (data.cost) {
+    stats.totalCost += data.cost;
+  }
 
   if (!stats.byApi[data.apiType]) {
     stats.byApi[data.apiType] = { requests: 0, tokens: 0, cost: 0 };
   }
   stats.byApi[data.apiType].requests++;
   stats.byApi[data.apiType].tokens += data.optimizedTokens;
+  if (data.cost) {
+    stats.byApi[data.apiType].cost += data.cost;
+  }
 
   if (!stats.byModel[data.model]) {
     stats.byModel[data.model] = { requests: 0, tokens: 0, cost: 0 };
   }
   stats.byModel[data.model].requests++;
   stats.byModel[data.model].tokens += data.optimizedTokens;
-  
+  if (data.cost) {
+    stats.byModel[data.model].cost += data.cost;
+  }
+
   saveStats(stats);
 }
 

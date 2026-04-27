@@ -4,7 +4,6 @@ interface ApiKeyItem {
   id: number;
   name: string;
   type: string;
-  encryptedKey: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,7 +40,7 @@ function ApiKeys() {
     }
 
     if (newKey.type === 'anthropic' && newKey.key.length < 20) {
-      alert('Anthropic API Key 度过短');
+      alert('Anthropic API Key 长度过短');
       return;
     }
 
@@ -51,9 +50,7 @@ function ApiKeys() {
         setNewKey({ name: '', type: 'openai', key: '' });
         setShowAddForm(false);
         loadApiKeys();
-        
-        syncKeysToProxy();
-        
+
         alert('API Key 已添加');
       } catch (err) {
         console.error('添加 API Key 失败:', err);
@@ -69,21 +66,10 @@ function ApiKeys() {
       try {
         await window.electronAPI.apiKeys.delete(id);
         loadApiKeys();
-        syncKeysToProxy();
       } catch (err) {
         console.error('删除 API Key 失败:', err);
       }
     }
-  };
-
-  const syncKeysToProxy = async () => {
-    if (!window.electronAPI?.proxy?.setKeys) return;
-    
-    const openaiKey = apiKeys.find(k => k.type === 'openai');
-    const anthropicKey = apiKeys.find(k => k.type === 'anthropic');
-    
-    // 需要解密 Key（暂时无法实现，需要主进程处理）
-    // 这里只是触发同步机制
   };
 
   return (
@@ -154,7 +140,7 @@ function ApiKeys() {
                 <tr key={key.id}>
                   <td>{key.name}</td>
                   <td>{key.type}</td>
-                  <td>{key.encryptedKey}</td>
+                  <td>••••••••</td>
                   <td>{new Date(key.createdAt).toLocaleDateString()}</td>
                   <td>
                     <button 

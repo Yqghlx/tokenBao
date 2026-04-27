@@ -22,6 +22,7 @@ interface RequestResult {
   model: string;
   duration: number;
   status: number;
+  completedAt: number;
   errorMessage?: string;
 }
 
@@ -95,6 +96,7 @@ function completeRequest(requestId: string, result: RequestResult): void {
   if (metadata) {
     metadata.status = 'completed';
     result.duration = Date.now() - metadata.startTime;
+    result.completedAt = Date.now();
     completedRequests.set(requestId, result);
     pendingRequests.delete(requestId);
   }
@@ -113,6 +115,7 @@ function failRequest(requestId: string, errorMessage: string, statusCode: number
       cost: 0,
       model: metadata.originalBody?.model || 'unknown',
       duration: Date.now() - metadata.startTime,
+      completedAt: Date.now(),
       status: statusCode,
       errorMessage
     };
@@ -156,11 +159,10 @@ function getStatsSummary(): {
 
 function clearOldRequests(maxAgeMs: number = 3600000): void {
   const now = Date.now();
-  
+
   for (const [requestId, result] of completedRequests.entries()) {
-    const metadata = pendingRequests.get(requestId);
-    const startTime = metadata?.startTime || now - result.duration;
-    if (now - startTime > maxAgeMs) {
+    // 使用 completedAt 字段判断过期，而非从已清空的 pendingRequests 查找
+    if (result.completedAt && now - result.completedAt > maxAgeMs) {
       completedRequests.delete(requestId);
     }
   }

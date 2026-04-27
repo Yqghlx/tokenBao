@@ -31,6 +31,7 @@ export async function setBudgetLimit(type: 'daily' | 'monthly', limit: number): 
 }
 
 export async function updateSpent(type: 'daily' | 'monthly', amount: number): Promise<void> {
+  if (amount < 0) return; // 不允许负值
   const store = getStore();
   store[type].spent += amount;
   saveStore(store);
@@ -42,17 +43,20 @@ export async function resetSpent(type: 'daily' | 'monthly'): Promise<void> {
   saveStore(store);
 }
 
-export async function getBudgetStatus(): Promise<{ type: string; limit: number; spent: number; remaining: number; percentage: number }> {
+export async function getBudgetStatus(): Promise<{
+  daily: { limit: number; spent: number; remaining: number; percentage: number };
+  monthly: { limit: number; spent: number; remaining: number; percentage: number };
+}> {
   const store = getStore();
-  const budget = store.monthly;
-  const remaining = budget.limit - budget.spent;
-  const percentage = Math.round((budget.spent / budget.limit) * 100);
+  const computeStatus = (b: { type: string; limit: number; spent: number }) => ({
+    limit: b.limit,
+    spent: b.spent,
+    remaining: Math.max(0, b.limit - b.spent),
+    percentage: Math.min(100, Math.round((b.spent / b.limit) * 100))
+  });
   return {
-    type: budget.type,
-    limit: budget.limit,
-    spent: budget.spent,
-    remaining: Math.max(0, remaining),
-    percentage: Math.min(100, percentage)
+    daily: computeStatus(store.daily),
+    monthly: computeStatus(store.monthly)
   };
 }
 

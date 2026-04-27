@@ -1,50 +1,40 @@
-const caching = require('../optimizations/caching').default;
+import caching from '../optimizations/caching';
 
-function runCachingTests() {
-  let passed = 0;
-  let failed = 0;
+describe('caching 模块', () => {
+  beforeEach(() => {
+    caching.setOptions({ enabled: true, ttl: '5min', scope: 'both' });
+  });
 
-  caching.setOptions({ enabled: true, ttl: '5min', scope: 'both' });
+  afterEach(() => {
+    caching.setOptions({ enabled: true });
+  });
 
-  try {
+  test('addCacheControl 应为 system 添加 cache 标记', () => {
     const content = { system: 'You are a helpful assistant', messages: [] };
     const result = caching.addCacheControl(content);
-    if (Array.isArray(result.system) && result.system[0].cache === true) { 
-      passed++; console.log('✓ addCacheControl should add cache to system'); 
-    } else { failed++; console.log('✗ addCacheControl system failed'); }
-  } catch (e: any) { failed++; console.log('✗ addCacheControl failed:', e.message); }
+    expect(Array.isArray(result.system)).toBe(true);
+    expect(result.system[0].cache).toBe(true);
+  });
 
-  try {
+  test('禁用后 addCacheControl 不应修改内容', () => {
     caching.setOptions({ enabled: false });
     const content = { system: 'You are helpful', messages: [] };
     const result = caching.addCacheControl(content);
-    caching.setOptions({ enabled: true });
-    if (result.system === 'You are helpful') { passed++; console.log('✓ addCacheControl not modify when disabled'); }
-    else { failed++; console.log('✗ disabled caching failed'); }
-  } catch (e: any) { failed++; console.log('✗ addCacheControl disabled failed:', e.message); }
+    expect(result.system).toBe('You are helpful');
+  });
 
-  try {
-    caching.addCache('anthropic', 'test content');
-    const hasCache = caching.checkCache('anthropic', 'test content');
-    if (hasCache) { passed++; console.log('✓ addCache should store entry'); }
-    else { failed++; console.log('✗ addCache failed'); }
-  } catch (e: any) { failed++; console.log('✗ addCache/checkCache failed:', e.message); }
+  test('addCache + checkCache 应正确存储和查询', () => {
+    caching.addCache('anthropic', 'test content for cache');
+    expect(caching.checkCache('anthropic', 'test content for cache')).toBe(true);
+  });
 
-  try {
-    const result = caching.checkCache('anthropic', 'non-existent');
-    if (!result) { passed++; console.log('✓ checkCache return false for non-existent'); }
-    else { failed++; console.log('✗ checkCache non-existent failed'); }
-  } catch (e: any) { failed++; console.log('✗ checkCache failed:', e.message); }
+  test('checkCache 对不存在的内容应返回 false', () => {
+    expect(caching.checkCache('anthropic', 'non-existent')).toBe(false);
+  });
 
-  try {
-    const enabled = caching.isEnabled();
-    if (enabled) { passed++; console.log('✓ isEnabled return current state'); }
-    else { failed++; console.log('✗ isEnabled failed'); }
-  } catch (e: any) { failed++; console.log('✗ isEnabled failed:', e.message); }
-
-  console.log('');
-  console.log('SUMMARY: ' + passed + '/5 passed');
-  if (failed > 0) process.exit(1);
-}
-
-runCachingTests();
+  test('isEnabled 应返回当前启用状态', () => {
+    expect(caching.isEnabled()).toBe(true);
+    caching.setOptions({ enabled: false });
+    expect(caching.isEnabled()).toBe(false);
+  });
+});

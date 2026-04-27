@@ -18,42 +18,52 @@ function getKeyFilePath(): string {
   return path.join(baseDir, '.encryption.key');
 }
 
+/** 验证字符串是否为有效的 64 字符 hex 编码 */
+function isValidHexKey(str: string): boolean {
+  return /^[0-9a-fA-F]{64}$/.test(str);
+}
+
 function getEncryptionKey(): Buffer {
   if (cachedKey) return cachedKey;
-  
+
+  // 优先从环境变量获取密钥
   const keyEnv = process.env.ENCRYPTION_KEY;
-  if (keyEnv && keyEnv.length === 64) {
+  if (keyEnv && isValidHexKey(keyEnv)) {
     cachedKey = Buffer.from(keyEnv, 'hex');
     return cachedKey;
   }
-  
+
   const keyPath = getKeyFilePath();
-  
+
   try {
     if (fs.existsSync(keyPath)) {
       const savedKey = fs.readFileSync(keyPath, 'utf8').trim();
-      if (savedKey.length === 64) {
+      if (isValidHexKey(savedKey)) {
         cachedKey = Buffer.from(savedKey, 'hex');
         return cachedKey;
       }
+      console.warn('加密密钥文件格式无效，将重新生成');
     }
   } catch (e) {
     // 文件读取失败，生成新密钥
   }
-  
+
   const newKey = crypto.randomBytes(32);
   cachedKey = newKey;
-  
+
   try {
     const dir = path.dirname(keyPath);
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     }
-    fs.writeFileSync(keyPath, newKey.toString('hex'), { encoding: 'utf8' });
+    // 原子写入：先写临时文件再重命名，防止写入中断导致密钥损坏
+    const tmpPath = keyPath + '.tmp';
+    fs.writeFileSync(tmpPath, newKey.toString('hex'), { encoding: 'utf8', mode: 0o600 });
+    fs.renameSync(tmpPath, keyPath);
   } catch (e) {
-    // 写入失败，使用内存缓存
+    console.error('写入加密密钥文件失败，将仅使用内存缓存:', e);
   }
-  
+
   return cachedKey;
 }
 

@@ -20,29 +20,35 @@ interface InterceptorConfig {
   priority: number;
 }
 
+interface HookEntry<T> {
+  name: string;
+  hook: T;
+  priority: number;
+}
+
 class RequestInterceptor {
-  private preHooks: RequestHook[] = [];
-  private postHooks: ResponseHook[] = [];
+  private preHooks: HookEntry<RequestHook>[] = [];
+  private postHooks: HookEntry<ResponseHook>[] = [];
   private configs: Map<string, InterceptorConfig> = new Map();
 
   registerPreHook(name: string, hook: RequestHook, priority = 100): void {
     this.configs.set(name, { name, enabled: true, priority });
-    this.preHooks.push(hook);
-    this.preHooks.sort((_a, _b) => priority - 100);
+    this.preHooks.push({ name, hook, priority });
+    this.preHooks.sort((a, b) => a.priority - b.priority);
   }
 
   registerPostHook(name: string, hook: ResponseHook, priority = 100): void {
     this.configs.set(name, { name, enabled: true, priority });
-    this.postHooks.push(hook);
-    this.postHooks.sort((_a, _b) => priority - 100);
+    this.postHooks.push({ name, hook, priority });
+    this.postHooks.sort((a, b) => a.priority - b.priority);
   }
 
   async executePreHooks(req: ApiRequest): Promise<ApiRequest> {
     let result = req;
-    for (const hook of this.preHooks) {
-      const config = Array.from(this.configs.values()).find(c => c.name === hook.name);
+    for (const entry of this.preHooks) {
+      const config = this.configs.get(entry.name);
       if (config?.enabled !== false) {
-        const hookResult = await hook(result);
+        const hookResult = await entry.hook(result);
         if (hookResult !== undefined) {
           result = hookResult;
         }
@@ -52,10 +58,10 @@ class RequestInterceptor {
   }
 
   async executePostHooks(req: ApiRequest, res: ApiResponse): Promise<void> {
-    for (const hook of this.postHooks) {
-      const config = Array.from(this.configs.values()).find(c => c.name === hook.name);
+    for (const entry of this.postHooks) {
+      const config = this.configs.get(entry.name);
       if (config?.enabled !== false) {
-        await hook(req, res);
+        await entry.hook(req, res);
       }
     }
   }

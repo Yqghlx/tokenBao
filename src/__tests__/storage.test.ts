@@ -1,40 +1,27 @@
-const fs = require('fs');
-const path = require('path');
-const storage = require('../utils/storage');
+import { saveJson, loadJson, listJsonFiles } from '../utils/storage';
 
-function runStorageTests() {
-  let passed = 0;
-  let failed = 0;
+describe('storage 模块', () => {
   const testFile = 'test-storage-unit.json';
   const testData = { name: 'test', value: 123, nested: { key: 'value' } };
 
-  try {
-    storage.saveJson(testFile, testData);
-    passed++; console.log('✓ saveJson should write file');
-  } catch (e: any) { failed++; console.log('✗ saveJson failed:', e.message); }
+  test('saveJson 应成功写入文件', () => {
+    saveJson(testFile, testData);
+  });
 
-  try {
-    const loaded = storage.loadJson(testFile, {});
-    if (loaded.name === 'test' && loaded.value === 123) { passed++; console.log('✓ loadJson should read file'); }
-    else { failed++; console.log('✗ loadJson data mismatch'); }
-  } catch (e: any) { failed++; console.log('✗ loadJson failed:', e.message); }
+  test('loadJson 应正确读取已保存的数据', () => {
+    const loaded = loadJson(testFile, testData);
+    expect(loaded.name).toBe('test');
+    expect(loaded.value).toBe(123);
+  });
 
-  try {
+  test('loadJson 文件不存在时应返回默认值', () => {
     const defaultData = { default: true };
-    const loaded = storage.loadJson('non-existent-unit.json', defaultData);
-    if (loaded.default === true) { passed++; console.log('✓ loadJson return default for missing file'); }
-    else { failed++; console.log('✗ loadJson default failed'); }
-  } catch (e: any) { failed++; console.log('✗ loadJson default failed:', e.message); }
+    const loaded = loadJson('non-existent-unit.json', defaultData);
+    expect(loaded.default).toBe(true);
+  });
 
-  try {
-    const files = storage.listJsonFiles();
-    if (files.some((f: string) => f.includes('test-storage-unit'))) { passed++; console.log('✓ listJsonFiles should list json files'); }
-    else { failed++; console.log('✗ listJsonFiles failed'); }
-  } catch (e: any) { failed++; console.log('✗ listJsonFiles failed:', e.message); }
-
-  console.log('');
-  console.log('SUMMARY: ' + passed + '/4 passed');
-  if (failed > 0) process.exit(1);
-}
-
-runStorageTests();
+  test('listJsonFiles 应列出 json 文件', () => {
+    const files = listJsonFiles();
+    expect(files.some(f => f.includes('test-storage-unit'))).toBe(true);
+  });
+});
