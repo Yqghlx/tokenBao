@@ -6,7 +6,7 @@ import * as statsService from '../services/stats';
 import * as budgetService from '../services/budget';
 import * as historyService from '../services/history';
 import { calculateCost } from './pricing';
-import { handleResponse, recordStats } from './responseHandler';
+import { handleResponse } from './responseHandler';
 import requestTracker from './requestTracker';
 
 interface ProxyConfig {
@@ -110,6 +110,53 @@ function extractStreamUsage(sseData: string, _apiType: string): StreamUsage | nu
   }
 
   return null;
+}
+
+/** 请求结果数据，用于统一记录统计/预算/历史 */
+interface RequestResult {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+}
+
+/**
+ * 统一记录请求结果：统计 → 预算 → 历史
+ * 流式和非流式路径共用，消除重复代码
+ */
+async function recordRequestResult(
+  result: RequestResult,
+  apiType: string,
+  requestId: string | undefined
+): Promise<void> {
+  const cost = calculateCost(result.model, result.inputTokens, result.outputTokens);
+  const cachedTokens = result.cacheReadTokens + result.cacheCreationTokens;
+
+  try {
+    await statsService.addStats({
+      apiType,
+      model: result.model,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      cachedTokens,
+      cost
+    });
+    await budgetService.updateSpent('daily', cost);
+    await budgetService.updateSpent('monthly', cost);
+    await historyService.addRequest({
+      apiType,
+      model: result.model,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      cachedTokens,
+      cost,
+      cached: result.cacheReadTokens > 0,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    logProxy('error', '记录请求统计失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
+  }
 }
 
 /**
@@ -408,34 +455,17 @@ class ProxyServer {
                 try {
                   const usage = extractStreamUsage(sseBuffer, apiType);
                   if (usage) {
-                    const cost = calculateCost(usage.model || parsedModel, usage.inputTokens, usage.outputTokens);
-                    logProxy('info', `流式请求完成`, { requestId, model: usage.model || parsedModel, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4), duration: `${Date.now() - requestStart}ms` });
+                    const model = usage.model || parsedModel;
+                    const cost = calculateCost(model, usage.inputTokens, usage.outputTokens);
+                    logProxy('info', `流式请求完成`, { requestId, model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4), duration: `${Date.now() - requestStart}ms` });
 
-                    // 顺序记录保证数据一致性
-                    try {
-                      await statsService.addStats({
-                        apiType,
-                        model: usage.model || parsedModel,
-                        inputTokens: usage.inputTokens,
-                        outputTokens: usage.outputTokens,
-                        cachedTokens: usage.cacheReadTokens + usage.cacheCreationTokens,
-                        cost
-                      });
-                      await budgetService.updateSpent('daily', cost);
-                      await budgetService.updateSpent('monthly', cost);
-                      await historyService.addRequest({
-                        apiType,
-                        model: usage.model || parsedModel,
-                        inputTokens: usage.inputTokens,
-                        outputTokens: usage.outputTokens,
-                        cachedTokens: usage.cacheReadTokens + usage.cacheCreationTokens,
-                        cost,
-                        cached: usage.cacheReadTokens > 0,
-                        timestamp: new Date().toISOString()
-                      });
-                    } catch (err) {
-                      logProxy('error', '流式统计记录失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
-                    }
+                    await recordRequestResult({
+                      model,
+                      inputTokens: usage.inputTokens,
+                      outputTokens: usage.outputTokens,
+                      cacheReadTokens: usage.cacheReadTokens,
+                      cacheCreationTokens: usage.cacheCreationTokens
+                    }, apiType, requestId);
                   }
                 } catch (err) {
                   logProxy('warn', '流式 usage 提取失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
@@ -560,25 +590,13 @@ class ProxyServer {
               status: statusCode
             });
 
-            // 顺序记录保证数据一致性：统计 → 预算 → 历史
-            try {
-              await recordStats(handleResult.stats, apiType);
-              const actualCost = calculateCost(handleResult.stats.model, handleResult.stats.inputTokens, handleResult.stats.outputTokens);
-              await budgetService.updateSpent('daily', actualCost);
-              await budgetService.updateSpent('monthly', actualCost);
-              await historyService.addRequest({
-                apiType,
-                model: handleResult.stats.model,
-                inputTokens: handleResult.stats.inputTokens,
-                outputTokens: handleResult.stats.outputTokens,
-                cachedTokens: handleResult.stats.cacheReadTokens + handleResult.stats.cacheCreationTokens,
-                cost: actualCost,
-                cached: handleResult.stats.cacheReadTokens > 0,
-                timestamp: new Date().toISOString()
-              });
-            } catch (err) {
-              logProxy('error', '记录请求统计失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
-            }
+            await recordRequestResult({
+              model: handleResult.stats.model,
+              inputTokens: handleResult.stats.inputTokens,
+              outputTokens: handleResult.stats.outputTokens,
+              cacheReadTokens: handleResult.stats.cacheReadTokens,
+              cacheCreationTokens: handleResult.stats.cacheCreationTokens
+            }, apiType, requestId);
           }
         }
 

@@ -52,27 +52,32 @@ function saveStore(store: BudgetStore): void {
 
 /**
  * 检查并执行自动重置：日预算按天重置，月预算按月重置
+ * 返回是否有实际重置操作，调用方可据此决定是否 saveStore
  */
-function checkAutoReset(store: BudgetStore): void {
+function checkAutoReset(store: BudgetStore): boolean {
   const today = getTodayStr();
   const month = getMonthStr();
+  let changed = false;
 
   if (store.daily.lastResetDate !== today) {
     store.daily.spent = 0;
     store.daily.lastResetDate = today;
+    changed = true;
   }
 
   if (store.monthly.lastResetDate !== month) {
     store.monthly.spent = 0;
     store.monthly.lastResetDate = month;
+    changed = true;
   }
+
+  return changed;
 }
 
 export async function getBudget(type: 'daily' | 'monthly'): Promise<{ type: string; limit: number; spent: number }> {
   return mutex.runExclusive(() => {
     const store = getStore();
-    checkAutoReset(store);
-    saveStore(store);
+    if (checkAutoReset(store)) saveStore(store);
     return { ...store[type] };
   });
 }
@@ -116,8 +121,7 @@ export async function getBudgetStatus(): Promise<{
 }> {
   return mutex.runExclusive(() => {
     const store = getStore();
-    checkAutoReset(store);
-    saveStore(store);
+    if (checkAutoReset(store)) saveStore(store);
 
     const computeStatus = (b: BudgetEntry) => ({
       limit: b.limit,

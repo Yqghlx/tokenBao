@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import './Layout.css';
 
@@ -11,7 +12,7 @@ const navItems = [
   { to: '/settings', label: '设置' },
 ];
 
-function Layout() {
+const Layout = memo(function Layout() {
   return (
     <div className="layout">
       <aside className="sidebar" role="navigation" aria-label="主导航">
@@ -42,6 +43,6 @@ function Layout() {
       </main>
     </div>
   );
-}
+});
 
-export default Layout;
+export default Layout; // memo 已在定义处包装
