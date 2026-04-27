@@ -5,6 +5,9 @@ import { promisify } from 'util';
 
 const writeFileAsync = promisify(fs.writeFile);
 const renameAsync = promisify(fs.rename);
+const openAsync = promisify(fs.open);
+const closeAsync = promisify(fs.close);
+const fsyncAsync = promisify(fs.fsync);
 
 let dataDir: string;
 
@@ -68,7 +71,8 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
       console.error(`备份恢复 ${filename} 也失败:`, backupErr);
     }
   }
-  return defaultValue;
+  // 深拷贝默认值，防止调用方修改污染原始默认对象
+  return JSON.parse(JSON.stringify(defaultValue)) as T;
 }
 
 export function saveJson<T>(filename: string, data: T): void {
@@ -93,6 +97,13 @@ export async function saveJsonAsync<T>(filename: string, data: T): Promise<void>
     const content = JSON.stringify(data, null, 2);
     const tmpPath = filePath + '.tmp';
     await writeFileAsync(tmpPath, content, 'utf-8');
+    // fsync 确保数据落盘后再 rename，防止系统崩溃导致数据丢失
+    const fd = await openAsync(tmpPath, 'r');
+    try {
+      await fsyncAsync(fd);
+    } finally {
+      await closeAsync(fd);
+    }
     await renameAsync(tmpPath, filePath);
   } catch (err) {
     console.error(`异步保存 ${filename} 失败:`, err);

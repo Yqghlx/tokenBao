@@ -114,6 +114,12 @@ export async function addStats(data: {
     stats.byModel[data.model].tokens += data.inputTokens + data.outputTokens;
     stats.byModel[data.model].cost += data.cost;
 
+    // 后置完整性检查：防止累加后出现 Infinity/NaN
+    if (!isFinite(stats.totalCost)) stats.totalCost = 0;
+    if (!isFinite(stats.totalInputTokens)) stats.totalInputTokens = 0;
+    if (!isFinite(stats.totalOutputTokens)) stats.totalOutputTokens = 0;
+    if (!isFinite(stats.totalCachedTokens)) stats.totalCachedTokens = 0;
+
     await saveStats(stats);
   });
 }

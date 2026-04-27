@@ -32,6 +32,7 @@ const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 500; // 指数退避基础延迟 500ms
 const COMPLETED_MAX_SIZE = 50; // 完成请求最大保留数量
 const CLEANUP_INTERVAL_MS = 300000; // 每 5 分钟自动清理过期记录
+const STALE_PENDING_MS = 600000; // pending 超过 10 分钟视为僵尸请求
 
 /** 定期清理过期记录，防止长时间运行内存膨胀 */
 let cleanupTimer: ReturnType<typeof setInterval> | null = null;
@@ -223,10 +224,17 @@ function getStatsSummary(): {
 function clearOldRequests(maxAgeMs = 3600000): void {
   const now = Date.now();
 
+  // 清理过期已完成请求
   for (const [requestId, result] of completedRequests.entries()) {
-    // 使用 completedAt 字段判断过期，而非从已清空的 pendingRequests 查找
     if (result.completedAt && now - result.completedAt > maxAgeMs) {
       completedRequests.delete(requestId);
+    }
+  }
+
+  // 清理僵尸 pending 请求（超时未完成的请求）
+  for (const [requestId, metadata] of pendingRequests.entries()) {
+    if (now - metadata.startTime > STALE_PENDING_MS) {
+      pendingRequests.delete(requestId);
     }
   }
 }

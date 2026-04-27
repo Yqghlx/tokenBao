@@ -93,6 +93,9 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
   if (typeof log.cost !== 'number' || isNaN(log.cost) || log.cost < 0) {
     throw new Error('cost 无效');
   }
+  if (typeof log.cachedTokens !== 'number' || isNaN(log.cachedTokens) || log.cachedTokens < 0) {
+    throw new Error('cachedTokens 无效');
+  }
 
   return mutex.runExclusive(async () => {
     const store = getStore();

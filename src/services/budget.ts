@@ -94,10 +94,12 @@ export async function setBudgetLimit(type: 'daily' | 'monthly', limit: number): 
 
 export async function updateSpent(type: 'daily' | 'monthly', amount: number): Promise<void> {
   return mutex.runExclusive(async () => {
-    if (amount < 0) return;
+    if (amount < 0 || !isFinite(amount)) return;
     const store = getStore();
     checkAutoReset(store);
-    store[type].spent += amount;
+    const newSpent = store[type].spent + amount;
+    // 防止溢出
+    store[type].spent = newSpent > Number.MAX_SAFE_INTEGER ? Number.MAX_SAFE_INTEGER : newSpent;
     await saveStore(store);
   });
 }

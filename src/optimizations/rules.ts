@@ -5,6 +5,7 @@ const STORAGE_FILE = 'rules.json';
 /** 正则表达式安全限制 */
 const MAX_PATTERN_LENGTH = 500;
 const MAX_REGEX_EXECUTION_MS = 50;
+const MAX_REPLACE_ITERATIONS = 10000;
 
 interface Rule {
   id: number;
@@ -66,6 +67,10 @@ export function addRule(rule: Omit<Rule, 'id'>): Rule {
     const err = validatePattern(rule.pattern);
     if (err) throw new Error(err);
   }
+  // 验证 priority 范围
+  if (!Number.isInteger(rule.priority) || rule.priority < 0 || rule.priority > 1000) {
+    throw new Error('priority 必须是 0-1000 之间的整数');
+  }
   const newRule = { ...rule, id: nextId++ };
   rules.set(newRule.id, newRule);
   saveToStorage();
@@ -102,8 +107,11 @@ function safeRegexReplace(text: string, pattern: string, replacement: string): s
   try {
     const regex = new RegExp(pattern, 'g');
     const start = Date.now();
+    let iterations = 0;
     const result = text.replace(regex, () => {
-      if (Date.now() - start > MAX_REGEX_EXECUTION_MS) {
+      iterations++;
+      // 迭代次数超限或执行超时，立即中断防止 ReDoS
+      if (iterations > MAX_REPLACE_ITERATIONS || Date.now() - start > MAX_REGEX_EXECUTION_MS) {
         throw new Error('正则表达式执行超时');
       }
       return replacement;
