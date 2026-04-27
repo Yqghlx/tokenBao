@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ToastContainer, useToast } from './components/Toast';
 import ControlPanel from './pages/ControlPanel';
 import Monitor from './pages/Monitor';
 import Settings from './pages/Settings';
@@ -10,8 +11,11 @@ import Optimization from './pages/Optimization';
 import './styles/pages.css';
 
 function App() {
+  const { toasts } = useToast();
+
   return (
     <ErrorBoundary>
+      <ToastContainer toasts={toasts} />
       <HashRouter>
         <Routes>
           <Route path="/" element={<Layout />}>

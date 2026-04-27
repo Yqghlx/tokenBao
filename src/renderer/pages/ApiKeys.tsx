@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { showToast } from '../components/Toast';
 
 interface ApiKeyItem {
   id: number;
@@ -11,6 +12,8 @@ interface ApiKeyItem {
 function ApiKeys() {
   const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [newKey, setNewKey] = useState({ name: '', type: 'openai', key: '' });
 
   const loadApiKeys = useCallback(async () => {
@@ -20,7 +23,12 @@ function ApiKeys() {
         setApiKeys(keys);
       } catch (err) {
         console.error('获取 API Keys 失败:', err);
+        showToast('加载 API Keys 失败', 'error');
+      } finally {
+        setLoading(false);
       }
+    } else {
+      setLoading(false);
     }
   }, []);
 
@@ -30,31 +38,34 @@ function ApiKeys() {
 
   const addApiKey = async () => {
     if (!newKey.name || !newKey.key) {
-      alert('请填写名称和 Key');
+      showToast('请填写名称和 Key', 'error');
       return;
     }
 
     if (newKey.type === 'openai' && !newKey.key.startsWith('sk-')) {
-      alert('OpenAI API Key 应以 sk- 开头');
+      showToast('OpenAI API Key 应以 sk- 开头', 'error');
       return;
     }
 
     if (newKey.type === 'anthropic' && newKey.key.length < 20) {
-      alert('Anthropic API Key 长度过短');
+      showToast('Anthropic API Key 长度过短', 'error');
       return;
     }
 
     if (window.electronAPI?.apiKeys?.add) {
+      setSaving(true);
       try {
         await window.electronAPI.apiKeys.add(newKey.name, newKey.type, newKey.key);
         setNewKey({ name: '', type: 'openai', key: '' });
         setShowAddForm(false);
         loadApiKeys();
 
-        alert('API Key 已添加');
+        showToast('API Key 已添加', 'success');
       } catch (err) {
         console.error('添加 API Key 失败:', err);
-        alert('添加失败');
+        showToast('添加失败', 'error');
+      } finally {
+        setSaving(false);
       }
     }
   };
@@ -114,7 +125,9 @@ function ApiKeys() {
               />
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn-primary" onClick={addApiKey}>保存</button>
+              <button className="btn-primary" onClick={addApiKey} disabled={saving}>
+                {saving ? '保存中...' : '保存'}
+              </button>
               <button className="btn-secondary" onClick={() => setShowAddForm(false)}>取消</button>
             </div>
           </div>
@@ -131,7 +144,11 @@ function ApiKeys() {
             </tr>
           </thead>
           <tbody>
-            {apiKeys.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="empty-state">加载中...</td>
+              </tr>
+            ) : apiKeys.length === 0 ? (
               <tr>
                 <td colSpan={5} className="empty-state">暂无 API Keys</td>
               </tr>

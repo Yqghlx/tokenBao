@@ -69,7 +69,7 @@ function parseAnthropicStreamUsage(lines: string[]): UsageStats | null {
 /**
  * 解析非流式响应的 usage（包含 Prompt Caching）
  */
-function parseNonStreamUsage(body: string, apiType: string): UsageStats | null {
+function parseNonStreamUsage(body: string): UsageStats | null {
   try {
     const parsed = JSON.parse(body);
     if (parsed.usage) {
@@ -123,7 +123,7 @@ export function handleResponse(
       stats = parseAnthropicStreamUsage(lines);
     }
   } else {
-    stats = parseNonStreamUsage(responseBody, apiType);
+    stats = parseNonStreamUsage(responseBody);
   }
   
   return { stats, body: responseBody };

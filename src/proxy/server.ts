@@ -6,21 +6,6 @@ import * as budgetService from '../services/budget';
 import { handleResponse, recordStats } from './responseHandler';
 import requestTracker from './requestTracker';
 
-interface ApiUsage {
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  total_tokens?: number;
-  input_tokens?: number;
-  output_tokens?: number;
-  cache_read_input_tokens?: number;
-  cache_creation_input_tokens?: number;
-}
-
-interface ApiResponse {
-  usage?: ApiUsage;
-  model?: string;
-}
-
 interface ProxyConfig {
   port: number;
   openaiKey?: string;
@@ -203,6 +188,7 @@ class ProxyServer {
 
         let optimizedBody = rawBody;
         let savedTokens = 0;
+        let requestId: string | undefined;
 
         if (apiType !== 'unknown' && rawBody && clientReq.method === 'POST') {
           try {
@@ -224,8 +210,10 @@ class ProxyServer {
                 result.appliedStrategies
               );
 
-              console.log(`[${requestMeta.requestId}] 优化策略: ${result.appliedStrategies.join(', ')}`);
-              console.log(`[${requestMeta.requestId}] 节省 Tokens: ${savedTokens} (累计: ${this.totalSavedTokens})`);
+              requestId = requestMeta.requestId;
+
+              console.log(`[${requestId}] 优化策略: ${result.appliedStrategies.join(', ')}`);
+              console.log(`[${requestId}] 节省 Tokens: ${savedTokens} (累计: ${this.totalSavedTokens})`);
 
               await statsService.recordRequest({
                 apiType,
@@ -235,8 +223,6 @@ class ProxyServer {
                 savedTokens: savedTokens,
                 strategies: result.appliedStrategies
               });
-
-              (parsed as any).__requestId = requestMeta.requestId;
 
               const estimatedCost = result.optimizedTokens / 1000 * 0.001;
               await budgetService.updateSpent('daily', estimatedCost);
@@ -256,11 +242,6 @@ class ProxyServer {
         };
 
         // 带重试的上游请求
-        let requestId: string | undefined;
-        try {
-          const bodyParsed = JSON.parse(optimizedBody);
-          requestId = bodyParsed?.__requestId;
-        } catch {}
 
         let lastError: Error | undefined;
         let upstreamResult: { statusCode: number; headers: http.IncomingHttpHeaders; body: string } | undefined;
