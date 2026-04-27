@@ -63,6 +63,26 @@ function saveToStorage(): void {
   saveJson(STORAGE_FILE, { patterns });
 }
 
+/** 防抖写入：标记脏数据，延迟 500ms 后一次性写入 */
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let isDirty = false;
+
+function scheduleSave(): void {
+  isDirty = true;
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (isDirty) {
+      isDirty = false;
+      saveToStorage();
+    }
+  }, 500);
+  // 不阻塞进程退出
+  if (saveTimer && typeof saveTimer === 'object' && 'unref' in saveTimer) {
+    saveTimer.unref();
+  }
+}
+
 loadFromStorage();
 
 function getCacheKey(apiType: string, content: string): string {
@@ -93,7 +113,7 @@ export function addCache(apiType: string, content: string): void {
   });
   cacheOrder.push(key);
   evictIfNeeded();
-  saveToStorage();
+  scheduleSave();
 }
 
 export function checkCache(apiType: string, content: string): boolean {
