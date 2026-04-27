@@ -44,4 +44,25 @@ describe('compression 模块', () => {
     expect(result.text).toBe('Please help me');
     expect(result.tokensSaved).toBe(0);
   });
+
+  test('压缩应保护 fenced code blocks 不被破坏', () => {
+    const input = 'Please help with this:\n```python\ndef  hello():\n    return 42\n```\nThat is all.';
+    const result = compression.compress(input);
+    // 代码块内的缩进和格式应保留
+    expect(result.text).toContain('def  hello():');
+    expect(result.text).toContain('    return 42');
+  });
+
+  test('压缩应保护波浪线围栏代码块', () => {
+    const input = 'Please see:\n~~~json\n{  "key":  "value"  }\n~~~\nDone.';
+    const result = compression.compress(input);
+    expect(result.text).toContain('{  "key":  "value"  }');
+  });
+
+  test('代码块外的内容应正常压缩', () => {
+    const input = 'Could you please help?\n```js\nconst x = 1;\n```\nThank you.';
+    const result = compression.compress(input);
+    expect(result.text).not.toContain('Could you');
+    expect(result.text).toContain('const x = 1;');
+  });
 });

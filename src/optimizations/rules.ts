@@ -1,5 +1,7 @@
 import { loadJson, saveJson } from '../utils/storage';
 
+const STORAGE_FILE = 'rules.json';
+
 /** 正则表达式安全限制 */
 const MAX_PATTERN_LENGTH = 500;
 const MAX_REGEX_EXECUTION_MS = 50;
@@ -19,8 +21,6 @@ interface RuleStore {
   nextId: number;
 }
 
-const STORAGE_FILE = 'rules.json';
-
 const rules: Map<number, Rule> = new Map();
 let nextId = 1;
 
@@ -29,7 +29,7 @@ function loadFromStorage(): void {
     const store = loadJson<RuleStore>(STORAGE_FILE, { rules: [], nextId: 1 });
     store.rules.forEach(r => rules.set(r.id, r));
     nextId = store.nextId;
-  } catch (e) {
+  } catch {
     // 首次加载可能失败
   }
 }
@@ -41,9 +41,30 @@ function saveToStorage(): void {
 
 loadFromStorage();
 
+/**
+ * 验证正则表达式语法是否合法
+ * 返回 null 表示合法，否则返回错误信息
+ */
+export function validatePattern(pattern: string): string | null {
+  if (!pattern || pattern.trim().length === 0) {
+    return '正则表达式不能为空';
+  }
+  if (pattern.length > MAX_PATTERN_LENGTH) {
+    return `正则表达式长度不能超过 ${MAX_PATTERN_LENGTH} 字符`;
+  }
+  try {
+    new RegExp(pattern);
+    return null;
+  } catch {
+    return '正则表达式语法错误';
+  }
+}
+
 export function addRule(rule: Omit<Rule, 'id'>): Rule {
-  if (rule.type === 'replace' && rule.pattern.length > MAX_PATTERN_LENGTH) {
-    throw new Error(`正则表达式长度不能超过 ${MAX_PATTERN_LENGTH} 字符`);
+  // 类型为 replace 时验证正则语法
+  if (rule.type === 'replace') {
+    const err = validatePattern(rule.pattern);
+    if (err) throw new Error(err);
   }
   const newRule = { ...rule, id: nextId++ };
   rules.set(newRule.id, newRule);
@@ -114,5 +135,6 @@ export default {
   getRule,
   updateRule,
   deleteRule,
-  applyRules
+  applyRules,
+  validatePattern
 };

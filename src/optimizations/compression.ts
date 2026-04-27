@@ -39,22 +39,46 @@ function estimateTokens(text: string): number {
   return Math.ceil(count);
 }
 
+/**
+ * 提取 fenced code blocks 占位保护，避免空白压缩破坏代码内容
+ * 返回 { protected: 替换后的文本, restore: 恢复函数 }
+ */
+function protectCodeBlocks(text: string): { protected: string; restore: (t: string) => string } {
+  const blocks: string[] = [];
+  // 匹配 ```...``` 围栏代码块（支持 ~~~ 和 ``` 围栏）
+  const fencedRegex = /(`{3}|~{3})[\s\S]*?\1/g;
+  const protectedText = text.replace(fencedRegex, (match) => {
+    blocks.push(match);
+    return `\x00CODE_BLOCK_${blocks.length - 1}\x00`;
+  });
+  return {
+    protected: protectedText,
+    restore: (t: string) => t.replace(/\x00CODE_BLOCK_(\d+)\x00/g, (_, i) => blocks[parseInt(i)])
+  };
+}
+
 function compress(text: string): { text: string; tokensSaved: number } {
   if (!defaultOptions.enabled) {
     return { text, tokensSaved: 0 };
   }
 
   const originalTokens = estimateTokens(text);
-  let compressed = text;
+  const { protected: protectedText, restore } = protectCodeBlocks(text);
+  let compressed = protectedText;
 
+  // 仅对非代码部分做短语替换
   for (const { pattern, replacement } of replacements) {
     compressed = compressed.replace(pattern, replacement);
   }
 
+  // 仅对非代码部分做空白压缩
   compressed = compressed
     .replace(/\s+/g, ' ')
     .replace(/\n\s*\n/g, '\n')
     .trim();
+
+  // 还原代码块
+  compressed = restore(compressed);
 
   const newTokens = estimateTokens(compressed);
 

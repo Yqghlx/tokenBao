@@ -112,13 +112,26 @@ describe('rules 优化模块', () => {
     expect(result).toBe('hello world');
   });
 
-  test('非法正则应降级为字符串替换', () => {
-    // 无效的正则表达式：未闭合的括号
-    rulesModule.addRule({ name: '非法正则', type: 'replace', pattern: '(unclosed', replacement: 'ok', enabled: true, priority: 1 });
+  test('非法正则应在添加时被拒绝', () => {
+    // addRule 现在会验证正则语法，非法正则直接抛错
+    expect(() => {
+      rulesModule.addRule({ name: '非法正则', type: 'replace', pattern: '(unclosed', replacement: 'ok', enabled: true, priority: 1 });
+    }).toThrow('正则表达式语法错误');
+  });
 
-    // 不应抛错，应降级为字符串替换
-    const result = rulesModule.applyRules('test (unclosed test');
-    expect(result).toBe('test ok test');
+  test('validatePattern 应返回合法正则的 null', () => {
+    expect(rulesModule.validatePattern('\\d+')).toBeNull();
+    expect(rulesModule.validatePattern('hello')).toBeNull();
+  });
+
+  test('validatePattern 应返回非法正则的错误信息', () => {
+    expect(rulesModule.validatePattern('(unclosed')).toBeTruthy();
+    expect(rulesModule.validatePattern('')).toBeTruthy();
+  });
+
+  test('validatePattern 应拒绝过长的正则', () => {
+    const long = 'a'.repeat(501);
+    expect(rulesModule.validatePattern(long)).toContain('500');
   });
 
   test('多个规则应按优先级顺序应用', () => {

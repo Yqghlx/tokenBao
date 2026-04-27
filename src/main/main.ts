@@ -6,6 +6,7 @@ import * as apiKeyService from '../services/apiKey';
 import * as historyService from '../services/history';
 import * as budgetService from '../services/budget';
 import * as statsService from '../services/stats';
+import * as rulesModule from '../optimizations/rules';
 import { getOptimizationConfig, setOptimizationConfig } from '../services/config';
 
 let mainWindow: BrowserWindow | null = null;
@@ -227,6 +228,33 @@ function registerIpcHandlers(): void {
   ipcMain.handle('optimization:setConfig', async (_, config: Record<string, unknown>) => {
     await setOptimizationConfig(config as Record<string, boolean>);
     return { success: true, config };
+  });
+
+  // 规则管理
+  ipcMain.handle('rules:list', async () => {
+    return rulesModule.listRules();
+  });
+
+  ipcMain.handle('rules:add', async (_, rule: { name: string; type: 'replace' | 'filter' | 'route'; pattern: string; replacement: string; enabled: boolean; priority: number }) => {
+    try {
+      const result = rulesModule.addRule(rule);
+      return { success: true, rule: result };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('rules:update', async (_, id: number, updates: Record<string, unknown>) => {
+    const result = rulesModule.updateRule(id, updates);
+    return result ? { success: true, rule: result } : { success: false, error: '规则不存在' };
+  });
+
+  ipcMain.handle('rules:delete', async (_, id: number) => {
+    return { success: rulesModule.deleteRule(id) };
+  });
+
+  ipcMain.handle('rules:validate', async (_, pattern: string) => {
+    return { error: rulesModule.validatePattern(pattern) };
   });
 }
 

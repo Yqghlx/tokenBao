@@ -144,6 +144,43 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 
+  rules: {
+    list: () => ipcRenderer.invoke('rules:list'),
+    add: (rule: { name: string; type: string; pattern: string; replacement: string; enabled: boolean; priority: number }) => {
+      if (!rule || typeof rule !== 'object') {
+        return Promise.resolve({ success: false, error: '规则数据无效' });
+      }
+      if (!rule.name || typeof rule.name !== 'string' || rule.name.length > 100) {
+        return Promise.resolve({ success: false, error: '规则名称无效' });
+      }
+      if (!['replace', 'filter', 'route'].includes(rule.type)) {
+        return Promise.resolve({ success: false, error: '不支持的规则类型' });
+      }
+      if (typeof rule.pattern !== 'string' || rule.pattern.length > 500) {
+        return Promise.resolve({ success: false, error: '正则表达式过长' });
+      }
+      return ipcRenderer.invoke('rules:add', rule);
+    },
+    update: (id: number, updates: Record<string, unknown>) => {
+      if (typeof id !== 'number' || id < 1) {
+        return Promise.resolve({ success: false, error: '无效的规则 ID' });
+      }
+      return ipcRenderer.invoke('rules:update', id, updates);
+    },
+    delete: (id: number) => {
+      if (typeof id !== 'number' || id < 1) {
+        return Promise.resolve({ success: false, error: '无效的规则 ID' });
+      }
+      return ipcRenderer.invoke('rules:delete', id);
+    },
+    validate: (pattern: string) => {
+      if (typeof pattern !== 'string') {
+        return Promise.resolve({ error: '正则表达式必须为字符串' });
+      }
+      return ipcRenderer.invoke('rules:validate', pattern);
+    }
+  },
+
   on: (channel: string, callback: (...args: unknown[]) => void) => {
     if (!ALLOWED_CHANNELS.includes(channel as typeof ALLOWED_CHANNELS[number])) {
       console.warn(`IPC 通道 "${channel}" 不在白名单中，拒绝监听`);

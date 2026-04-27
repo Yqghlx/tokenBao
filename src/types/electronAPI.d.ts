@@ -93,6 +93,22 @@ interface ElectronAPI {
     setConfig: (config: Record<string, unknown>) => Promise<{ success: boolean; config: Record<string, unknown> }>;
   };
 
+  rules: {
+    list: () => Promise<Array<{
+      id: number;
+      name: string;
+      type: 'replace' | 'filter' | 'route';
+      pattern: string;
+      replacement: string;
+      enabled: boolean;
+      priority: number;
+    }>>;
+    add: (rule: { name: string; type: string; pattern: string; replacement: string; enabled: boolean; priority: number }) => Promise<{ success: boolean; rule?: unknown; error?: string }>;
+    update: (id: number, updates: Record<string, unknown>) => Promise<{ success: boolean; rule?: unknown; error?: string }>;
+    delete: (id: number) => Promise<{ success: boolean }>;
+    validate: (pattern: string) => Promise<{ error: string | null }>;
+  };
+
   on: (channel: string, callback: (...args: unknown[]) => void) => void;
   off: (channel: string) => void;
 }
