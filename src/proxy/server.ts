@@ -280,7 +280,7 @@ class ProxyServer {
             }
           } catch (e) {
             // JSON 解析或优化失败，直接转发原始请求
-            logProxy('warn', '优化管线处理失败，转发原始请求', { error: (e as Error).message });
+            logProxy('warn', '优化管线处理失败，转发原始请求', { requestId, error: (e as Error).message });
           }
         }
 
@@ -300,7 +300,7 @@ class ProxyServer {
           const proxyReq = https.request(options, (proxyRes) => {
             const statusCode = proxyRes.statusCode || 500;
             if (statusCode >= 400) {
-              logProxy('error', `流式请求失败`, { statusCode });
+              logProxy('error', `流式请求失败`, { requestId, statusCode });
             }
             clientRes.writeHead(statusCode, proxyRes.headers);
 

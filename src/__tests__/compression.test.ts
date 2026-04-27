@@ -33,8 +33,9 @@ describe('compression 模块', () => {
       { type: 'image', data: 'base64...' }
     ];
     const result = compression.compressPrompt(prompt);
-    expect(result[0].text).not.toContain('Please');
-    expect(result[1].type).toBe('image');
+    const blocks = result as Array<{ type: string; text?: string; data?: string }>;
+    expect(blocks[0].text).not.toContain('Please');
+    expect(blocks[1].type).toBe('image');
   });
 
   test('禁用后压缩应不生效', () => {

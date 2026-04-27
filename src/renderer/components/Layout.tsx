@@ -13,6 +13,7 @@ function Layout() {
           <NavLink to="/monitor" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>📊 监控仪表盘</NavLink>
           <NavLink to="/optimization" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>🔧 优化策略</NavLink>
           <NavLink to="/history" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>📋 请求历史</NavLink>
+          <NavLink to="/budget" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>💰 预算管理</NavLink>
           <NavLink to="/api-keys" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>🔑 API Keys</NavLink>
           <NavLink to="/settings" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>⚙️ 设置</NavLink>
         </nav>

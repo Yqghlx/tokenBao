@@ -64,22 +64,28 @@ function compress(text: string): { text: string; tokensSaved: number } {
   };
 }
 
-function compressPrompt(prompt: any): any {
+interface ContentBlock {
+  type: string;
+  text?: string;
+  [key: string]: unknown;
+}
+
+function compressPrompt(prompt: string | ContentBlock[]): string | ContentBlock[] {
   if (!defaultOptions.enabled || !prompt) return prompt;
-  
+
   if (typeof prompt === 'string') {
     return compress(prompt).text;
   }
-  
+
   if (Array.isArray(prompt)) {
-    return prompt.map((block: any) => {
+    return prompt.map((block) => {
       if (block.type === 'text' && block.text) {
         return { ...block, text: compress(block.text).text };
       }
       return block;
     });
   }
-  
+
   return prompt;
 }
 

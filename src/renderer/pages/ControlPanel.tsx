@@ -4,7 +4,7 @@ import { showToast } from '../components/Toast';
 function ControlPanel() {
   const [proxyStatus, setProxyStatus] = useState({
     running: false,
-    port: 3000,
+    port: 0,
     requests: 0,
     savedTokens: 0
   });
@@ -31,10 +31,16 @@ function ControlPanel() {
     if (window.electronAPI?.proxy?.status) {
       try {
         const status = await window.electronAPI.proxy.status();
+        let port = status.port;
+        // 代理未运行时从配置加载默认端口
+        if (!port && window.electronAPI?.config?.get) {
+          const configPort = await window.electronAPI.config.get('proxyPort');
+          port = configPort ? parseInt(configPort, 10) : 3000;
+        }
         setProxyStatus(prev => ({
           ...prev,
           running: status.running,
-          port: status.port,
+          port,
           requests: status.requests
         }));
       } catch (err) {

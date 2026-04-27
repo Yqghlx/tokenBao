@@ -8,6 +8,7 @@ import Settings from './pages/Settings';
 import ApiKeys from './pages/ApiKeys';
 import History from './pages/History';
 import Optimization from './pages/Optimization';
+import Budget from './pages/Budget';
 import './styles/pages.css';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
             <Route path="api-keys" element={<ApiKeys />} />
             <Route path="history" element={<History />} />
             <Route path="optimization" element={<Optimization />} />
+            <Route path="budget" element={<Budget />} />
           </Route>
         </Routes>
       </HashRouter>
