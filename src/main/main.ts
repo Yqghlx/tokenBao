@@ -151,6 +151,13 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('proxy:setKeys', async (_, openaiKey: string, anthropicKey: string) => {
+    // 主进程二次校验，防御 preload 绕过
+    if (openaiKey && (!openaiKey.startsWith('sk-') || openaiKey.length < 20)) {
+      return { success: false, error: 'OpenAI Key 格式无效' };
+    }
+    if (anthropicKey && (!anthropicKey.startsWith('sk-ant-') || anthropicKey.length < 20)) {
+      return { success: false, error: 'Anthropic Key 格式无效' };
+    }
     if (proxyServer) {
       proxyServer.setKeys(openaiKey, anthropicKey);
     }
@@ -266,8 +273,12 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('rules:update', async (_, id: number, updates: Record<string, unknown>) => {
-    const result = rulesModule.updateRule(id, updates);
-    return result ? { success: true, rule: result } : { success: false, error: '规则不存在' };
+    try {
+      const result = rulesModule.updateRule(id, updates);
+      return result ? { success: true, rule: result } : { success: false, error: '规则不存在' };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle('rules:delete', async (_, id: number) => {

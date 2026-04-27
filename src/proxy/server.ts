@@ -20,10 +20,18 @@ type ApiType = 'openai' | 'anthropic' | 'unknown';
 const OPENAI_BASE = 'https://api.openai.com';
 const ANTHROPIC_BASE = 'https://api.anthropic.com';
 
-const PROXY_TIMEOUT = 60000;
+const DEFAULT_PROXY_TIMEOUT = 60000;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 请求体最大 10MB
 const MAX_CONNECTIONS = 100; // 最大并发连接数
 const SHUTDOWN_TIMEOUT = 5000; // 优雅关闭等待超时 5s
+
+/** HTTPS 连接池：复用 TLS 连接，避免每次请求重新握手 */
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 50,
+  keepAliveMsecs: 30000,
+  timeout: 120000
+});
 
 /**
  * 结构化日志辅助函数
@@ -109,11 +117,13 @@ function extractStreamUsage(sseData: string, _apiType: string): StreamUsage | nu
  */
 function sendUpstream(
   options: https.RequestOptions,
-  body: string
+  body: string,
+  timeout: number
 ): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body: string }> {
   return new Promise((resolve, reject) => {
+    const opts = { ...options, agent: httpsAgent };
     let settled = false;
-    const req = https.request(options, (res) => {
+    const req = https.request(opts, (res) => {
       const chunks: Buffer[] = [];
       res.on('data', (chunk) => chunks.push(chunk));
       res.on('end', () => {
@@ -133,7 +143,7 @@ function sendUpstream(
       });
     });
 
-    req.setTimeout(PROXY_TIMEOUT, () => {
+    req.setTimeout(timeout, () => {
       if (settled) return;
       settled = true;
       req.destroy(new Error('上游 API 响应超时'));
@@ -160,11 +170,15 @@ class ProxyServer {
   private requestCount = 0;
   private totalSavedTokens = 0;
   private activeConnections = new Set<http.ServerResponse>();
+  private activeUpstreamRequests = new Set<http.ClientRequest>();
+  private shuttingDown = false;
+  private proxyTimeout: number;
 
   constructor(config: ProxyConfig) {
     this.port = config.port;
     this.openaiKey = config.openaiKey;
     this.anthropicKey = config.anthropicKey;
+    this.proxyTimeout = DEFAULT_PROXY_TIMEOUT;
   }
 
   detectApiType(path: string): ApiType {
@@ -242,6 +256,7 @@ class ProxyServer {
   }
 
   start(): Promise<void> {
+    this.shuttingDown = false;
     return new Promise((resolve, reject) => {
       this.server = http.createServer(async (clientReq, clientRes) => {
         // 并发连接数限制
@@ -254,6 +269,13 @@ class ProxyServer {
         this.requestCount++;
         this.activeConnections.add(clientRes);
         clientRes.on('close', () => this.activeConnections.delete(clientRes));
+
+        // 优雅关闭期间拒绝新请求
+        if (this.shuttingDown) {
+          clientRes.writeHead(503, { 'Content-Type': 'application/json' });
+          clientRes.end(JSON.stringify({ error: 'Service Unavailable', message: '代理服务器正在关闭' }));
+          return;
+        }
 
         const requestStart = Date.now();
         const path = clientReq.url || '';
@@ -272,6 +294,18 @@ class ProxyServer {
             clientRes.end(JSON.stringify({ error: err instanceof Error ? err.message : '请求体过大' }));
           }
           return;
+        }
+
+        // Content-Type 校验：POST 请求必须为 JSON
+        if (clientReq.method === 'POST' && rawBody) {
+          const contentType = (clientReq.headers['content-type'] || '').toLowerCase();
+          if (!contentType.includes('application/json') && !contentType.includes('text/plain')) {
+            if (!clientRes.headersSent) {
+              clientRes.writeHead(415, { 'Content-Type': 'application/json' });
+              clientRes.end(JSON.stringify({ error: 'Unsupported Media Type', message: '仅支持 application/json' }));
+            }
+            return;
+          }
         }
 
         let optimizedBody = rawBody;
@@ -330,7 +364,7 @@ class ProxyServer {
           // PassThrough 在外层声明，以便 timeout/error 回调中可以销毁
           const passThrough = new PassThrough();
 
-          const proxyReq = https.request(options, (proxyRes) => {
+          const proxyReq = https.request({ ...options, agent: httpsAgent }, (proxyRes) => {
             const statusCode = proxyRes.statusCode || 500;
             if (statusCode >= 400) {
               logProxy('error', `流式请求失败`, { requestId, statusCode });
@@ -395,7 +429,7 @@ class ProxyServer {
             proxyRes.pipe(passThrough).pipe(clientRes);
           });
 
-          proxyReq.setTimeout(PROXY_TIMEOUT, () => {
+          proxyReq.setTimeout(this.proxyTimeout, () => {
             proxyReq.destroy();
             passThrough.destroy();
             if (!clientRes.headersSent) {
@@ -415,6 +449,8 @@ class ProxyServer {
           if (optimizedBody) {
             proxyReq.write(optimizedBody);
           }
+          this.activeUpstreamRequests.add(proxyReq);
+          proxyReq.on('close', () => this.activeUpstreamRequests.delete(proxyReq));
           proxyReq.end();
           return;
         }
@@ -426,7 +462,7 @@ class ProxyServer {
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           try {
-            upstreamResult = await sendUpstream(options, optimizedBody);
+            upstreamResult = await sendUpstream(options, optimizedBody, this.proxyTimeout);
             lastError = undefined;
 
             // 4xx 客户端错误不重试（408/429 除外）
@@ -540,6 +576,8 @@ class ProxyServer {
   stop(): Promise<void> {
     return new Promise((resolve) => {
       if (this.server) {
+        this.shuttingDown = true;
+
         // 停止接收新连接
         this.server.close(() => {
           this.server = null;
@@ -549,6 +587,11 @@ class ProxyServer {
 
         // 优雅关闭：给活跃连接超时兜底
         const shutdownTimer = setTimeout(() => {
+          // 销毁所有活跃的上游请求
+          for (const req of this.activeUpstreamRequests) {
+            req.destroy();
+          }
+          this.activeUpstreamRequests.clear();
           for (const res of this.activeConnections) {
             if (!res.writableEnded) {
               res.destroy();
@@ -559,7 +602,7 @@ class ProxyServer {
 
         // 等待所有活跃连接结束
         const checkIdle = () => {
-          if (this.activeConnections.size === 0) {
+          if (this.activeConnections.size === 0 && this.activeUpstreamRequests.size === 0) {
             clearTimeout(shutdownTimer);
           }
         };
@@ -600,6 +643,17 @@ class ProxyServer {
 
   updateOptimizationConfig(config: { caching?: boolean; compression?: boolean; routing?: boolean; batching?: boolean }): void {
     setOptimizationConfig(config);
+  }
+
+  /** 设置代理请求超时（毫秒） */
+  setProxyTimeout(timeout: number): void {
+    if (timeout > 0) {
+      this.proxyTimeout = timeout;
+    }
+  }
+
+  getProxyTimeout(): number {
+    return this.proxyTimeout;
   }
 }
 

@@ -30,6 +30,41 @@ const pendingRequests: Map<string, RequestMetadata> = new Map();
 const completedRequests: Map<string, RequestResult> = new Map();
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 500; // 指数退避基础延迟 500ms
+const COMPLETED_MAX_SIZE = 50; // 完成请求最大保留数量
+const CLEANUP_INTERVAL_MS = 300000; // 每 5 分钟自动清理过期记录
+
+/** 定期清理过期记录，防止长时间运行内存膨胀 */
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+function startAutoCleanup(): void {
+  if (cleanupTimer) return;
+  cleanupTimer = setInterval(() => {
+    clearOldRequests();
+    // 如果清理后仍超过上限，按时间戳淘汰最早的记录
+    if (completedRequests.size > COMPLETED_MAX_SIZE) {
+      const entries = Array.from(completedRequests.entries())
+        .sort((a, b) => (a[1].completedAt || 0) - (b[1].completedAt || 0));
+      const removeCount = completedRequests.size - COMPLETED_MAX_SIZE;
+      for (let i = 0; i < removeCount; i++) {
+        completedRequests.delete(entries[i][0]);
+      }
+    }
+  }, CLEANUP_INTERVAL_MS);
+  // 允许进程退出时自动停止
+  if (cleanupTimer && typeof cleanupTimer === 'object' && 'unref' in cleanupTimer) {
+    cleanupTimer.unref();
+  }
+}
+
+function stopAutoCleanup(): void {
+  if (cleanupTimer) {
+    clearInterval(cleanupTimer);
+    cleanupTimer = null;
+  }
+}
+
+// 启动自动清理
+startAutoCleanup();
 
 /**
  * 判断 HTTP 状态码是否为可重试错误
@@ -121,8 +156,8 @@ function completeRequest(requestId: string, result: RequestResult): void {
     result.completedAt = Date.now();
     completedRequests.set(requestId, result);
     pendingRequests.delete(requestId);
-    // 每次完成后自动清理超过 1 小时的旧记录
-    if (completedRequests.size > 100) {
+    // 每次完成后自动清理过期记录
+    if (completedRequests.size > COMPLETED_MAX_SIZE) {
       clearOldRequests();
     }
   }
@@ -206,6 +241,8 @@ export default {
   getCompletedRequest,
   getStatsSummary,
   clearOldRequests,
+  startAutoCleanup,
+  stopAutoCleanup,
   isRetryableStatus,
   getRetryDelay,
   MAX_RETRIES,
