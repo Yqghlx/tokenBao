@@ -328,12 +328,12 @@ class ProxyServer {
                       outputTokens: usage.outputTokens,
                       cachedTokens: usage.cacheReadTokens + usage.cacheCreationTokens,
                       cost
-                    }).catch(err => logProxy('error', '流式统计记录失败', { error: err.message }));
+                    }).catch(err => logProxy('error', '流式统计记录失败', { requestId, error: err.message }));
 
                     budgetService.updateSpent('daily', cost).catch(() => { /* 预算更新失败不阻断流程 */ });
                     budgetService.updateSpent('monthly', cost).catch(() => { /* 预算更新失败不阻断流程 */ });
 
-                    logProxy('info', `流式请求统计`, { model: usage.model || parsedModel, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4) });
+                    logProxy('info', `流式请求统计`, { requestId, model: usage.model || parsedModel, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4) });
 
                     historyService.addRequest({
                       apiType,
@@ -350,6 +350,12 @@ class ProxyServer {
                   // usage 提取失败不影响功能
                 }
               }
+            });
+
+            // 流传输中途出错时确保资源清理
+            passThrough.on('error', (err) => {
+              logProxy('error', 'PassThrough 流处理错误', { requestId, error: err.message });
+              passThrough.destroy();
             });
 
             proxyRes.pipe(passThrough).pipe(clientRes);
