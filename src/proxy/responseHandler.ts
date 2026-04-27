@@ -138,7 +138,7 @@ export function handleResponse(
 /**
  * 记录统计数据到服务
  */
-export async function recordStats(stats: UsageStats, apiType: string): Promise<void> {
+export async function recordStats(stats: UsageStats | null, apiType: string): Promise<void> {
   if (!stats) return;
   
   const cost = calculateCost(stats.model, stats.inputTokens, stats.outputTokens);

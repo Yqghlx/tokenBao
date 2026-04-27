@@ -1,5 +1,5 @@
 import { getEncoding, Tiktoken } from 'js-tiktoken';
-import { MODEL_PRICING } from '../proxy/pricing';
+import { MODEL_PRICING, normalizeModelName } from '../proxy/pricing';
 
 interface ContentBlock {
   type: string;
@@ -24,7 +24,8 @@ function countTokensOpenAI(text: string): number {
     const enc = getEncoder();
     const tokens = enc.encode(text);
     return tokens.length;
-  } catch {
+  } catch (err) {
+    console.warn('tiktoken 编码失败，使用估算 fallback:', (err as Error).message);
     return estimateTokensFallback(text);
   }
 }
@@ -101,7 +102,8 @@ function estimateCost(
   outputTokens: number,
   model: string
 ): number {
-  const prices = MODEL_PRICING[model];
+  const normalized = normalizeModelName(model);
+  const prices = MODEL_PRICING[normalized];
   if (!prices) return (inputTokens + outputTokens) / 1000 * 0.001;
 
   return (inputTokens / 1000) * prices.input + (outputTokens / 1000) * prices.output;

@@ -39,8 +39,12 @@ function loadFromStorage(): void {
 
     // 加载时截断超限缓存
     evictIfNeeded();
-  } catch {
-    // 首次加载可能失败
+  } catch (err) {
+    // 首次加载时文件不存在是正常的，其他错误需要记录
+    const filePath = STORAGE_FILE;
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn(`加载缓存数据失败 (${filePath}):`, (err as Error).message);
+    }
   }
 }
 
