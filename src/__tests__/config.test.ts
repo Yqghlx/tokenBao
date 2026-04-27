@@ -111,4 +111,39 @@ describe('config 服务', () => {
     expect(optim.caching).toBe(true);
     expect(optim.batching).toBe(false);
   });
+
+  describe('配置值验证', () => {
+    test('proxyPort 无效值应被拒绝', async () => {
+      await expect(configService.setConfig('proxyPort', '80')).rejects.toThrow('配置值无效');
+      await expect(configService.setConfig('proxyPort', 'abc')).rejects.toThrow('配置值无效');
+      await expect(configService.setConfig('proxyPort', '99999')).rejects.toThrow('配置值无效');
+    });
+
+    test('proxyPort 有效值应被接受', async () => {
+      await expect(configService.setConfig('proxyPort', '8080')).resolves.toBeUndefined();
+      await expect(configService.setConfig('proxyPort', '3000')).resolves.toBeUndefined();
+    });
+
+    test('dataRetentionDays 无效值应被拒绝', async () => {
+      await expect(configService.setConfig('dataRetentionDays', '0')).rejects.toThrow('配置值无效');
+      await expect(configService.setConfig('dataRetentionDays', '500')).rejects.toThrow('配置值无效');
+    });
+
+    test('dataRetentionDays 有效值应被接受', async () => {
+      await expect(configService.setConfig('dataRetentionDays', '30')).resolves.toBeUndefined();
+      await expect(configService.setConfig('dataRetentionDays', '1')).resolves.toBeUndefined();
+    });
+
+    test('cacheTTL 无效值应被拒绝', async () => {
+      await expect(configService.setConfig('cacheTTL', '10min')).rejects.toThrow('配置值无效');
+    });
+
+    test('theme 无效值应被拒绝', async () => {
+      await expect(configService.setConfig('theme', 'blue')).rejects.toThrow('配置值无效');
+    });
+
+    test('未知配置键无验证器时应正常写入', async () => {
+      await expect(configService.setConfig('customKey', 'anyValue')).resolves.toBeUndefined();
+    });
+  });
 });

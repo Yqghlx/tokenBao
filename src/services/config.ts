@@ -14,6 +14,20 @@ interface ConfigStore {
 const STORAGE_FILE = 'config.json';
 const mutex = getMutex(STORAGE_FILE);
 
+/** 配置值验证规则 */
+const CONFIG_VALIDATORS: Record<string, (val: string) => boolean> = {
+  proxyPort: (v) => {
+    const n = parseInt(v, 10);
+    return !isNaN(n) && n >= 1024 && n <= 65535;
+  },
+  dataRetentionDays: (v) => {
+    const n = parseInt(v, 10);
+    return !isNaN(n) && n >= 1 && n <= 365;
+  },
+  cacheTTL: (v) => ['5min', '1hour'].includes(v),
+  theme: (v) => ['light', 'dark', 'auto'].includes(v)
+};
+
 /** 默认配置（单一来源，消除 DRY 违规） */
 const DEFAULT_CONFIG: ConfigStore = {
   config: {
@@ -45,6 +59,10 @@ export async function getConfig(key: string): Promise<string | undefined> {
 }
 
 export async function setConfig(key: string, value: string): Promise<void> {
+  const validator = CONFIG_VALIDATORS[key];
+  if (validator && !validator(value)) {
+    throw new Error(`配置值无效: ${key}=${value}`);
+  }
   return mutex.runExclusive(() => {
     const store = getStore();
     store.config[key] = value;
