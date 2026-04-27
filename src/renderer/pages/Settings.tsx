@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -11,14 +11,22 @@ function Settings() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [portError, setPortError] = useState('');
   const [daysError, setDaysError] = useState('');
+  // 保存已提交的值用于变更检测
+  const [savedValues, setSavedValues] = useState({ proxyPort: '3000', dataRetentionDays: '30', cacheTTL: '5min' });
 
   const loadSettings = useCallback(async () => {
     if (window.electronAPI?.config?.getAll) {
       try {
         const config = await window.electronAPI.config.getAll();
-        setProxyPort(config.proxyPort || '3000');
-        setDataRetentionDays(config.dataRetentionDays || '30');
-        setCacheTTL(config.cacheTTL || '5min');
+        const values = {
+          proxyPort: config.proxyPort || '3000',
+          dataRetentionDays: config.dataRetentionDays || '30',
+          cacheTTL: config.cacheTTL || '5min'
+        };
+        setProxyPort(values.proxyPort);
+        setDataRetentionDays(values.dataRetentionDays);
+        setCacheTTL(values.cacheTTL);
+        setSavedValues(values);
       } catch (err) {
         console.error('加载设置失败:', err);
       } finally {
@@ -102,6 +110,7 @@ function Settings() {
           setCacheTTL(original.cacheTTL);
           showToast(`${failed.length} 个设置保存失败`, 'error');
         } else {
+          setSavedValues({ proxyPort, dataRetentionDays, cacheTTL });
           showToast('设置已保存', 'success');
         }
       } catch (err) {
@@ -136,6 +145,10 @@ function Settings() {
   }
 
   const hasError = portError || daysError;
+  const isDirty = useMemo(() =>
+    proxyPort !== savedValues.proxyPort || dataRetentionDays !== savedValues.dataRetentionDays || cacheTTL !== savedValues.cacheTTL,
+    [proxyPort, dataRetentionDays, cacheTTL, savedValues]
+  );
 
   return (
     <div className="page">
@@ -180,7 +193,7 @@ function Settings() {
             <option value="1hour">1 小时</option>
           </select>
         </div>
-        <button className="btn-primary" onClick={saveSettings} disabled={saving || !!hasError}>
+        <button className="btn-primary" onClick={saveSettings} disabled={saving || !!hasError || !isDirty}>
           {saving ? '保存中...' : '保存设置'}
         </button>
         <button className="btn-secondary" onClick={() => setShowResetConfirm(true)} disabled={saving}>

@@ -690,7 +690,11 @@ class ProxyServer {
         console.log(`TokenBao proxy running on port ${this.port}`);
         console.log(`OpenAI: http://localhost:${this.port}/v1/chat/completions`);
         console.log(`Anthropic: http://localhost:${this.port}/v1/messages`);
-        await this.loadBudgetSnapshot();
+        try {
+          await this.loadBudgetSnapshot();
+        } catch (err) {
+          logProxy('warn', '初始预算快照加载失败，使用默认值', { error: (err as Error).message });
+        }
         // 每 60 秒从 budgetService 重新同步预算快照，纠正浮点漂移
         this.budgetSyncTimer = setInterval(() => {
           this.loadBudgetSnapshot().catch(() => {});

@@ -195,7 +195,10 @@ function ApiKeys() {
       <ConfirmDialog
         open={confirmDeleteId !== null}
         title="删除 API Key"
-        message="确定要删除此 API Key 吗？删除后无法恢复。"
+        message={(() => {
+          const key = apiKeys.find(k => k.id === confirmDeleteId);
+          return key ? `确定要删除「${key.name}」(${key.type}) 吗？删除后无法恢复。` : '确定要删除此 API Key 吗？';
+        })()}
         confirmLabel="删除"
         danger
         onConfirm={() => {

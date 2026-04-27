@@ -454,6 +454,19 @@ app.on('window-all-closed', async () => {
   }
 });
 
+// 确保应用退出前清理代理服务器（macOS Cmd+Q 等场景）
+app.on('before-quit', async () => {
+  stopHealthCheck();
+  if (proxyServer) {
+    try {
+      await proxyServer.stop();
+    } catch {
+      /* 退出时忽略停止失败 */
+    }
+    proxyServer = null;
+  }
+});
+
 app.on('activate', () => {
   if (!mainWindow) {
     createWindow();

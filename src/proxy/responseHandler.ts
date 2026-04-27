@@ -16,6 +16,21 @@ interface UsageStats {
  */
 export function extractStreamUsage(sseData: string): UsageStats | null {
   const lines = sseData.split('\n');
+  let fallbackModel = 'unknown';
+
+  // 先从 message_start 事件提取模型名（Anthropic 流式）
+  for (const line of lines) {
+    if (!line.startsWith('data: ')) continue;
+    const data = line.slice(6);
+    if (data === '[DONE]') continue;
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.type === 'message_start' && parsed.message?.model) {
+        fallbackModel = parsed.message.model;
+        break;
+      }
+    } catch { continue; }
+  }
 
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
@@ -33,7 +48,7 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
           outputTokens: parsed.usage.output_tokens || 0,
           cacheReadTokens: parsed.usage.cache_read_input_tokens || 0,
           cacheCreationTokens: parsed.usage.cache_creation_input_tokens || 0,
-          model: parsed.model || 'unknown'
+          model: fallbackModel
         };
       }
 
@@ -44,7 +59,7 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
           outputTokens: parsed.usage.completion_tokens || 0,
           cacheReadTokens: parsed.usage.prompt_tokens_details?.cached_tokens || 0,
           cacheCreationTokens: 0,
-          model: parsed.model || 'unknown'
+          model: parsed.model || fallbackModel
         };
       }
     } catch {
