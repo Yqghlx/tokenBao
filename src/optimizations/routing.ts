@@ -76,20 +76,21 @@ function setOptions(options: Partial<RoutingOptions>): void {
 function detectComplexity(prompt: string): 'simple' | 'classification' | 'extraction' | 'complex' | 'unknown' {
   const lower = prompt.toLowerCase();
 
+  // 使用唯一关键词计数，避免重复出现虚高分值
   let simpleScore = 0;
   let extractionScore = 0;
   let complexScore = 0;
 
   for (const kw of simpleKeywords) {
-    if (lower.includes(kw)) simpleScore++;
+    if (lower.includes(kw)) { simpleScore++; break; }
   }
 
   for (const kw of extractionKeywords) {
-    if (lower.includes(kw)) extractionScore++;
+    if (lower.includes(kw)) { extractionScore++; break; }
   }
 
   for (const kw of complexKeywords) {
-    if (lower.includes(kw)) complexScore++;
+    if (lower.includes(kw)) { complexScore++; break; }
   }
 
   // 长度因子：长 prompt 倾向于复杂任务
@@ -123,10 +124,16 @@ function routeModel(model: string, prompt: string): string {
     }
   }
 
-  // 降级匹配：extraction → classification → simple
-  if (condition === 'extraction') {
+  // 降级匹配：extraction → classification → simple，classification → simple
+  const fallbackChain: Array<'classification' | 'simple'> = condition === 'extraction'
+    ? ['classification', 'simple']
+    : condition === 'classification'
+      ? ['simple']
+      : [];
+
+  for (const fallback of fallbackChain) {
     for (const rule of defaultOptions.rules) {
-      if (rule.sourceModel === model && rule.condition === 'classification') {
+      if (rule.sourceModel === model && rule.condition === fallback) {
         return rule.targetModel;
       }
     }

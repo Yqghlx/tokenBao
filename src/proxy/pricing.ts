@@ -73,7 +73,10 @@ export function normalizeModelName(model: string): string {
   const lower = model.toLowerCase();
   if (MODEL_ALIASES[lower]) return MODEL_ALIASES[lower];
   if (MODEL_PRICING[lower]) return lower;
-  for (const key of Object.keys(MODEL_PRICING)) {
+  // 前缀匹配：按长度降序排列，确保最长前缀优先匹配
+  // 例如 gpt-4o-mini 应优先于 gpt-4o 匹配，避免 mini 按 4o 费率计费
+  const sortedKeys = Object.keys(MODEL_PRICING).sort((a, b) => b.length - a.length);
+  for (const key of sortedKeys) {
     if (lower.startsWith(key)) return key;
   }
   return model;

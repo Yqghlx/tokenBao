@@ -84,9 +84,12 @@ function compress(text: string): { text: string; tokensSaved: number } {
   }
 
   // 仅对非代码部分做空白压缩
+  // 先合并连续空行，再压缩水平空白，避免 \s+ 先删除换行导致段落结构丢失
   compressed = compressed
-    .replace(/\s+/g, ' ')
-    .replace(/\n\s*\n/g, '\n')
+    .replace(/\n[ \t]*\n[ \t]*\n/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/^[ \t]+/gm, '')
+    .replace(/[ \t]+$/gm, '')
     .trim();
 
   // 还原代码块
