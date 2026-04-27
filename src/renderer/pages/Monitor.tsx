@@ -99,7 +99,7 @@ function Monitor() {
           {stats.totalRequests > 0 && (
             <button className="btn-secondary btn-sm" onClick={exportStats}>导出数据</button>
           )}
-          <button className="btn-secondary btn-sm" onClick={loadStats}>刷新</button>
+          <button className="btn-secondary btn-sm" onClick={loadStats} aria-label="刷新统计数据">刷新</button>
         </div>
       </div>
 
@@ -110,7 +110,7 @@ function Monitor() {
         </div>
       ) : (
         <>
-          <div className="stats-grid">
+          <div className="stats-grid" aria-live="polite" aria-atomic="true">
             <div className="stat-card">
               <h3>总 Token 使用</h3>
               <p className="stat-value">{totalTokens.toLocaleString()}</p>

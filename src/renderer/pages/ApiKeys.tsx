@@ -15,6 +15,7 @@ function ApiKeys() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [newKey, setNewKey] = useState({ name: '', type: 'openai', key: '' });
 
@@ -73,6 +74,7 @@ function ApiKeys() {
 
   const deleteApiKey = async (id: number) => {
     if (window.electronAPI?.apiKeys?.delete) {
+      setDeletingId(id);
       try {
         await window.electronAPI.apiKeys.delete(id);
         setConfirmDeleteId(null);
@@ -81,98 +83,114 @@ function ApiKeys() {
       } catch (err) {
         console.error('删除 API Key 失败:', err);
         showToast('删除失败', 'error');
+      } finally {
+        setDeletingId(null);
       }
     }
   };
 
+  if (loading) {
+    return (
+      <div className="page">
+        <h2>API Keys 管理</h2>
+        <div className="stats-grid">
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
-      <h2>API Keys 管理</h2>
-      <div className="api-keys-section">
-        <button className="btn-primary" onClick={() => setShowAddForm(true)}>
+      <div className="page-header">
+        <h2>API Keys 管理</h2>
+        <button className="btn-primary" onClick={() => setShowAddForm(true)} aria-label="添加 API Key">
           添加 API Key
         </button>
-        
-        {showAddForm && (
-          <div className="add-form info-panel">
-            <div className="form-group">
-              <label>名称</label>
-              <input
-                type="text"
-                value={newKey.name}
-                onChange={(e) => setNewKey(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="例如: 我的 OpenAI Key"
-              />
-            </div>
-            <div className="form-group">
-              <label>类型</label>
-              <select
-                value={newKey.type}
-                onChange={(e) => setNewKey(prev => ({ ...prev, type: e.target.value }))}
-              >
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>API Key</label>
-              <input
-                type="password"
-                value={newKey.key}
-                onChange={(e) => setNewKey(prev => ({ ...prev, key: e.target.value }))}
-                placeholder="sk-..."
-              />
-            </div>
-            <div className="form-actions">
-              <button className="btn-primary" onClick={addApiKey} disabled={saving}>
-                {saving ? '保存中...' : '保存'}
-              </button>
-              <button className="btn-secondary" onClick={() => setShowAddForm(false)}>取消</button>
-            </div>
-          </div>
-        )}
-
-        <table className="data-table">
-
-          <thead>
-            <tr>
-              <th>名称</th>
-              <th>类型</th>
-              <th>Key</th>
-              <th>创建时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="empty-state">加载中...</td>
-              </tr>
-            ) : apiKeys.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="empty-state">暂无 API Keys</td>
-              </tr>
-            ) : (
-              apiKeys.map((key) => (
-                <tr key={key.id}>
-                  <td>{key.name}</td>
-                  <td>{key.type}</td>
-                  <td>••••••••</td>
-                  <td>{new Date(key.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <button
-                      className="btn-secondary btn-sm"
-                      onClick={() => setConfirmDeleteId(key.id)}
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
       </div>
+
+      {showAddForm && (
+        <div className="add-form info-panel" role="form" aria-label="添加 API Key 表单">
+          <div className="form-group">
+            <label htmlFor="key-name">名称</label>
+            <input
+              id="key-name"
+              type="text"
+              value={newKey.name}
+              onChange={(e) => setNewKey(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="例如: 我的 OpenAI Key"
+              aria-required="true"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="key-type">类型</label>
+            <select
+              id="key-type"
+              value={newKey.type}
+              onChange={(e) => setNewKey(prev => ({ ...prev, type: e.target.value }))}
+            >
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="key-value">API Key</label>
+            <input
+              id="key-value"
+              type="password"
+              value={newKey.key}
+              onChange={(e) => setNewKey(prev => ({ ...prev, key: e.target.value }))}
+              placeholder="sk-..."
+              aria-required="true"
+            />
+          </div>
+          <div className="form-actions">
+            <button className="btn-primary" onClick={addApiKey} disabled={saving} aria-label={saving ? '保存中' : '保存 API Key'}>
+              {saving ? '保存中...' : '保存'}
+            </button>
+            <button className="btn-secondary" onClick={() => setShowAddForm(false)}>取消</button>
+          </div>
+        </div>
+      )}
+
+      <table className="data-table" aria-label="API Keys 列表">
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>类型</th>
+            <th>Key</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {apiKeys.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="empty-state">暂无 API Keys，点击上方按钮添加</td>
+            </tr>
+          ) : (
+            apiKeys.map((key) => (
+              <tr key={key.id}>
+                <td>{key.name}</td>
+                <td>{key.type}</td>
+                <td>••••••••</td>
+                <td>{new Date(key.createdAt).toLocaleDateString()}</td>
+                <td>
+                  <button
+                    className="btn-secondary btn-sm"
+                    onClick={() => setConfirmDeleteId(key.id)}
+                    disabled={deletingId !== null}
+                    aria-label={`删除 ${key.name}`}
+                  >
+                    {deletingId === key.id ? '删除中...' : '删除'}
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
 
       <ConfirmDialog
         open={confirmDeleteId !== null}

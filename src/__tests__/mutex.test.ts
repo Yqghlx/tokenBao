@@ -79,4 +79,44 @@ describe('Mutex 写入串行化', () => {
     const result = await mutex.runExclusive(() => 'recovered');
     expect(result).toBe('recovered');
   });
+
+  it('队列溢出时应拒绝新操作', async () => {
+    const mutex = new Mutex();
+    // 用一个长时间持有锁的操作阻塞队列
+    let releaseBlocker!: () => void;
+    const blocker = mutex.runExclusive(() => new Promise<void>(r => { releaseBlocker = r; }));
+
+    // 填满队列（100 个等待 + 1 个运行中）
+    const waiters: Promise<unknown>[] = [blocker];
+    for (let i = 0; i < 100; i++) {
+      waiters.push(mutex.runExclusive(() => Promise.resolve(i)));
+    }
+
+    // 第 102 个操作应被拒绝
+    await expect(mutex.runExclusive(() => 'overflow'))
+      .rejects.toThrow('Mutex 队列已满');
+
+    // 释放阻塞操作，让队列清空
+    releaseBlocker();
+    await Promise.allSettled(waiters);
+
+    // 队列清空后应恢复正常
+    const result = await mutex.runExclusive(() => 'ok');
+    expect(result).toBe('ok');
+  });
+
+  it('异常后 queueSize 应正确递减', async () => {
+    const mutex = new Mutex();
+    const failures: Promise<unknown>[] = [];
+    for (let i = 0; i < 10; i++) {
+      failures.push(
+        mutex.runExclusive(() => { throw new Error('fail'); }).catch(() => {})
+      );
+    }
+    await Promise.all(failures);
+
+    // 所有异常处理完毕后应能正常执行
+    const result = await mutex.runExclusive(() => 'clean');
+    expect(result).toBe('clean');
+  });
 });
