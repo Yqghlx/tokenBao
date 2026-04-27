@@ -29,46 +29,45 @@ function countTokensOpenAI(text: string): number {
     return estimateTokensFallback(text);
   }
 }
+/**
+ * Anthropic token \u4f30\u7b97\uff1a\u6309\u5b57\u7b26\u7c7b\u578b\u5206\u522b\u8ba1\u7b97
+ * CJK \u5b57\u7b26\u7ea6 1.5 chars/token\uff0c\u62c9\u4e01\u5b57\u6bcd\u7ea6 3.5 chars/token\uff0c\u4ee3\u7801/\u7b26\u53f7\u7ea6 4 chars/token
+ */
 function countTokensAnthropic(text: string): number {
   if (!text) return 0;
 
-  // Anthropic \u5b98\u65b9\u5efa\u8bae\uff1a\u82f1\u6587\u7ea6 4 chars/token\uff0c\u4e2d\u6587\u7ea6 2 chars/token
-  const chineseChars = text.match(/[\u4e00-\u9fff]/g)?.length || 0;
-  const nonChineseLength = text.length - chineseChars;
+  const cjkChars = (text.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length;
+  const codeAndSymbols = (text.match(/[`{}[\]()<>|/\\@#$%^&*~+=_-]/g) || []).length;
+  const whitespace = (text.match(/\s/g) || []).length;
+  const otherChars = text.length - cjkChars - codeAndSymbols - whitespace;
 
-  const chineseTokens = Math.ceil(chineseChars / 2);
-  const nonChineseTokens = Math.ceil(nonChineseLength / 4);
-
-  return chineseTokens + nonChineseTokens + 3;
+  return Math.ceil(cjkChars / 1.5) + Math.ceil(codeAndSymbols / 4) + Math.ceil(whitespace / 4) + Math.ceil(otherChars / 3.5) + 3;
 }
+
 /**
- * Token \u4f30\u7b97 fallback\uff1atiktoken \u4e0d\u53ef\u7528\u65f6\u4f7f\u7528
- * \u82f1\u6587 4 chars/token\uff0c\u4e2d\u6587 2 chars/token\uff08\u4e0e countTokensAnthropic \u4e00\u81f4\uff09
+ * Token \u4f30\u7b97 fallback\uff1atiktoken \u4e0d\u53ef\u7528\u65f6\u4f7f\u7528\uff0c\u91c7\u7528\u4e0e Anthropic \u76f8\u540c\u7684\u591a\u7c7b\u578b\u5b57\u7b26\u4f30\u7b97
  */
 function estimateTokensFallback(text: string): number {
-  if (!text) return 0;
-
-  const chineseChars = text.match(/[\u4e00-\u9fff]/g)?.length || 0;
-  const nonChineseLength = text.length - chineseChars;
-
-  const chineseTokens = Math.ceil(chineseChars / 2);
-  const nonChineseTokens = Math.ceil(nonChineseLength / 4);
-
-  return chineseTokens + nonChineseTokens + 3;
+  return countTokensAnthropic(text);
 }
 
 function countTokens(text: string, apiType?: string): number {
   if (!text) return 0;
-  
-  if (apiType === 'openai') {
+
+  try {
+    if (apiType === 'openai') {
+      return countTokensOpenAI(text);
+    }
+
+    if (apiType === 'anthropic' || apiType === 'claude') {
+      return countTokensAnthropic(text);
+    }
+
     return countTokensOpenAI(text);
+  } catch (err) {
+    console.warn('Token 计数失败，使用 fallback:', err);
+    return estimateTokensFallback(text);
   }
-  
-  if (apiType === 'anthropic' || apiType === 'claude') {
-    return countTokensAnthropic(text);
-  }
-  
-  return countTokensOpenAI(text);
 }
 function countMessages(messages: Message[], apiType?: string): number {
   if (!messages || !Array.isArray(messages)) return 0;

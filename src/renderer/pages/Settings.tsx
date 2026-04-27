@@ -87,11 +87,23 @@ function Settings() {
 
     if (window.electronAPI?.config?.set) {
       setSaving(true);
+      const original = { proxyPort, dataRetentionDays, cacheTTL };
       try {
-        await window.electronAPI.config.set('proxyPort', proxyPort);
-        await window.electronAPI.config.set('dataRetentionDays', dataRetentionDays);
-        await window.electronAPI.config.set('cacheTTL', cacheTTL);
-        showToast('设置已保存', 'success');
+        const results = await Promise.allSettled([
+          window.electronAPI.config.set('proxyPort', proxyPort),
+          window.electronAPI.config.set('dataRetentionDays', dataRetentionDays),
+          window.electronAPI.config.set('cacheTTL', cacheTTL)
+        ]);
+        const failed = results.filter(r => r.status === 'rejected');
+        if (failed.length > 0) {
+          // 部分失败时回滚 UI 状态
+          setProxyPort(original.proxyPort);
+          setDataRetentionDays(original.dataRetentionDays);
+          setCacheTTL(original.cacheTTL);
+          showToast(`${failed.length} 个设置保存失败`, 'error');
+        } else {
+          showToast('设置已保存', 'success');
+        }
       } catch (err) {
         console.error('保存设置失败:', err);
         showToast('保存失败', 'error');

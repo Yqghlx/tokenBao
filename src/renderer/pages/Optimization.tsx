@@ -110,13 +110,29 @@ function Optimization() {
 
   /** 批量启用/禁用所有规则 */
   const setAllRules = async (enabled: boolean) => {
+    setOperatingRuleId(-1); // -1 表示批量操作中
+    let successCount = 0;
+    let failCount = 0;
+
     for (const rule of rules) {
       if (rule.enabled !== enabled) {
-        await window.electronAPI?.rules?.update?.(rule.id, { enabled });
+        try {
+          await window.electronAPI?.rules?.update?.(rule.id, { enabled });
+          successCount++;
+        } catch {
+          failCount++;
+        }
       }
     }
+
     loadConfig();
-    showToast(enabled ? '已启用全部规则' : '已禁用全部规则', 'success');
+    setOperatingRuleId(null);
+
+    if (failCount > 0) {
+      showToast(`部分规则操作失败: ${successCount} 成功, ${failCount} 失败`, 'error');
+    } else {
+      showToast(enabled ? '已启用全部规则' : '已禁用全部规则', 'success');
+    }
   };
 
   if (loading) {
@@ -226,8 +242,12 @@ function Optimization() {
             </button>
             {rules.length > 0 && (
               <>
-                <button className="btn-secondary btn-sm" onClick={() => setAllRules(true)}>全部启用</button>
-                <button className="btn-secondary btn-sm" onClick={() => setAllRules(false)}>全部禁用</button>
+                <button className="btn-secondary btn-sm" onClick={() => setAllRules(true)} disabled={operatingRuleId !== null}>
+                  {operatingRuleId === -1 ? '启用中...' : '全部启用'}
+                </button>
+                <button className="btn-secondary btn-sm" onClick={() => setAllRules(false)} disabled={operatingRuleId !== null}>
+                  {operatingRuleId === -1 ? '禁用中...' : '全部禁用'}
+                </button>
               </>
             )}
           </div>
