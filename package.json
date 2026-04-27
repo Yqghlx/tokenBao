@@ -5,6 +5,9 @@
   "author": "TokenBao Team",
   "license": "MIT",
   "main": "dist/main/main.js",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "scripts": {
     "start": "npm run build && npm run build:renderer && electron .",
     "dev": "tsc -p tsconfig.json && electron .",

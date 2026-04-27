@@ -255,6 +255,7 @@ class ProxyServer {
         this.activeConnections.add(clientRes);
         clientRes.on('close', () => this.activeConnections.delete(clientRes));
 
+        const requestStart = Date.now();
         const path = clientReq.url || '';
         const apiType = this.detectApiType(path);
         const targetBase = this.getTargetBase(apiType);
@@ -351,7 +352,7 @@ class ProxyServer {
                   const usage = extractStreamUsage(sseBuffer, apiType);
                   if (usage) {
                     const cost = calculateCost(usage.model || parsedModel, usage.inputTokens, usage.outputTokens);
-                    logProxy('info', `流式请求统计`, { requestId, model: usage.model || parsedModel, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4) });
+                    logProxy('info', `流式请求完成`, { requestId, model: usage.model || parsedModel, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4), duration: `${Date.now() - requestStart}ms` });
 
                     // 顺序记录保证数据一致性
                     try {
@@ -441,7 +442,7 @@ class ProxyServer {
 
         if (lastError) {
           const errMsg = lastError instanceof Error ? lastError.message : String(lastError);
-          logProxy('error', `代理请求失败`, { requestId, error: errMsg });
+          logProxy('error', `代理请求失败`, { requestId, error: errMsg, duration: `${Date.now() - requestStart}ms` });
           if (requestId) {
             requestTracker.failRequest(requestId, errMsg, 502);
           }
@@ -457,7 +458,7 @@ class ProxyServer {
         const statusCode = upstreamResult.statusCode;
 
         if (statusCode >= 400) {
-          logProxy('error', `请求失败`, { requestId, statusCode });
+          logProxy('error', `请求失败`, { requestId, statusCode, duration: `${Date.now() - requestStart}ms` });
           if (requestId) {
             requestTracker.failRequest(requestId, upstreamResult.body, statusCode);
           }

@@ -102,10 +102,18 @@ export async function saveJsonAsync<T>(filename: string, data: T): Promise<void>
 export function deleteJson(filename: string): boolean {
   const filePath = getFilePath(filename);
   try {
+    let deleted = false;
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
-      return true;
+      deleted = true;
     }
+    // 同步清理备份文件，避免恢复脏数据
+    const backupPath = filePath + '.bak';
+    if (fs.existsSync(backupPath)) {
+      fs.unlinkSync(backupPath);
+      deleted = true;
+    }
+    return deleted;
   } catch (err) {
     console.error(`删除 ${filename} 失败:`, err);
   }

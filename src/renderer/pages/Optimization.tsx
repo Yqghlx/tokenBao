@@ -90,7 +90,7 @@ function Optimization() {
         <section className="optim-section">
           <h3>Prompt Caching</h3>
           <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label className="toggle-row">
               <input
                 type="checkbox"
                 checked={optimizationConfig.caching}
@@ -98,11 +98,9 @@ function Optimization() {
               />
               <span>启用 Prompt Caching</span>
             </label>
-            <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
-              Anthropic API 支持 Prompt Caching，可节省 50-90% 的 Token 消耗
-            </p>
+            <span className="feature-desc">Anthropic API 支持 Prompt Caching，可节省 50-90% 的 Token 消耗</span>
           </div>
-          <div className="form-group" style={{ marginTop: '12px' }}>
+          <div className="form-group">
             <label>TTL 设置</label>
             <select value={cacheTTL} onChange={(e) => updateTTL(e.target.value)}>
               <option value="5min">5 分钟（1.25x 写费用）</option>
@@ -114,7 +112,7 @@ function Optimization() {
         <section className="optim-section">
           <h3>Prompt 压缩</h3>
           <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label className="toggle-row">
               <input
                 type="checkbox"
                 checked={optimizationConfig.compression}
@@ -122,16 +120,14 @@ function Optimization() {
               />
               <span>启用 Prompt 压缩</span>
             </label>
-            <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
-              移除冗余词汇（"please"、"Could you" 等），节省 20-40% Token
-            </p>
+            <span className="feature-desc">移除冗余词汇（"please"、"Could you" 等），节省 20-40% Token</span>
           </div>
         </section>
 
         <section className="optim-section">
           <h3>智能模型路由</h3>
           <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label className="toggle-row">
               <input
                 type="checkbox"
                 checked={optimizationConfig.routing}
@@ -139,18 +135,16 @@ function Optimization() {
               />
               <span>启用智能模型路由</span>
             </label>
-            <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
-              根据任务复杂度自动选择合适的模型，节省 60-95% 成本
-            </p>
+            <span className="feature-desc">根据任务复杂度自动选择合适的模型，节省 60-95% 成本</span>
           </div>
-          <div className="route-rules" style={{ marginTop: '12px' }}>
-            <div className="route-rule" style={{ padding: '8px', background: '#16213e', borderRadius: '4px', marginBottom: '4px' }}>
+          <div className="route-rules">
+            <div className="route-example">
               <span>gpt-4 / gpt-4o / gpt-4.1 → gpt-4o-mini / gpt-4.1-mini</span>
-              <span style={{ marginLeft: '12px', fontSize: '11px', color: '#00d4ff' }}>简单任务</span>
+              <span className="tag">简单任务</span>
             </div>
-            <div className="route-rule" style={{ padding: '8px', background: '#16213e', borderRadius: '4px', marginBottom: '4px' }}>
+            <div className="route-example">
               <span>claude-opus-4 / claude-3-opus → claude-3.5-haiku / claude-3-haiku</span>
-              <span style={{ marginLeft: '12px', fontSize: '11px', color: '#00d4ff' }}>分类/简单任务</span>
+              <span className="tag">分类/简单任务</span>
             </div>
           </div>
         </section>
@@ -166,23 +160,19 @@ function Optimization() {
               />
               <span>启用请求批处理（实验性）</span>
             </label>
-            <p className="toggle-desc" style={{ marginTop: '8px', display: 'block' }}>
-              合并多个请求批量发送，减少 API 调用次数。当前仅用于统计，不影响实际请求。
-            </p>
+            <span className="feature-desc">合并多个请求批量发送，减少 API 调用次数。当前仅用于统计，不影响实际请求。</span>
           </div>
         </section>
 
         <section className="optim-section">
           <h3>自定义替换规则</h3>
-          <p className="toggle-desc" style={{ marginBottom: '12px', display: 'block' }}>
-            通过正则表达式替换请求内容中的文本，优先级越高越先执行。
-          </p>
-          <button className="btn-primary btn-sm" onClick={() => setShowRuleForm(true)} style={{ marginBottom: '12px' }}>
+          <span className="feature-desc">通过正则表达式替换请求内容中的文本，优先级越高越先执行。</span>
+          <button className="btn-primary btn-sm btn-add-rule" onClick={() => setShowRuleForm(true)}>
             添加规则
           </button>
 
           {showRuleForm && (
-            <div className="info-panel" style={{ marginBottom: '12px' }}>
+            <div className="info-panel">
               <div className="form-group">
                 <label>规则名称</label>
                 <input type="text" value={newRule.name} onChange={(e) => setNewRule(p => ({ ...p, name: e.target.value }))} placeholder="例如: 移除问候语" />
@@ -199,7 +189,7 @@ function Optimization() {
                 <label>优先级（数字越大越先执行）</label>
                 <input type="number" value={newRule.priority} onChange={(e) => setNewRule(p => ({ ...p, priority: parseInt(e.target.value) || 0 }))} />
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="form-actions">
                 <button className="btn-primary btn-sm" onClick={async () => {
                   if (!newRule.name || !newRule.pattern) {
                     showToast('请填写规则名称和正则表达式', 'error');
@@ -254,7 +244,7 @@ function Optimization() {
                         await window.electronAPI?.rules?.delete?.(rule.id);
                         loadConfig();
                         showToast('规则已删除', 'info');
-                      }} style={{ marginLeft: '4px' }}>删除</button>
+                      }}>删除</button>
                     </td>
                   </tr>
                 ))}
