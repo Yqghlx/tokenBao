@@ -1,5 +1,11 @@
 import { RequestLog } from '../services/history';
 
+/**
+ * 批量优化模块（实验性）
+ * 当前仅用于统计和监控请求批次，不影响实际请求转发。
+ * 未来可能支持真正的请求合并以减少 API 调用次数。
+ */
+
 interface BatchOptions {
   enabled: boolean;
   windowMs: number;

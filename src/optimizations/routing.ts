@@ -62,7 +62,7 @@ function detectComplexity(prompt: string): 'simple' | 'complex' {
   return 'simple';
 }
 
-function routeModel(apiType: string, model: string, prompt: string): string {
+function routeModel(model: string, prompt: string): string {
   if (!defaultOptions.enabled) return model;
   
   const complexity = detectComplexity(prompt);

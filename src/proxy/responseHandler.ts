@@ -168,6 +168,5 @@ function calculateCacheSavings(cacheReadTokens: number, model: string): number {
 
 export default {
   handleResponse,
-  recordStats,
-  isStreamResponse
+  recordStats
 };

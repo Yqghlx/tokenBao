@@ -153,6 +153,7 @@ class ProxyServer {
   private anthropicKey?: string;
   private requestCount = 0;
   private totalSavedTokens = 0;
+  private activeConnections = new Set<http.ServerResponse>();
 
   constructor(config: ProxyConfig) {
     this.port = config.port;
@@ -233,6 +234,8 @@ class ProxyServer {
     return new Promise((resolve, reject) => {
       this.server = http.createServer(async (clientReq, clientRes) => {
         this.requestCount++;
+        this.activeConnections.add(clientRes);
+        clientRes.on('close', () => this.activeConnections.delete(clientRes));
 
         const path = clientReq.url || '';
         const apiType = this.detectApiType(path);
@@ -422,8 +425,17 @@ class ProxyServer {
   stop(): Promise<void> {
     return new Promise((resolve) => {
       if (this.server) {
+        // 关闭所有活跃连接，避免挂起
+        for (const res of this.activeConnections) {
+          if (!res.writableEnded) {
+            res.end();
+          }
+        }
+        this.activeConnections.clear();
+
         this.server.close(() => {
           this.server = null;
+          logProxy('info', '代理服务器已关闭');
           resolve();
         });
       } else {
@@ -456,4 +468,4 @@ class ProxyServer {
 }
 
 export default ProxyServer;
-export { calculateCost, MODEL_PRICING };
+export { calculateCost, normalizeModelName, MODEL_PRICING };

@@ -22,19 +22,19 @@ describe('routing 模块', () => {
   });
 
   test('简单任务应将 gpt-4 降级为 gpt-4o-mini', () => {
-    expect(routing.routeModel('openai', 'gpt-4', 'Classify this feedback')).toBe('gpt-4o-mini');
+    expect(routing.routeModel('gpt-4', 'Classify this feedback')).toBe('gpt-4o-mini');
   });
 
   test('复杂任务应保持 gpt-4 不变', () => {
-    expect(routing.routeModel('openai', 'gpt-4', 'Design a new feature')).toBe('gpt-4');
+    expect(routing.routeModel('gpt-4', 'Design a new feature')).toBe('gpt-4');
   });
 
   test('简单任务应将 claude-3-opus 降级为 claude-3-haiku', () => {
-    expect(routing.routeModel('anthropic', 'claude-3-opus', 'Summarize this text')).toBe('claude-3-haiku');
+    expect(routing.routeModel('claude-3-opus', 'Summarize this text')).toBe('claude-3-haiku');
   });
 
   test('禁用后路由应返回原始模型', () => {
     routing.setOptions({ enabled: false });
-    expect(routing.routeModel('openai', 'gpt-4', 'Simple task')).toBe('gpt-4');
+    expect(routing.routeModel('gpt-4', 'Simple task')).toBe('gpt-4');
   });
 });

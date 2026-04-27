@@ -117,7 +117,7 @@ export function applyOptimizations(apiType: string, body: any): OptimizationResu
 
   if (config.routing && modifiedBody.model) {
     const prompt = messagesToText(modifiedBody.messages);
-    const routedModel = routingModule.routeModel(apiType, modifiedBody.model, prompt);
+    const routedModel = routingModule.routeModel(modifiedBody.model, prompt);
     if (routedModel !== modifiedBody.model) {
       modifiedBody.model = routedModel;
       result.appliedStrategies.push(`routing:${body.model}→${routedModel}`);
