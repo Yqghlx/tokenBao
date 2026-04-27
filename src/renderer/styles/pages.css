@@ -618,6 +618,19 @@ code.inline-code {
   margin-left: 8px;
 }
 
+/* 表单验证错误提示 */
+.form-error {
+  display: block;
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: 4px;
+}
+
+/* 表单输入错误态 */
+.form-group input.has-error {
+  border-color: #ef4444;
+}
+
 /* Monitor 页面间距 */
 .stats-grid + .stats-grid {
   margin-top: 16px;
@@ -625,4 +638,109 @@ code.inline-code {
 
 .stats-details {
   margin-top: 24px;
+}
+
+/* ===== 响应式适配 ===== */
+
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stats-breakdown {
+    grid-template-columns: 1fr;
+  }
+
+  .status-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .history-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-toolbar .search-input {
+    width: 100%;
+  }
+
+  .history-toolbar .record-count {
+    margin-left: 0;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .budget-edit-row {
+    flex-wrap: wrap;
+  }
+}
+
+/* ===== 无障碍焦点样式 ===== */
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-danger:focus-visible,
+.btn-sm:focus-visible {
+  outline: 2px solid #00d4ff;
+  outline-offset: 2px;
+}
+
+.nav-link:focus-visible {
+  outline: 2px solid #00d4ff;
+  outline-offset: -2px;
+}
+
+.form-group input:focus-visible,
+.form-group select:focus-visible {
+  outline: 2px solid #00d4ff;
+  outline-offset: 1px;
+}
+
+/* ===== 骨架屏加载态 ===== */
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #16213e 25%, #1a2a4a 50%, #16213e 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+.skeleton-card {
+  height: 80px;
+  border-radius: 8px;
+  border: 1px solid #0f3460;
+}
+
+.skeleton-row {
+  height: 44px;
+  margin-bottom: 4px;
+}
+
+.skeleton-text {
+  height: 16px;
+  margin-bottom: 8px;
+  width: 60%;
+}
+
+.skeleton-text.short {
+  width: 40%;
 }

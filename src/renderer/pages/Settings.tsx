@@ -9,6 +9,8 @@ function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [portError, setPortError] = useState('');
+  const [daysError, setDaysError] = useState('');
 
   const loadSettings = useCallback(async () => {
     if (window.electronAPI?.config?.getAll) {
@@ -31,11 +33,37 @@ function Settings() {
     loadSettings();
   }, [loadSettings]);
 
+  /** 实时校验端口输入 */
+  const handlePortChange = (value: string) => {
+    setProxyPort(value);
+    const port = parseInt(value, 10);
+    if (value && (isNaN(port) || port < 1024 || port > 65535)) {
+      setPortError('端口范围应为 1024-65535');
+    } else {
+      setPortError('');
+    }
+  };
+
+  /** 实时校验保留天数输入 */
+  const handleDaysChange = (value: string) => {
+    setDataRetentionDays(value);
+    const days = parseInt(value, 10);
+    if (value && (isNaN(days) || days < 1 || days > 365)) {
+      setDaysError('天数范围应为 1-365');
+    } else if (value && days < 7) {
+      setDaysError('低于 7 天可能导致历史记录不足');
+    } else {
+      setDaysError('');
+    }
+  };
+
   const resetSettings = async () => {
     if (window.electronAPI?.config?.reset) {
       try {
         await window.electronAPI.config.reset();
         await loadSettings();
+        setPortError('');
+        setDaysError('');
         showToast('已恢复默认设置', 'success');
       } catch (err) {
         console.error('重置设置失败:', err);
@@ -47,13 +75,13 @@ function Settings() {
   const saveSettings = async () => {
     const port = parseInt(proxyPort, 10);
     if (isNaN(port) || port < 1024 || port > 65535) {
-      showToast('端口范围应为 1024-65535', 'error');
+      setPortError('端口范围应为 1024-65535');
       return;
     }
 
     const days = parseInt(dataRetentionDays, 10);
     if (isNaN(days) || days < 1 || days > 365) {
-      showToast('数据保留天数应为 1-365', 'error');
+      setDaysError('天数范围应为 1-365');
       return;
     }
 
@@ -74,8 +102,28 @@ function Settings() {
   };
 
   if (loading) {
-    return <div className="page"><h2>设置</h2><p>加载中...</p></div>;
+    return (
+      <div className="page">
+        <h2>设置</h2>
+        <div className="settings-form">
+          <div className="form-group">
+            <div className="skeleton skeleton-text" />
+            <div className="skeleton skeleton-row" />
+          </div>
+          <div className="form-group">
+            <div className="skeleton skeleton-text" />
+            <div className="skeleton skeleton-row" />
+          </div>
+          <div className="form-group">
+            <div className="skeleton skeleton-text" />
+            <div className="skeleton skeleton-row" />
+          </div>
+        </div>
+      </div>
+    );
   }
+
+  const hasError = portError || daysError;
 
   return (
     <div className="page">
@@ -86,39 +134,44 @@ function Settings() {
           <input
             type="number"
             value={proxyPort}
-            onChange={(e) => setProxyPort(e.target.value)}
+            onChange={(e) => handlePortChange(e.target.value)}
             min={1024}
             max={65535}
-            disabled={loading}
+            aria-label="代理端口号"
           />
-          <span className="toggle-desc">范围: 1024-65535</span>
+          {portError ? (
+            <span className="form-error">{portError}</span>
+          ) : (
+            <span className="toggle-desc">范围: 1024-65535</span>
+          )}
         </div>
         <div className="form-group">
           <label>数据保留天数</label>
           <input
             type="number"
             value={dataRetentionDays}
-            onChange={(e) => setDataRetentionDays(e.target.value)}
+            onChange={(e) => handleDaysChange(e.target.value)}
             min={1}
             max={365}
-            disabled={loading}
+            aria-label="数据保留天数"
           />
+          {daysError && <span className="form-error">{daysError}</span>}
         </div>
         <div className="form-group">
           <label>缓存 TTL</label>
           <select
             value={cacheTTL}
             onChange={(e) => setCacheTTL(e.target.value)}
-            disabled={loading}
+            aria-label="缓存 TTL"
           >
             <option value="5min">5 分钟</option>
             <option value="1hour">1 小时</option>
           </select>
         </div>
-        <button className="btn-primary" onClick={saveSettings} disabled={saving || loading}>
+        <button className="btn-primary" onClick={saveSettings} disabled={saving || !!hasError}>
           {saving ? '保存中...' : '保存设置'}
         </button>
-        <button className="btn-secondary" onClick={() => setShowResetConfirm(true)} disabled={saving || loading}>
+        <button className="btn-secondary" onClick={() => setShowResetConfirm(true)} disabled={saving}>
           恢复默认
         </button>
       </div>
@@ -126,7 +179,17 @@ function Settings() {
       <ConfirmDialog
         open={showResetConfirm}
         title="恢复默认设置"
-        message="确定要恢复所有设置为默认值吗？此操作不可撤销。"
+        message={
+          <div>
+            <p>此操作将恢复以下设置为默认值：</p>
+            <ul style={{ margin: '8px 0', paddingLeft: '20px', lineHeight: 1.8 }}>
+              <li>代理端口 → 3000</li>
+              <li>数据保留天数 → 30</li>
+              <li>缓存 TTL → 5 分钟</li>
+            </ul>
+            <p>API Keys 和预算设置不受影响。</p>
+          </div>
+        }
         confirmLabel="恢复默认"
         danger
         onConfirm={resetSettings}
