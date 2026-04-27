@@ -67,6 +67,14 @@ interface RequestResult {
   cacheCreationTokens: number;
 }
 
+/** 预算状态内存快照，用于请求前快速检查 */
+interface BudgetSnapshot {
+  monthlyLimit: number;
+  monthlySpent: number;
+  dailyLimit: number;
+  dailySpent: number;
+}
+
 /**
  * 统一记录请求结果：统计 → 预算 → 历史
  * 流式和非流式路径共用，消除重复代码
@@ -75,7 +83,7 @@ async function recordRequestResult(
   result: RequestResult,
   apiType: string,
   requestId: string | undefined
-): Promise<void> {
+): Promise<number> {
   const cost = calculateCost(result.model, result.inputTokens, result.outputTokens);
   const cachedTokens = result.cacheReadTokens + result.cacheCreationTokens;
 
@@ -103,6 +111,8 @@ async function recordRequestResult(
   } catch (err) {
     logProxy('error', '记录请求统计失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
   }
+
+  return cost;
 }
 
 /**
@@ -170,6 +180,7 @@ class ProxyServer {
   private shuttingDown = false;
   private proxyTimeout: number;
   private circuitBreaker = { failures: 0, openUntil: 0 };
+  private budgetState: BudgetSnapshot = { monthlyLimit: 100, monthlySpent: 0, dailyLimit: 10, dailySpent: 0 };
 
   constructor(config: ProxyConfig) {
     this.port = config.port;
@@ -370,6 +381,21 @@ class ProxyServer {
           return;
         }
 
+        // 预算超限检查：月预算用完则拦截请求
+        const budgetCheck = this.checkBudget();
+        if (!budgetCheck.allowed) {
+          logProxy('warn', '月预算超限，请求被拦截', { requestId, monthlySpent: this.budgetState.monthlySpent, monthlyLimit: this.budgetState.monthlyLimit });
+          if (!clientRes.headersSent) {
+            clientRes.writeHead(429, { 'Content-Type': 'application/json' });
+            clientRes.end(JSON.stringify({
+              error: 'Budget Exceeded',
+              message: `月预算已用尽 ($${this.budgetState.monthlySpent.toFixed(2)} / $${this.budgetState.monthlyLimit.toFixed(2)})`,
+              requestId
+            }));
+          }
+          return;
+        }
+
         const options: https.RequestOptions = {
           hostname: targetBase.replace('https://', ''),
           port: 443,
@@ -394,7 +420,11 @@ class ProxyServer {
             } else {
               this.recordUpstreamSuccess();
             }
-            clientRes.writeHead(statusCode, proxyRes.headers);
+            const streamHeaders: http.OutgoingHttpHeaders = { ...proxyRes.headers };
+            if (budgetCheck.warning) {
+              streamHeaders['X-Budget-Warning'] = budgetCheck.warning;
+            }
+            clientRes.writeHead(statusCode, streamHeaders);
 
             let sseBuffer = '';
             const SSE_BUFFER_HARD_LIMIT = 1024 * 1024; // 1MB 绝对上限
@@ -427,7 +457,9 @@ class ProxyServer {
                       outputTokens: usage.outputTokens,
                       cacheReadTokens: usage.cacheReadTokens,
                       cacheCreationTokens: usage.cacheCreationTokens
-                    }, apiType, requestId);
+                    }, apiType, requestId).then(recordedCost => {
+                      this.updateBudgetSnapshot(recordedCost);
+                    });
                   }
                 } catch (err) {
                   logProxy('warn', '流式 usage 提取失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
@@ -554,27 +586,33 @@ class ProxyServer {
               status: statusCode
             });
 
-            await recordRequestResult({
+            const recordedCost = await recordRequestResult({
               model: handleResult.stats.model,
               inputTokens: handleResult.stats.inputTokens,
               outputTokens: handleResult.stats.outputTokens,
               cacheReadTokens: handleResult.stats.cacheReadTokens,
               cacheCreationTokens: handleResult.stats.cacheCreationTokens
             }, apiType, requestId);
+            this.updateBudgetSnapshot(recordedCost);
           }
         }
 
         if (!clientRes.headersSent) {
-          clientRes.writeHead(statusCode, upstreamResult.headers);
+          const respHeaders: http.OutgoingHttpHeaders = { ...upstreamResult.headers };
+          if (budgetCheck.warning) {
+            respHeaders['X-Budget-Warning'] = budgetCheck.warning;
+          }
+          clientRes.writeHead(statusCode, respHeaders);
           clientRes.end(upstreamResult.body);
         }
       });
 
       this.server.on('error', reject);
-      this.server.listen(this.port, () => {
+      this.server.listen(this.port, async () => {
         console.log(`TokenBao proxy running on port ${this.port}`);
         console.log(`OpenAI: http://localhost:${this.port}/v1/chat/completions`);
         console.log(`Anthropic: http://localhost:${this.port}/v1/messages`);
+        await this.loadBudgetSnapshot();
         resolve();
       });
     });
@@ -661,6 +699,42 @@ class ProxyServer {
     if (this.circuitBreaker.failures >= CIRCUIT_BREAKER_THRESHOLD) {
       this.circuitBreaker.openUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN;
       logProxy('warn', `熔断器触发，上游连续失败 ${this.circuitBreaker.failures} 次，冷却 ${CIRCUIT_BREAKER_COOLDOWN / 1000}s`);
+    }
+  }
+
+  /** 更新内存中的预算快照（请求记录后调用） */
+  private updateBudgetSnapshot(cost: number): void {
+    this.budgetState.monthlySpent += cost;
+    this.budgetState.dailySpent += cost;
+  }
+
+  /** 检查月预算是否超限，返回 true 表示允许请求 */
+  private checkBudget(): { allowed: boolean; warning?: string } {
+    const { monthlyLimit, monthlySpent } = this.budgetState;
+    if (monthlyLimit <= 0) return { allowed: true };
+
+    if (monthlySpent >= monthlyLimit) {
+      return { allowed: false };
+    }
+
+    const percent = (monthlySpent / monthlyLimit) * 100;
+    if (percent >= 80) {
+      return { allowed: true, warning: `Budget usage at ${Math.round(percent)}%` };
+    }
+
+    return { allowed: true };
+  }
+
+  /** 从 budgetService 加载预算快照到内存 */
+  async loadBudgetSnapshot(): Promise<void> {
+    try {
+      const status = await budgetService.getBudgetStatus();
+      this.budgetState.monthlyLimit = status.monthly.limit;
+      this.budgetState.monthlySpent = status.monthly.spent;
+      this.budgetState.dailyLimit = status.daily.limit;
+      this.budgetState.dailySpent = status.daily.spent;
+    } catch {
+      // 加载失败使用默认值
     }
   }
 

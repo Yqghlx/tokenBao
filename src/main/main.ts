@@ -240,7 +240,9 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('budget:set', async (_, type: string, limit: number) => {
-    return await budgetService.setBudgetLimit(type as 'daily' | 'monthly', limit);
+    const result = await budgetService.setBudgetLimit(type as 'daily' | 'monthly', limit);
+    if (proxyServer) await proxyServer.loadBudgetSnapshot();
+    return result;
   });
 
   ipcMain.handle('budget:status', async () => {
@@ -249,6 +251,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('budget:resetSpent', async (_, type: string) => {
     await budgetService.resetSpent(type as 'daily' | 'monthly');
+    if (proxyServer) await proxyServer.loadBudgetSnapshot();
     return { success: true };
   });
 
