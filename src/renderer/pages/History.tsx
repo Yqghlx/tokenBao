@@ -83,7 +83,7 @@ function History() {
 
     // 标准 CSV 转义：字段含逗号/引号/换行时用双引号包裹，内部引号双写
     const escapeCsv = (value: string | number): string => {
-      const str = String(value);
+      const str = String(value).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
       if (str.includes(',') || str.includes('"') || str.includes('\n')) {
         return `"${str.replace(/"/g, '""')}"`;
       }
@@ -129,7 +129,12 @@ function History() {
     return (
       <div className="page">
         <h2>请求历史</h2>
-        <p>加载中...</p>
+        <div className="table-scroll">
+          <div className="skeleton skeleton-row" />
+          <div className="skeleton skeleton-row" />
+          <div className="skeleton skeleton-row" />
+          <div className="skeleton skeleton-row" />
+        </div>
       </div>
     );
   }

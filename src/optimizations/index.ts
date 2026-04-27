@@ -79,6 +79,7 @@ export function getOptimizationConfig(): OptimizationConfig {
 }
 
 export function applyOptimizations(apiType: string, body: ApiRequestBody): OptimizationResult {
+  const startTime = Date.now();
   const result: OptimizationResult = {
     modifiedBody: body,
     originalTokens: 0,
@@ -169,6 +170,11 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
   result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages, apiType);
   result.savedTokens = result.originalTokens - result.optimizedTokens;
   result.modifiedBody = modifiedBody;
+
+  const duration = Date.now() - startTime;
+  if (duration > 10) {
+    console.log(`优化管线耗时: ${duration}ms, 策略: [${result.appliedStrategies.join(', ')}]`);
+  }
 
   return result;
 }

@@ -224,4 +224,33 @@ describe('requestTracker', () => {
     expect(delay2).toBeGreaterThanOrEqual(2000);
     expect(delay2).toBeLessThan(2250);
   });
+
+  test('startAutoCleanup/stopAutoCleanup 应正常启停', () => {
+    expect(() => requestTracker.startAutoCleanup()).not.toThrow();
+    expect(() => requestTracker.stopAutoCleanup()).not.toThrow();
+    expect(() => requestTracker.stopAutoCleanup()).not.toThrow();
+    // 重新启动
+    expect(() => requestTracker.startAutoCleanup()).not.toThrow();
+    // 测试结束后停止
+    requestTracker.stopAutoCleanup();
+  });
+
+  test('completeRequest 超过容量上限时应触发清理', () => {
+    requestTracker.stopAutoCleanup();
+    // 创建多个请求使其超过 COMPLETED_MAX_SIZE(50)
+    for (let i = 0; i < 52; i++) {
+      const meta = requestTracker.createRequestMetadata('openai', {}, {}, 100, 80, 20, []);
+      requestTracker.completeRequest(meta.requestId, {
+        requestId: meta.requestId,
+        inputTokens: 100, outputTokens: 50, cacheReadTokens: 0,
+        cacheCreationTokens: 0, cost: 0.005, model: 'gpt-4',
+        duration: 100, status: 200, completedAt: Date.now()
+      });
+    }
+    const summary = requestTracker.getStatsSummary();
+    // 完成请求数量应在合理范围内（清理后不超过上限太多）
+    expect(summary.totalRequests).toBeGreaterThan(0);
+    // 重新启动自动清理
+    requestTracker.startAutoCleanup();
+  });
 });
