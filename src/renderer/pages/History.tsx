@@ -229,8 +229,8 @@ function History() {
           </span>
           <button
             className="btn-secondary"
-            disabled={history.length < PAGE_SIZE}
-            onClick={() => setCurrentPage(p => p + 1)}
+            disabled={safePage >= totalPages}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
           >
             下一页
           </button>

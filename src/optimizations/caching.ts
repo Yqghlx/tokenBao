@@ -83,6 +83,20 @@ function scheduleSave(): void {
   }
 }
 
+/** 进程退出时同步刷盘，防止 debounce 导致数据丢失 */
+function flushSave(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  if (isDirty) {
+    isDirty = false;
+    saveToStorage();
+  }
+}
+
+process.on('beforeExit', flushSave);
+
 loadFromStorage();
 
 function getCacheKey(apiType: string, content: string): string {

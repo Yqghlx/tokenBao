@@ -26,6 +26,8 @@ function countTokensOpenAI(text: string): number {
     return tokens.length;
   } catch (err) {
     console.warn('tiktoken 编码失败，使用估算 fallback:', (err as Error).message);
+    // 编码器异常后重置，下次调用重新初始化
+    encoder = null;
     return estimateTokensFallback(text);
   }
 }
@@ -37,11 +39,13 @@ function countTokensAnthropic(text: string): number {
   if (!text) return 0;
 
   const cjkChars = (text.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length;
+  // emoji \u548c\u5bbd\u5b57\u7b26\uff1a\u4ee3\u7406\u5bf9\u5f62\u5f0f\u7684\u8865\u5145\u5e73\u9762\u5b57\u7b26
+  const emojiChars = (text.match(/[\ud800-\udbff][\udc00-\udfff]/g) || []).length;
   const codeAndSymbols = (text.match(/[`{}[\]()<>|/\\@#$%^&*~+=_-]/g) || []).length;
   const whitespace = (text.match(/\s/g) || []).length;
-  const otherChars = text.length - cjkChars - codeAndSymbols - whitespace;
+  const otherChars = text.length - cjkChars - emojiChars * 2 - codeAndSymbols - whitespace;
 
-  return Math.ceil(cjkChars / 1.5) + Math.ceil(codeAndSymbols / 4) + Math.ceil(whitespace / 4) + Math.ceil(otherChars / 3.5) + 3;
+  return Math.ceil(cjkChars / 1.5) + Math.ceil(emojiChars / 2) + Math.ceil(codeAndSymbols / 4) + Math.ceil(whitespace / 4) + Math.ceil(Math.max(0, otherChars) / 3.5) + 3;
 }
 
 /**

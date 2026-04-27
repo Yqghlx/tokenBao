@@ -433,8 +433,19 @@ class ProxyServer {
           let parsedModel = 'unknown';
           try { parsedModel = JSON.parse(rawBody).model || 'unknown'; } catch { logProxy('warn', '流式请求体 JSON 解析失败', { requestId }); }
 
-          // PassThrough 在外层声明，以便 timeout/error 回调中可以销毁
+          // PassThrough 在外层声明，以便 timeout/error/close 回调中可以销毁
           const passThrough = new PassThrough();
+          let clientDisconnected = false;
+
+          // 客户端中途断连时，销毁上游请求和 PassThrough 以释放资源
+          clientRes.on('close', () => {
+            if (!clientRes.writableFinished) {
+              clientDisconnected = true;
+              logProxy('info', '客户端断开连接，清理流式资源', { requestId });
+              passThrough.destroy();
+              proxyReq.destroy();
+            }
+          });
 
           const proxyReq = https.request({ ...options, agent: httpsAgent }, (proxyRes) => {
             const statusCode = proxyRes.statusCode || 500;
@@ -453,6 +464,7 @@ class ProxyServer {
             let sseBuffer = '';
             const SSE_BUFFER_HARD_LIMIT = 1024 * 1024; // 1MB 绝对上限
             passThrough.on('data', (chunk: Buffer) => {
+              if (clientDisconnected) return;
               sseBuffer += chunk.toString();
               // 超过绝对上限则强制断开，防止内存暴涨
               if (sseBuffer.length > SSE_BUFFER_HARD_LIMIT) {
