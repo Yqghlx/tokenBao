@@ -81,11 +81,11 @@ function Monitor() {
         </div>
         <div className="stat-card">
           <h3>总成本</h3>
-          <p className="stat-value">$${actualCost}</p>
+          <p className="stat-value">${actualCost}</p>
         </div>
         <div className="stat-card">
           <h3>节省金额</h3>
-          <p className="stat-value">$${savedCost}</p>
+          <p className="stat-value">${savedCost}</p>
           <p className="stat-detail">节省 Tokens: {stats.totalCachedTokens}</p>
         </div>
       </div>
@@ -99,7 +99,7 @@ function Monitor() {
           </div>
           <div className="stat-card" style={{ background: '#1a472a' }}>
             <h3>缓存节省费用</h3>
-            <p className="stat-value">$${cachingStats.cacheSavings.toFixed(4)}</p>
+            <p className="stat-value">${cachingStats.cacheSavings.toFixed(4)}</p>
             <p className="stat-detail">90% 费率优惠</p>
           </div>
         </div>
