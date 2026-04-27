@@ -57,12 +57,12 @@ export function ToastContainer({ toasts, removeToast }: { toasts: ToastItem[]; r
   if (toasts.length === 0) return null;
 
   return (
-    <div style={{
+    <div role="region" aria-label="通知" aria-live="polite" style={{
       position: 'fixed', top: '16px', right: '16px', zIndex: 9999,
       display: 'flex', flexDirection: 'column', gap: '8px'
     }}>
       {toasts.map(t => (
-        <div key={t.id} style={{
+        <div key={t.id} role="alert" style={{
           ...TOAST_STYLES[t.type],
           padding: '12px 36px 12px 20px', borderRadius: '8px', color: '#fff',
           fontSize: '14px', minWidth: '200px', maxWidth: '400px',
@@ -73,6 +73,7 @@ export function ToastContainer({ toasts, removeToast }: { toasts: ToastItem[]; r
           {t.message}
           <button
             onClick={() => removeToast(t.id)}
+            aria-label="关闭通知"
             style={{
               position: 'absolute', top: '8px', right: '8px',
               background: 'none', border: 'none', color: '#aaa',

@@ -93,36 +93,33 @@ function ApiKeys() {
         </button>
         
         {showAddForm && (
-          <div className="add-form" style={{ marginTop: '16px', padding: '16px', background: '#16213e', borderRadius: '8px' }}>
-            <div className="form-group" style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', marginBottom: '4px' }}>名称</label>
-              <input 
-                type="text" 
+          <div className="add-form info-panel">
+            <div className="form-group">
+              <label>名称</label>
+              <input
+                type="text"
                 value={newKey.name}
                 onChange={(e) => setNewKey(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="例如: 我的 OpenAI Key"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #333' }}
               />
             </div>
-            <div className="form-group" style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', marginBottom: '4px' }}>类型</label>
-              <select 
+            <div className="form-group">
+              <label>类型</label>
+              <select
                 value={newKey.type}
                 onChange={(e) => setNewKey(prev => ({ ...prev, type: e.target.value }))}
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #333' }}
               >
                 <option value="openai">OpenAI</option>
                 <option value="anthropic">Anthropic</option>
               </select>
             </div>
-            <div className="form-group" style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', marginBottom: '4px' }}>API Key</label>
-              <input 
-                type="password" 
+            <div className="form-group">
+              <label>API Key</label>
+              <input
+                type="password"
                 value={newKey.key}
                 onChange={(e) => setNewKey(prev => ({ ...prev, key: e.target.value }))}
                 placeholder="sk-..."
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #333' }}
               />
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -162,27 +159,25 @@ function ApiKeys() {
                   <td>{new Date(key.createdAt).toLocaleDateString()}</td>
                   <td>
                     {confirmDeleteId === key.id ? (
-                      <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <span className="budget-edit-row">
                         <button
-                          className="btn-secondary"
+                          className="btn-secondary btn-sm"
                           onClick={() => deleteApiKey(key.id)}
-                          style={{ padding: '4px 8px', fontSize: '12px', background: '#8b0000' }}
+                          style={{ background: '#8b0000' }}
                         >
                           确认
                         </button>
                         <button
-                          className="btn-secondary"
+                          className="btn-secondary btn-sm"
                           onClick={() => setConfirmDeleteId(null)}
-                          style={{ padding: '4px 8px', fontSize: '12px' }}
                         >
                           取消
                         </button>
                       </span>
                     ) : (
                       <button
-                        className="btn-secondary"
+                        className="btn-secondary btn-sm"
                         onClick={() => setConfirmDeleteId(key.id)}
-                        style={{ padding: '4px 8px', fontSize: '12px' }}
                       >
                         删除
                       </button>

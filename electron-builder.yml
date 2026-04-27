@@ -2,15 +2,41 @@ appId: com.tokenbao.app
 productName: TokenBao
 directories:
   output: dist
+asar: true
+compression: maximum
 files:
   - "**/*"
+  - "!**/*.ts"
+  - "!src/**"
+  - "!test-data/**"
+  - "!.claude/**"
+  - "!coverage/**"
+  - "!jest.config.js"
+  - "!tsconfig*.json"
+  - "!vite.config.*"
+  - "!eslint*"
+  - "!prettier*"
+  - "!.eslintrc*"
+  - "!.prettierrc*"
+  - "!.git/**"
+  - "!node_modules/.cache/**"
+extraResources:
+  - from: "dist/renderer"
+    to: "renderer"
 mac:
   target:
     - dmg
   category: "public.app-category.utilities"
+  artifactName: "${productName}-${version}-mac-${arch}.${ext}"
 win:
   target:
     - nsis
   legalTrademarks: "TokenBao"
+  artifactName: "${productName}-${version}-win-${arch}.${ext}"
+linux:
+  target:
+    - AppImage
+  category: "Utility"
+  artifactName: "${productName}-${version}-linux-${arch}.${ext}"
 publish:
   - none

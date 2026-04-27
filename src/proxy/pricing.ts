@@ -27,6 +27,10 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
   'claude-3.5-haiku': { input: 0.001, output: 0.005 },
   'claude-sonnet-4': { input: 0.003, output: 0.015 },
   'claude-opus-4': { input: 0.005, output: 0.025 },
+  'claude-opus-4.1': { input: 0.015, output: 0.01875 },
+  'claude-sonnet-4.6': { input: 0.003, output: 0.015 },
+  'claude-opus-4.6': { input: 0.005, output: 0.025 },
+  'claude-haiku-4.5': { input: 0.001, output: 0.005 },
 };
 
 /**
@@ -39,7 +43,11 @@ const MODEL_ALIASES: Record<string, string> = {
   'gpt-4-0125-preview': 'gpt-4-turbo', 'gpt-4-turbo-preview': 'gpt-4-turbo',
   'gpt-4-turbo-2024-04-09': 'gpt-4-turbo',
   'gpt-4o-2024-05-13': 'gpt-4o', 'gpt-4o-2024-08-06': 'gpt-4o', 'gpt-4o-2024-11-20': 'gpt-4o',
+  'gpt-4o-2025-01-09': 'gpt-4o',
   'gpt-4o-mini-2024-07-18': 'gpt-4o-mini',
+  'gpt-4.1-2025-04-14': 'gpt-4.1', 'gpt-4.1-mini-2025-04-14': 'gpt-4.1-mini',
+  'gpt-4.1-nano-2025-04-14': 'gpt-4.1-nano',
+  'o3-2025-04-16': 'o3', 'o4-mini-2025-04-16': 'o4-mini',
   'gpt-3.5-turbo-0125': 'gpt-3.5-turbo', 'gpt-3.5-turbo-1106': 'gpt-3.5-turbo',
   'gpt-3.5-turbo-16k': 'gpt-3.5-turbo',
   // Anthropic 变体
@@ -49,6 +57,12 @@ const MODEL_ALIASES: Record<string, string> = {
   'claude-3-5-sonnet-20240620': 'claude-3.5-sonnet',
   'claude-3-5-sonnet-20241022': 'claude-3.5-sonnet',
   'claude-3-5-haiku-20241022': 'claude-3.5-haiku',
+  'claude-sonnet-4-20250514': 'claude-sonnet-4',
+  'claude-opus-4-20250514': 'claude-opus-4',
+  'claude-opus-4-1-20250414': 'claude-opus-4.1',
+  'claude-sonnet-4-6-20260401': 'claude-sonnet-4.6',
+  'claude-opus-4-6-20260401': 'claude-opus-4.6',
+  'claude-haiku-4-5-20251001': 'claude-haiku-4.5',
 };
 
 export function normalizeModelName(model: string): string {
