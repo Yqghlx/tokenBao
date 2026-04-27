@@ -259,10 +259,23 @@ class ProxyServer {
     this.shuttingDown = false;
     return new Promise((resolve, reject) => {
       this.server = http.createServer(async (clientReq, clientRes) => {
+        // 健康检查端点
+        if (clientReq.method === 'GET' && (clientReq.url === '/health' || clientReq.url === '/')) {
+          clientRes.writeHead(200, { 'Content-Type': 'application/json' });
+          clientRes.end(JSON.stringify({
+            status: 'healthy',
+            uptime: process.uptime(),
+            activeConnections: this.activeConnections.size,
+            requestCount: this.requestCount,
+            shuttingDown: this.shuttingDown
+          }));
+          return;
+        }
         // 并发连接数限制
         if (this.activeConnections.size >= MAX_CONNECTIONS) {
+          const rejectId = `reject_${Date.now()}`;
           clientRes.writeHead(429, { 'Content-Type': 'application/json' });
-          clientRes.end(JSON.stringify({ error: 'Too Many Requests', message: `并发连接超过 ${MAX_CONNECTIONS} 限制` }));
+          clientRes.end(JSON.stringify({ error: 'Too Many Requests', message: `并发连接超过 ${MAX_CONNECTIONS} 限制`, requestId: rejectId }));
           return;
         }
 
@@ -272,8 +285,9 @@ class ProxyServer {
 
         // 优雅关闭期间拒绝新请求
         if (this.shuttingDown) {
+          const rejectId = `reject_${Date.now()}`;
           clientRes.writeHead(503, { 'Content-Type': 'application/json' });
-          clientRes.end(JSON.stringify({ error: 'Service Unavailable', message: '代理服务器正在关闭' }));
+          clientRes.end(JSON.stringify({ error: 'Service Unavailable', message: '代理服务器正在关闭', requestId: rejectId }));
           return;
         }
 
@@ -286,12 +300,14 @@ class ProxyServer {
 
         const headers = this.transformHeaders(clientReq.headers, apiType);
         let rawBody: string;
+        let requestId: string | undefined;
         try {
           rawBody = await this.collectBody(clientReq);
         } catch (err: unknown) {
+          requestId = `req_${Date.now()}`;
           if (!clientRes.headersSent) {
             clientRes.writeHead(413, { 'Content-Type': 'application/json' });
-            clientRes.end(JSON.stringify({ error: err instanceof Error ? err.message : '请求体过大' }));
+            clientRes.end(JSON.stringify({ error: err instanceof Error ? err.message : '请求体过大', requestId }));
           }
           return;
         }
@@ -300,9 +316,10 @@ class ProxyServer {
         if (clientReq.method === 'POST' && rawBody) {
           const contentType = (clientReq.headers['content-type'] || '').toLowerCase();
           if (!contentType.includes('application/json') && !contentType.includes('text/plain')) {
+            requestId = `req_${Date.now()}`;
             if (!clientRes.headersSent) {
               clientRes.writeHead(415, { 'Content-Type': 'application/json' });
-              clientRes.end(JSON.stringify({ error: 'Unsupported Media Type', message: '仅支持 application/json' }));
+              clientRes.end(JSON.stringify({ error: 'Unsupported Media Type', message: '仅支持 application/json', requestId }));
             }
             return;
           }
@@ -310,7 +327,6 @@ class ProxyServer {
 
         let optimizedBody = rawBody;
         let savedTokens = 0;
-        let requestId: string | undefined;
 
         if (apiType !== 'unknown' && rawBody && clientReq.method === 'POST') {
           try {

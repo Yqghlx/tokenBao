@@ -80,10 +80,12 @@ function isRetryableStatus(statusCode: number): boolean {
 
 /**
  * 计算指数退避延迟（含 jitter 防惊群）
- * 公式: BASE_DELAY * 2^attempt + random(0, BASE_DELAY/2)
+ * 公式: min(BASE_DELAY * 2^attempt, MAX_RETRY_DELAY) + random(0, BASE_DELAY/2)
  */
+const MAX_RETRY_DELAY = 30000; // 最大退避 30 秒
+
 function getRetryDelay(attempt: number): number {
-  const delay = BASE_RETRY_DELAY * Math.pow(2, attempt);
+  const delay = Math.min(BASE_RETRY_DELAY * Math.pow(2, attempt), MAX_RETRY_DELAY);
   const jitter = Math.random() * (BASE_RETRY_DELAY / 2);
   return delay + jitter;
 }

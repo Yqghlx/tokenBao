@@ -225,6 +225,12 @@ describe('requestTracker', () => {
     expect(delay2).toBeLessThan(2250);
   });
 
+  test('getRetryDelay 应有 30 秒上限', () => {
+    // 即使 attempt 很大也不应超过 30s + jitter
+    const maxDelay = requestTracker.getRetryDelay(20);
+    expect(maxDelay).toBeLessThanOrEqual(30250);
+  });
+
   test('startAutoCleanup/stopAutoCleanup 应正常启停', () => {
     expect(() => requestTracker.startAutoCleanup()).not.toThrow();
     expect(() => requestTracker.stopAutoCleanup()).not.toThrow();
