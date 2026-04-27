@@ -125,8 +125,10 @@ function ControlPanel() {
         loadOptimizations()
       ]);
       const failed = results.filter(r => r.status === 'rejected');
-      if (failed.length > 0) {
-        console.warn(`${failed.length} 个数据加载失败`);
+      if (failed.length > 0 && failed.length < results.length) {
+        showToast(`${failed.length} 项数据加载失败，部分数据可能不准确`, 'error');
+      } else if (failed.length === results.length) {
+        showToast('数据加载失败，请检查应用状态', 'error');
       }
       setLoading(false);
     };
@@ -141,7 +143,9 @@ function ControlPanel() {
         if (h.status === 'healthy') {
           setHealth({ uptime: h.uptime, activeConnections: h.activeConnections });
         }
-      }).catch(() => {});
+      }).catch(err => {
+        console.warn('健康检查轮询失败:', err);
+      });
     }
   }, [loadProxyStatus, loadStats]);
 
@@ -264,7 +268,7 @@ function ControlPanel() {
           <p className="status-value">${budgetStatus.spent.toFixed(2)}</p>
           <span className="status-label">预算: ${budgetStatus.limit.toFixed(2)}</span>
           {budgetStatus.limit > 0 && (
-            <div className="progress-bar">
+            <div className="progress-bar" role="progressbar" aria-valuenow={budgetPercent} aria-valuemin={0} aria-valuemax={100} aria-label={`预算使用 ${budgetPercent}%`}>
               <div
                 className="progress-bar-fill"
                 style={{

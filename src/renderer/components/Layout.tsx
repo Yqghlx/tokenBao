@@ -15,30 +15,35 @@ const navItems = [
 const Layout = memo(function Layout() {
   return (
     <div className="layout">
+      {/* 跳过导航链接，键盘用户可快速访问主内容 */}
+      <a href="#main-content" className="skip-nav">跳到主要内容</a>
       <aside className="sidebar" role="navigation" aria-label="主导航">
         <div className="sidebar-header">
           <h1>TokenBao</h1>
         </div>
         <nav className="sidebar-nav" aria-label="页面导航">
-          {navItems.map(({ to, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-              end
-            >
-              {label}
-            </NavLink>
-          ))}
+          <ul role="list">
+            {navItems.map(({ to, label }) => (
+              <li key={to}>
+                <NavLink
+                  to={to}
+                  className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+                  end
+                >
+                  {label}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
         </nav>
-        <div className="sidebar-footer">
+        <footer className="sidebar-footer">
           <span>Token 节省工具</span>
           <span className="sidebar-version">
             v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}
           </span>
-        </div>
+        </footer>
       </aside>
-      <main className="main-content" role="main" id="main-content">
+      <main className="main-content" role="main" id="main-content" tabIndex={-1}>
         <Outlet />
       </main>
     </div>

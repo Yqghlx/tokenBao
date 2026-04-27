@@ -10,6 +10,7 @@ const CACHE_SAVINGS_RATIO = 0.9;
 
 function Monitor() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     totalRequests: 0,
     totalInputTokens: 0,
@@ -58,25 +59,30 @@ function Monitor() {
 
   /** 导出统计数据为 JSON 文件 */
   const exportStats = useCallback(() => {
-    const data = {
-      exportedAt: new Date().toISOString(),
-      summary: {
-        totalRequests: stats.totalRequests,
-        totalTokens,
-        totalCost: stats.totalCost,
-        cacheSavings
-      },
-      byApi: stats.byApi,
-      byModel: stats.byModel
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `tokenbao-stats-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('统计数据已导出', 'success');
+    try {
+      const data = {
+        exportedAt: new Date().toISOString(),
+        summary: {
+          totalRequests: stats.totalRequests,
+          totalTokens,
+          totalCost: stats.totalCost,
+          cacheSavings
+        },
+        byApi: stats.byApi,
+        byModel: stats.byModel
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tokenbao-stats-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('统计数据已导出', 'success');
+    } catch (err) {
+      console.error('导出统计数据失败:', err);
+      showToast('导出失败', 'error');
+    }
   }, [stats, totalTokens, cacheSavings]);
 
   if (loading) {
@@ -104,7 +110,7 @@ function Monitor() {
           {stats.totalRequests > 0 && (
             <button className="btn-secondary btn-sm" onClick={exportStats}>导出数据</button>
           )}
-          <button className="btn-secondary btn-sm" onClick={loadStats} aria-label="刷新统计数据">刷新</button>
+          <button className="btn-secondary btn-sm" onClick={() => { setRefreshing(true); loadStats().finally(() => setRefreshing(false)); }} aria-label="刷新统计数据" disabled={refreshing}>{refreshing ? '刷新中...' : '刷新'}</button>
         </div>
       </div>
 

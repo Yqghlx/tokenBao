@@ -143,147 +143,262 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('proxy:status', async () => {
-    return {
-      running: proxyServer?.isRunning() || false,
-      port: proxyServer?.getPort() || 0,
-      requests: proxyServer?.getStats()?.requests || 0
-    };
+    try {
+      return {
+        running: proxyServer?.isRunning() || false,
+        port: proxyServer?.getPort() || 0,
+        requests: proxyServer?.getStats()?.requests || 0
+      };
+    } catch (err) {
+      console.error('proxy:status 错误:', err);
+      return { running: false, port: 0, requests: 0, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle('proxy:health', async () => {
-    if (!proxyServer?.isRunning()) {
-      return { status: 'not_running', uptime: 0, activeConnections: 0, requestCount: 0 };
+    try {
+      if (!proxyServer?.isRunning()) {
+        return { status: 'not_running', uptime: 0, activeConnections: 0, requestCount: 0 };
+      }
+      return {
+        status: 'healthy',
+        uptime: Math.floor(process.uptime()),
+        activeConnections: proxyServer.getActiveConnections(),
+        requestCount: proxyServer.getStats().requests
+      };
+    } catch (err) {
+      console.error('proxy:health 错误:', err);
+      return { status: 'error', uptime: 0, activeConnections: 0, requestCount: 0 };
     }
-    return {
-      status: 'healthy',
-      uptime: Math.floor(process.uptime()),
-      activeConnections: proxyServer.getActiveConnections(),
-      requestCount: proxyServer.getStats().requests
-    };
   });
 
   ipcMain.handle('proxy:setKeys', async (_, openaiKey: string, anthropicKey: string) => {
-    // 主进程二次校验，防御 preload 绕过
-    if (openaiKey && (!openaiKey.startsWith('sk-') || openaiKey.length < 20)) {
-      return { success: false, error: 'OpenAI Key 格式无效' };
+    try {
+      // 主进程二次校验，防御 preload 绕过
+      if (openaiKey && (!openaiKey.startsWith('sk-') || openaiKey.length < 20)) {
+        return { success: false, error: 'OpenAI Key 格式无效' };
+      }
+      if (anthropicKey && (!anthropicKey.startsWith('sk-ant-') || anthropicKey.length < 20)) {
+        return { success: false, error: 'Anthropic Key 格式无效' };
+      }
+      if (proxyServer) {
+        proxyServer.setKeys(openaiKey, anthropicKey);
+      }
+      return { success: true };
+    } catch (err) {
+      console.error('proxy:setKeys 错误:', err);
+      return { success: false, error: (err as Error).message };
     }
-    if (anthropicKey && (!anthropicKey.startsWith('sk-ant-') || anthropicKey.length < 20)) {
-      return { success: false, error: 'Anthropic Key 格式无效' };
-    }
-    if (proxyServer) {
-      proxyServer.setKeys(openaiKey, anthropicKey);
-    }
-    return { success: true };
   });
 
   ipcMain.handle('config:get', async (_, key: string) => {
-    return await configService.getConfig(key);
+    try {
+      return await configService.getConfig(key);
+    } catch (err) {
+      console.error('config:get 错误:', err);
+      return null;
+    }
   });
 
   ipcMain.handle('config:set', async (_, key: string, value: string) => {
-    await configService.setConfig(key, value);
-    return { success: true };
+    try {
+      await configService.setConfig(key, value);
+      return { success: true };
+    } catch (err) {
+      console.error('config:set 错误:', err);
+      return { success: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle('config:getAll', async () => {
-    return await configService.getAllConfig();
+    try {
+      return await configService.getAllConfig();
+    } catch (err) {
+      console.error('config:getAll 错误:', err);
+      return {};
+    }
   });
 
   ipcMain.handle('config:reset', async () => {
-    await configService.resetConfig();
-    return { success: true };
+    try {
+      await configService.resetConfig();
+      return { success: true };
+    } catch (err) {
+      console.error('config:reset 错误:', err);
+      return { success: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle('apiKeys:list', async () => {
-    return await apiKeyService.listApiKeys();
+    try {
+      return await apiKeyService.listApiKeys();
+    } catch (err) {
+      console.error('apiKeys:list 错误:', err);
+      return [];
+    }
   });
 
   ipcMain.handle('apiKeys:add', async (_, name: string, type: string, key: string) => {
-    const result = await apiKeyService.addApiKey(name, type, key);
-    
-    if (proxyServer && proxyServer.isRunning()) {
-      const openaiKey = await apiKeyService.getDecryptedKeyByType('openai');
-      const anthropicKey = await apiKeyService.getDecryptedKeyByType('anthropic');
-      proxyServer.setKeys(openaiKey, anthropicKey);
+    try {
+      const result = await apiKeyService.addApiKey(name, type, key);
+
+      if (proxyServer && proxyServer.isRunning()) {
+        const openaiKey = await apiKeyService.getDecryptedKeyByType('openai');
+        const anthropicKey = await apiKeyService.getDecryptedKeyByType('anthropic');
+        proxyServer.setKeys(openaiKey, anthropicKey);
+      }
+
+      return result;
+    } catch (err) {
+      console.error('apiKeys:add 错误:', err);
+      return { success: false, error: (err as Error).message };
     }
-    
-    return result;
   });
 
   ipcMain.handle('apiKeys:delete', async (_, id: number) => {
-    const result = await apiKeyService.deleteApiKey(id);
-    
-    if (proxyServer && proxyServer.isRunning()) {
-      const openaiKey = await apiKeyService.getDecryptedKeyByType('openai');
-      const anthropicKey = await apiKeyService.getDecryptedKeyByType('anthropic');
-      proxyServer.setKeys(openaiKey, anthropicKey);
+    try {
+      const result = await apiKeyService.deleteApiKey(id);
+
+      if (proxyServer && proxyServer.isRunning()) {
+        const openaiKey = await apiKeyService.getDecryptedKeyByType('openai');
+        const anthropicKey = await apiKeyService.getDecryptedKeyByType('anthropic');
+        proxyServer.setKeys(openaiKey, anthropicKey);
+      }
+
+      return result;
+    } catch (err) {
+      console.error('apiKeys:delete 错误:', err);
+      return { success: false, error: (err as Error).message };
     }
-    
-    return result;
   });
 
   ipcMain.handle('apiKeys:get', async (_, id: number) => {
-    return await apiKeyService.getApiKey(id);
+    try {
+      return await apiKeyService.getApiKey(id);
+    } catch (err) {
+      console.error('apiKeys:get 错误:', err);
+      return null;
+    }
   });
 
   ipcMain.handle('history:list', async (_, options?) => {
-    return await historyService.listRequests(options);
+    try {
+      return await historyService.listRequests(options);
+    } catch (err) {
+      console.error('history:list 错误:', err);
+      return { requests: [], total: 0 };
+    }
   });
 
   ipcMain.handle('history:count', async (_, options?) => {
-    return await historyService.getRequestCount(options);
+    try {
+      return await historyService.getRequestCount(options);
+    } catch (err) {
+      console.error('history:count 错误:', err);
+      return 0;
+    }
   });
 
   ipcMain.handle('history:clear', async () => {
-    await historyService.clearRequests();
-    return { success: true };
+    try {
+      await historyService.clearRequests();
+      return { success: true };
+    } catch (err) {
+      console.error('history:clear 错误:', err);
+      return { success: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle('budget:get', async () => {
-    return await budgetService.getBudget('monthly');
+    try {
+      return await budgetService.getBudget('monthly');
+    } catch (err) {
+      console.error('budget:get 错误:', err);
+      return null;
+    }
   });
 
   ipcMain.handle('budget:set', async (_, type: string, limit: number) => {
-    const result = await budgetService.setBudgetLimit(type as 'daily' | 'monthly', limit);
-    if (proxyServer) await proxyServer.loadBudgetSnapshot();
-    return result;
+    try {
+      const result = await budgetService.setBudgetLimit(type as 'daily' | 'monthly', limit);
+      if (proxyServer) await proxyServer.loadBudgetSnapshot();
+      return result;
+    } catch (err) {
+      console.error('budget:set 错误:', err);
+      return { success: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle('budget:status', async () => {
-    return await budgetService.getBudgetStatus();
+    try {
+      return await budgetService.getBudgetStatus();
+    } catch (err) {
+      console.error('budget:status 错误:', err);
+      return { daily: { limit: 10, spent: 0, remaining: 10, percentage: 0 }, monthly: { limit: 100, spent: 0, remaining: 100, percentage: 0 } };
+    }
   });
 
   ipcMain.handle('budget:resetSpent', async (_, type: string) => {
-    await budgetService.resetSpent(type as 'daily' | 'monthly');
-    if (proxyServer) await proxyServer.loadBudgetSnapshot();
-    return { success: true };
+    try {
+      await budgetService.resetSpent(type as 'daily' | 'monthly');
+      if (proxyServer) await proxyServer.loadBudgetSnapshot();
+      return { success: true };
+    } catch (err) {
+      console.error('budget:resetSpent 错误:', err);
+      return { success: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle('stats:summary', async () => {
-    return await statsService.getSummary();
+    try {
+      return await statsService.getSummary();
+    } catch (err) {
+      console.error('stats:summary 错误:', err);
+      return { totalRequests: 0, totalTokens: 0, totalSaved: 0, totalCost: 0 };
+    }
   });
 
   ipcMain.handle('stats:reset', async () => {
-    await statsService.resetStats();
-    return { success: true };
+    try {
+      await statsService.resetStats();
+      return { success: true };
+    } catch (err) {
+      console.error('stats:reset 错误:', err);
+      return { success: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle('optimization:getConfig', async () => {
-    return await getOptimizationConfig();
+    try {
+      return await getOptimizationConfig();
+    } catch (err) {
+      console.error('optimization:getConfig 错误:', err);
+      return {};
+    }
   });
 
   ipcMain.handle('optimization:setConfig', async (_, config: Record<string, unknown>) => {
-    await setOptimizationConfig(config as Record<string, boolean>);
-    // 同步到运行中的代理服务器，否则运行时修改优化开关不生效
-    if (proxyServer) {
-      proxyServer.updateOptimizationConfig(config as Record<string, boolean>);
+    try {
+      await setOptimizationConfig(config as Record<string, boolean>);
+      // 同步到运行中的代理服务器，否则运行时修改优化开关不生效
+      if (proxyServer) {
+        proxyServer.updateOptimizationConfig(config as Record<string, boolean>);
+      }
+      return { success: true, config };
+    } catch (err) {
+      console.error('optimization:setConfig 错误:', err);
+      return { success: false, error: (err as Error).message };
     }
-    return { success: true, config };
   });
 
   // 规则管理
   ipcMain.handle('rules:list', async () => {
-    return rulesModule.listRules();
+    try {
+      return rulesModule.listRules();
+    } catch (err) {
+      console.error('rules:list 错误:', err);
+      return [];
+    }
   });
 
   ipcMain.handle('rules:add', async (_, rule: { name: string; type: 'replace' | 'filter' | 'route'; pattern: string; replacement: string; enabled: boolean; priority: number }) => {
@@ -305,11 +420,21 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('rules:delete', async (_, id: number) => {
-    return { success: rulesModule.deleteRule(id) };
+    try {
+      return { success: rulesModule.deleteRule(id) };
+    } catch (err) {
+      console.error('rules:delete 错误:', err);
+      return { success: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle('rules:validate', async (_, pattern: string) => {
-    return { error: rulesModule.validatePattern(pattern) };
+    try {
+      return { error: rulesModule.validatePattern(pattern) };
+    } catch (err) {
+      console.error('rules:validate 错误:', err);
+      return { error: (err as Error).message };
+    }
   });
 }
 
