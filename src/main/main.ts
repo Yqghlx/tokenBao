@@ -8,6 +8,7 @@ import * as budgetService from '../services/budget';
 import * as statsService from '../services/stats';
 import * as rulesModule from '../optimizations/rules';
 import cachingModule from '../optimizations/caching';
+import * as pricingSync from '../services/pricingSync';
 import { getOptimizationConfig, setOptimizationConfig } from '../services/config';
 
 let mainWindow: BrowserWindow | null = null;
@@ -480,6 +481,8 @@ function registerIpcHandlers(): void {
 app.whenReady().then(() => {
   registerIpcHandlers();
   createWindow();
+  // 启动定价远程同步（从缓存加载 + 异步拉取最新 + 24h 定时刷新）
+  pricingSync.initSync();
 });
 
 app.on('window-all-closed', () => {
@@ -504,6 +507,7 @@ app.on('window-all-closed', () => {
 // 确保应用退出前清理代理服务器（macOS Cmd+Q 等场景）
 app.on('before-quit', async () => {
   stopHealthCheck();
+  pricingSync.stopSync();
   if (proxyServer) {
     try {
       await proxyServer.stop();

@@ -4,8 +4,8 @@
  */
 
 /**
- * 模型定价表（每 1000 tokens 价格，美元）
- * 数据来源：OpenAI / Anthropic 官方定价，2026 年 4 月更新
+ * 内置基准定价表（每 1000 tokens 价格，美元）
+ * 远程定价覆盖后可更新此表，未覆盖的模型仍使用内置值
  */
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   // OpenAI（$/1K tokens）
@@ -35,6 +35,49 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
   'claude-opus-4.6': { input: 0.005, output: 0.025 },
   'claude-haiku-4.5': { input: 0.001, output: 0.005 },
 };
+
+/** 远程定价最后更新时间戳（epoch ms） */
+let remotePricingTimestamp = 0;
+
+/** 远程定价来源 URL */
+let remotePricingSource = '';
+
+/**
+ * 用远程定价数据覆盖内置定价表
+ * 仅更新已验证的合法条目，未知模型或非法数据会被跳过
+ */
+export function updateRemotePricing(
+  pricing: Record<string, { input: number; output: number }>,
+  source: string,
+  timestamp: number
+): number {
+  let updated = 0;
+  for (const [model, price] of Object.entries(pricing)) {
+    if (typeof model !== 'string' || !model) continue;
+    if (typeof price?.input !== 'number' || typeof price?.output !== 'number') continue;
+    if (!Number.isFinite(price.input) || !Number.isFinite(price.output)) continue;
+    if (price.input < 0 || price.output < 0) continue;
+    MODEL_PRICING[model] = { input: price.input, output: price.output };
+    updated++;
+  }
+  if (updated > 0) {
+    remotePricingTimestamp = timestamp;
+    remotePricingSource = source;
+    // 归一化缓存失效，需重新排序
+    invalidateSortedCache();
+  }
+  return updated;
+}
+
+export function getRemotePricingInfo(): { timestamp: number; source: string } {
+  return { timestamp: remotePricingTimestamp, source: remotePricingSource };
+}
+
+/** 重置远程定价状态（仅用于测试） */
+export function _resetRemotePricing(): void {
+  remotePricingTimestamp = 0;
+  remotePricingSource = '';
+}
 
 /**
  * 模型名称归一化映射
@@ -70,8 +113,12 @@ const MODEL_ALIASES: Record<string, string> = {
   'claude-haiku-4-5-20251001': 'claude-haiku-4.5',
 };
 
-// 缓存排序后的模型名列表，避免每次调用 normalizeModelName 都重新排序
-const sortedModelKeys = Object.keys(MODEL_PRICING).sort((a, b) => b.length - a.length);
+// 缓存排序后的模型名列表，远程定价更新后需刷新
+let sortedModelKeys = Object.keys(MODEL_PRICING).sort((a, b) => b.length - a.length);
+
+function invalidateSortedCache(): void {
+  sortedModelKeys = Object.keys(MODEL_PRICING).sort((a, b) => b.length - a.length);
+}
 
 export function normalizeModelName(model: string): string {
   if (!model) return 'unknown';
