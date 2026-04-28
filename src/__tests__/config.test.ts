@@ -34,9 +34,9 @@ describe('config 服务', () => {
   });
 
   test('setConfig 新键应被添加', async () => {
-    await configService.setConfig('customKey', 'customValue');
-    const value = await configService.getConfig('customKey');
-    expect(value).toBe('customValue');
+    await configService.setConfig('theme', 'dark');
+    const value = await configService.getConfig('theme');
+    expect(value).toBe('dark');
   });
 
   test('getAllConfig 应返回完整配置副本', async () => {
@@ -142,8 +142,17 @@ describe('config 服务', () => {
       await expect(configService.setConfig('theme', 'blue')).rejects.toThrow('配置值无效');
     });
 
-    test('未知配置键无验证器时应正常写入', async () => {
-      await expect(configService.setConfig('customKey', 'anyValue')).resolves.toBeUndefined();
+    test('未知配置键应被拒绝', async () => {
+      await expect(configService.setConfig('customKey', 'anyValue')).rejects.toThrow('未知的配置项');
+    });
+
+    test('proxyPort 非纯数字应被拒绝', async () => {
+      await expect(configService.setConfig('proxyPort', '8080abc')).rejects.toThrow('配置值无效');
+      await expect(configService.setConfig('proxyPort', '12.5')).rejects.toThrow('配置值无效');
+    });
+
+    test('dataRetentionDays 非纯数字应被拒绝', async () => {
+      await expect(configService.setConfig('dataRetentionDays', '30days')).rejects.toThrow('配置值无效');
     });
   });
 });

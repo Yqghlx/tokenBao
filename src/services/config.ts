@@ -14,15 +14,20 @@ interface ConfigStore {
 const STORAGE_FILE = 'config.json';
 const mutex = getMutex(STORAGE_FILE);
 
+/** 允许的配置键白名单 */
+const VALID_CONFIG_KEYS = new Set(['proxyPort', 'dataRetentionDays', 'cacheTTL', 'theme']);
+
 /** 配置值验证规则 */
 const CONFIG_VALIDATORS: Record<string, (val: string) => boolean> = {
   proxyPort: (v) => {
+    if (!/^\d+$/.test(v)) return false;
     const n = parseInt(v, 10);
-    return !isNaN(n) && n >= 1024 && n <= 65535;
+    return n >= 1024 && n <= 65535;
   },
   dataRetentionDays: (v) => {
+    if (!/^\d+$/.test(v)) return false;
     const n = parseInt(v, 10);
-    return !isNaN(n) && n >= 1 && n <= 365;
+    return n >= 1 && n <= 365;
   },
   cacheTTL: (v) => ['5min', '1hour'].includes(v),
   theme: (v) => ['light', 'dark', 'auto'].includes(v)
@@ -64,6 +69,9 @@ export async function getConfig(key: string): Promise<string | undefined> {
 }
 
 export async function setConfig(key: string, value: string): Promise<void> {
+  if (!VALID_CONFIG_KEYS.has(key)) {
+    throw new Error(`未知的配置项: ${key}`);
+  }
   const validator = CONFIG_VALIDATORS[key];
   if (validator && !validator(value)) {
     throw new Error(`配置值无效: ${key}=${value}`);

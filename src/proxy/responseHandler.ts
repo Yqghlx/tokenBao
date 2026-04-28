@@ -29,7 +29,10 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
         fallbackModel = parsed.message.model;
         break;
       }
-    } catch { continue; }
+    } catch {
+      console.warn('SSE message_start 解析失败，跳过:', data.slice(0, 100));
+      continue;
+    }
   }
 
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -63,6 +66,7 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
         };
       }
     } catch {
+      console.warn('SSE usage 解析失败，跳过:', data.slice(0, 100));
       continue;
     }
   }

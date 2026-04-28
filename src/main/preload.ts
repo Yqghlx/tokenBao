@@ -14,7 +14,7 @@ const VALID_KEY_TYPES = ['openai', 'anthropic'] as const;
 const VALID_BUDGET_TYPES = ['daily', 'monthly'] as const;
 
 /** 有效的配置键白名单 */
-const VALID_CONFIG_KEYS = ['proxyPort', 'dataRetentionDays', 'cacheTTL'] as const;
+const VALID_CONFIG_KEYS = ['proxyPort', 'dataRetentionDays', 'cacheTTL', 'theme'] as const;
 
 /** 优化配置允许的属性白名单 */
 const VALID_OPTIM_KEYS = ['caching', 'compression', 'routing', 'batching'] as const;
