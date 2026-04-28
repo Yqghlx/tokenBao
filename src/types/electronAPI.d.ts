@@ -41,6 +41,7 @@ interface StatsSummary {
   totalCost: number;
   byApi: Record<string, { requests: number; tokens: number; cost: number }>;
   byModel: Record<string, { requests: number; tokens: number; cost: number }>;
+  cacheMetrics: { hits: number; misses: number; size: number; hitRate: number };
 }
 
 interface ApiKeyItem {

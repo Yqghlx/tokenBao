@@ -25,14 +25,19 @@ function Monitor() {
     totalCachedTokens: 0,
     totalCost: 0,
     byApi: {} as Record<string, { requests: number; tokens: number; cost: number }>,
-    byModel: {} as Record<string, { requests: number; tokens: number; cost: number }>
+    byModel: {} as Record<string, { requests: number; tokens: number; cost: number }>,
+    cacheMetrics: { hits: 0, misses: 0, size: 0, hitRate: 0 }
   });
 
   const loadStats = useCallback(async () => {
     if (window.electronAPI?.stats?.summary) {
       try {
         const data = await window.electronAPI.stats.summary();
-        setStats(data);
+        setStats(prev => ({
+          ...prev,
+          ...data,
+          cacheMetrics: data.cacheMetrics || prev.cacheMetrics
+        }));
       } catch (err) {
         console.error('获取统计数据失败:', err);
         showToast('获取统计数据失败', 'error');
@@ -190,6 +195,11 @@ function Monitor() {
                 <h3>Prompt Caching 效果</h3>
                 <p className="stat-value">{stats.totalCachedTokens.toLocaleString()}</p>
                 <p className="stat-detail">缓存读取 Tokens</p>
+              </div>
+              <div className="stat-card cache-card">
+                <h3>缓存命中率</h3>
+                <p className="stat-value">{stats.cacheMetrics.hitRate}%</p>
+                <p className="stat-detail">命中 {stats.cacheMetrics.hits} / 未命中 {stats.cacheMetrics.misses} | 缓存条目 {stats.cacheMetrics.size}</p>
               </div>
               <div className="stat-card cache-card">
                 <h3>缓存节省费用</h3>

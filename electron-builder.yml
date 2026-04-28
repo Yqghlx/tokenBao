@@ -28,6 +28,9 @@ mac:
     - dmg
   category: "public.app-category.developer-tools"
   hardenedRuntime: true
+  # 公证配置（需配置 APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID 环境变量）
+  # notarize:
+  #   teamId: ${APPLE_TEAM_ID}
   artifactName: "${productName}-${version}-mac-${arch}.${ext}"
 win:
   target:

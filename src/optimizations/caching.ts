@@ -23,6 +23,9 @@ const defaultOptions: CachingOptions = {
 const cachePatterns: Map<string, { content: string; timestamp: number }> = new Map();
 // 记录插入顺序用于 LRU 淘汰
 const cacheOrder: string[] = [];
+// 缓存命中/未命中计数器，用于可观测性
+let hits = 0;
+let misses = 0;
 
 function loadFromStorage(): void {
   try {
@@ -147,11 +150,12 @@ export function checkCache(apiType: string, content: string): boolean {
   const key = getCacheKey(apiType, content);
   const cached = cachePatterns.get(key);
 
-  if (!cached) return false;
+  if (!cached) { misses++; return false; }
 
   const ttlMs = defaultOptions.ttl === '5min' ? 5 * 60 * 1000 : 60 * 60 * 1000;
-  if (Date.now() - cached.timestamp >= ttlMs) return false;
+  if (Date.now() - cached.timestamp >= ttlMs) { misses++; return false; }
 
+  hits++;
   // 命中时更新 LRU 顺序，防止频繁访问的条目被误淘汰
   const idx = cacheOrder.indexOf(key);
   if (idx !== -1) {
@@ -185,11 +189,23 @@ export function isEnabled(): boolean {
   return defaultOptions.enabled;
 }
 
+/** 获取缓存命中/未命中统计 */
+export function getCacheMetrics(): { hits: number; misses: number; size: number; hitRate: number } {
+  const total = hits + misses;
+  return {
+    hits,
+    misses,
+    size: cachePatterns.size,
+    hitRate: total > 0 ? Math.round((hits / total) * 100) : 0
+  };
+}
+
 export default {
   getOptions,
   setOptions,
   addCache,
   checkCache,
   addCacheControl,
-  isEnabled
+  isEnabled,
+  getCacheMetrics
 };

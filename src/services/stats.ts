@@ -1,5 +1,6 @@
 import { loadJson, saveJsonAsync } from '../utils/storage';
 import { getMutex } from '../utils/mutex';
+import cachingModule from '../optimizations/caching';
 
 interface Stats {
   totalRequests: number;
@@ -165,8 +166,9 @@ export async function addStats(data: {
   });
 }
 
-export async function getSummary(): Promise<Stats> {
-  return mutex.runExclusive(() => getStats());
+export async function getSummary(): Promise<Stats & { cacheMetrics: { hits: number; misses: number; size: number; hitRate: number } }> {
+  const stats = await mutex.runExclusive(() => getStats());
+  return { ...stats, cacheMetrics: cachingModule.getCacheMetrics() };
 }
 
 export async function resetStats(): Promise<void> {
