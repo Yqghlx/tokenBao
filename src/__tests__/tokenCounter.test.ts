@@ -133,6 +133,51 @@ describe('tokenCounter', () => {
       // 图片消息应比纯文本多约 85 tokens
       expect(withImageCount - textOnlyCount).toBeGreaterThanOrEqual(80);
     });
+
+    test('Anthropic tool_use 应估算 input JSON token', () => {
+      const textOnly = [{ content: 'Hello' }];
+      const withTool = [{
+        content: [
+          { type: 'text', text: 'Hello' },
+          { type: 'tool_use', input: { query: 'search term', limit: 10 } }
+        ]
+      }];
+      const textOnlyCount = tokenCounter.countMessages(textOnly, 'anthropic');
+      const withToolCount = tokenCounter.countMessages(withTool, 'anthropic');
+      expect(withToolCount).toBeGreaterThan(textOnlyCount);
+    });
+
+    test('Anthropic tool_result 字符串内容应估算 token', () => {
+      const messages = [{
+        content: [{ type: 'tool_result', content: 'The search returned 42 results' }]
+      }];
+      const count = tokenCounter.countMessages(messages, 'anthropic');
+      expect(count).toBeGreaterThan(5);
+    });
+
+    test('Anthropic tool_result 嵌套内容块应估算 token', () => {
+      const messages = [{
+        content: [{
+          type: 'tool_result',
+          content: [{ type: 'text', text: 'Result data here' }]
+        }]
+      }];
+      const count = tokenCounter.countMessages(messages, 'anthropic');
+      expect(count).toBeGreaterThan(5);
+    });
+
+    test('OpenAI function calling 应估算 arguments token', () => {
+      const textOnly = [{ content: 'Call the function' }];
+      const withFunc = [{
+        content: [
+          { type: 'text', text: 'Call the function' },
+          { type: 'function', function: { arguments: '{"query": "test", "limit": 5}' } }
+        ]
+      }];
+      const textOnlyCount = tokenCounter.countMessages(textOnly, 'openai');
+      const withFuncCount = tokenCounter.countMessages(withFunc, 'openai');
+      expect(withFuncCount).toBeGreaterThan(textOnlyCount);
+    });
   });
 
   describe('countTokensAnthropic', () => {

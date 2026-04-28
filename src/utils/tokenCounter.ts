@@ -7,6 +7,9 @@ interface ContentBlock {
   type: string;
   text?: string;
   image_url?: { url: string };
+  input?: Record<string, unknown>;
+  content?: string | ContentBlock[];
+  function?: { arguments?: string };
 }
 
 interface Message {
@@ -154,6 +157,26 @@ function countMessages(messages: Message[], apiType?: string): number {
         // OpenAI 图片通过 image_url 类型传递
         if (block.type === 'image_url') {
           return msgTotal + IMAGE_TOKEN_ESTIMATE;
+        }
+        // Anthropic tool_use：input 是 JSON 对象，序列化后估算 token
+        if (block.type === 'tool_use' && block.input) {
+          return msgTotal + countTokens(JSON.stringify(block.input), apiType);
+        }
+        // Anthropic tool_result：content 可能是字符串或嵌套内容块数组
+        if (block.type === 'tool_result' && block.content) {
+          if (typeof block.content === 'string') {
+            return msgTotal + countTokens(block.content, apiType);
+          }
+          if (Array.isArray(block.content)) {
+            return msgTotal + block.content.reduce((sub: number, subBlock: ContentBlock) => {
+              if (subBlock.type === 'text' && subBlock.text) return sub + countTokens(subBlock.text, apiType);
+              return sub;
+            }, 0);
+          }
+        }
+        // OpenAI function calling：arguments 是 JSON 字符串
+        if (block.type === 'function' && block.function?.arguments) {
+          return msgTotal + countTokens(block.function.arguments, apiType);
         }
         return msgTotal;
       }, 0);

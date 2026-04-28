@@ -64,13 +64,8 @@ async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
   const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
   const before = store.requests.length;
   store.requests = store.requests.filter(r => {
-    let ts: number;
-    try {
-      ts = new Date(r.timestamp).getTime();
-    } catch {
-      console.warn(`历史记录 ID=${r.id} 时间戳解析异常，已清理: "${r.timestamp}"`);
-      return false;
-    }
+    // new Date().getTime() 对无效输入返回 NaN 而非抛异常，无需 try-catch
+    const ts = new Date(r.timestamp).getTime();
     // 无效 timestamp（NaN）视为损坏数据，清理掉
     if (Number.isNaN(ts)) {
       console.warn(`历史记录 ID=${r.id} 时间戳无效，已清理: "${r.timestamp}"`);
