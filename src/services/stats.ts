@@ -84,6 +84,15 @@ export async function addStats(data: {
   cachedTokens: number;
   cost: number;
 }): Promise<void> {
+  // 输入校验：拒绝无效字符串（防原型污染键注入）
+  if (typeof data.apiType !== 'string' || data.apiType.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(data.apiType)) {
+    console.warn('stats.addStats: apiType 无效，已跳过', data.apiType);
+    return;
+  }
+  if (typeof data.model !== 'string' || data.model.length > 100 || !/^[a-zA-Z0-9._:-]+$/.test(data.model)) {
+    console.warn('stats.addStats: model 无效，已跳过', data.model);
+    return;
+  }
   // 输入校验：拒绝非有限数和负数（Number.isFinite 同时拦截 null/NaN/Infinity）
   if (!Number.isFinite(data.inputTokens) || data.inputTokens < 0) {
     console.warn('stats.addStats: inputTokens 无效，已跳过', data.inputTokens);

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { RequestLog } from '../services/history';
 
 /**
@@ -103,7 +104,7 @@ export function shouldBatch(): boolean {
 export function flushBatch(): BatchStats | null {
   if (pendingBatch.length === 0) return null;
   
-  const batchId = `batch_${Date.now()}`;
+  const batchId = `batch_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const requestCount = pendingBatch.length;
   const totalTokens = pendingBatch.reduce((sum, r) => sum + (r.inputTokens || 0) + (r.outputTokens || 0), 0);
   const avgTokens = Math.round(totalTokens / requestCount);

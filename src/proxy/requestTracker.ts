@@ -162,9 +162,14 @@ function completeRequest(requestId: string, result: RequestResult): void {
     result.completedAt = Date.now();
     completedRequests.set(requestId, result);
     pendingRequests.delete(requestId);
-    // 每次完成后自动清理过期记录
+    // 容量保护：超限时立即按时间戳淘汰最早的记录
     if (completedRequests.size > COMPLETED_MAX_SIZE) {
-      clearOldRequests();
+      const entries = Array.from(completedRequests.entries())
+        .sort((a, b) => a[1].completedAt - b[1].completedAt);
+      const removeCount = completedRequests.size - COMPLETED_MAX_SIZE;
+      for (let i = 0; i < removeCount; i++) {
+        completedRequests.delete(entries[i][0]);
+      }
     }
   }
 }

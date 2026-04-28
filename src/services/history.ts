@@ -133,11 +133,14 @@ function filterRequests(requests: RequestLog[], options?: { apiType?: string; se
     filtered = filtered.filter(r => r.apiType === options.apiType);
   }
   if (options?.search) {
-    const keyword = options.search.toLowerCase();
-    filtered = filtered.filter(r =>
-      r.model.toLowerCase().includes(keyword) ||
-      r.apiType.toLowerCase().includes(keyword)
-    );
+    // 防御性清理：去除空字节并截断过长搜索词，避免极端输入性能问题
+    const keyword = options.search.replace(/\0/g, '').slice(0, 200).toLowerCase();
+    if (keyword.length > 0) {
+      filtered = filtered.filter(r =>
+        r.model.toLowerCase().includes(keyword) ||
+        r.apiType.toLowerCase().includes(keyword)
+      );
+    }
   }
   return filtered;
 }

@@ -207,7 +207,7 @@ function registerIpcHandlers(): void {
       };
     } catch (err) {
       console.error('proxy:health 错误:', err);
-      return { status: 'error', uptime: 0, activeConnections: 0, requestCount: 0 };
+      return { status: 'not_running' as const, uptime: 0, activeConnections: 0, requestCount: 0 };
     }
   });
 
@@ -430,7 +430,7 @@ function registerIpcHandlers(): void {
       return await statsService.getSummary();
     } catch (err) {
       console.error('stats:summary 错误:', err);
-      return { totalRequests: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCachedTokens: 0, totalCost: 0, byApi: {}, byModel: {} };
+      return { totalRequests: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCachedTokens: 0, totalCost: 0, byApi: {}, byModel: {}, cacheMetrics: { hits: 0, misses: 0, size: 0, hitRate: 0 } };
     }
   });
 
