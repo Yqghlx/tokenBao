@@ -1,6 +1,3 @@
-import * as statsService from '../services/stats';
-import { calculateCost } from './pricing';
-
 interface UsageStats {
   inputTokens: number;
   outputTokens: number;
@@ -138,44 +135,6 @@ export function handleResponse(
   return { stats, body: responseBody };
 }
 
-/**
- * 记录统计数据到服务
- */
-export async function recordStats(stats: UsageStats | null, apiType: string): Promise<void> {
-  if (!stats) return;
-  
-  const cost = calculateCost(stats.model, stats.inputTokens, stats.outputTokens);
-  
-  // 缓存节省费用（Prompt Caching）
-  const cacheSavings = calculateCacheSavings(stats.cacheReadTokens, stats.model);
-  
-  await statsService.addStats({
-    apiType,
-    model: stats.model,
-    inputTokens: stats.inputTokens,
-    outputTokens: stats.outputTokens,
-    cachedTokens: stats.cacheReadTokens + stats.cacheCreationTokens,
-    cost
-  });
-  
-  console.log(`响应 Token: 输入=${stats.inputTokens}, 输出=${stats.outputTokens}, 缓存读取=${stats.cacheReadTokens}, 费用=$${cost.toFixed(4)}`);
-  
-  if (stats.cacheReadTokens > 0) {
-    console.log(`Prompt Caching 节省: ${stats.cacheReadTokens} tokens, 费用节省=$${cacheSavings.toFixed(4)}`);
-  }
-}
-
-/**
- * 计算缓存节省费用
- */
-function calculateCacheSavings(cacheReadTokens: number, model: string): number {
-  // Anthropic Prompt Caching: 缓存读取费用是正常的 10%
-  const normalInputCost = calculateCost(model, cacheReadTokens, 0);
-  const cachedInputCost = normalInputCost * 0.1;
-  return normalInputCost - cachedInputCost;
-}
-
 export default {
-  handleResponse,
-  recordStats
+  handleResponse
 };

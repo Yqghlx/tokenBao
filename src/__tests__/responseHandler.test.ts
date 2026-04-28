@@ -1,21 +1,9 @@
 /**
  * responseHandler 测试
- * 覆盖 OpenAI/Anthropic 流式/非流式 usage 解析、流检测、缓存节省计算
+ * 覆盖 OpenAI/Anthropic 流式/非流式 usage 解析、流检测
  */
 
-// Mock statsService 以避免真实文件写入
-jest.mock('../services/stats', () => ({
-  addStats: jest.fn().mockResolvedValue(undefined),
-  getSummary: jest.fn().mockResolvedValue({
-    totalRequests: 0, totalInputTokens: 0, totalOutputTokens: 0,
-    totalCachedTokens: 0, totalCost: 0, byApi: {}, byModel: {}
-  })
-}));
-
-import { handleResponse, recordStats } from '../proxy/responseHandler';
-import * as statsService from '../services/stats';
-
-const mockAddStats = statsService.addStats as jest.MockedFunction<typeof statsService.addStats>;
+import { handleResponse } from '../proxy/responseHandler';
 
 describe('responseHandler', () => {
   describe('handleResponse - 非流式响应', () => {
@@ -215,60 +203,6 @@ describe('responseHandler', () => {
       const body = 'data: {"usage":{"prompt_tokens":10}}\n';
       const result = handleResponse(body, { 'content-type': 'text/plain' }, 'openai');
       expect(result).toBeDefined();
-    });
-  });
-
-  describe('recordStats', () => {
-    test('应调用 statsService.addStats 记录统计', async () => {
-      mockAddStats.mockClear();
-
-      await recordStats({
-        inputTokens: 100,
-        outputTokens: 50,
-        cacheReadTokens: 0,
-        cacheCreationTokens: 0,
-        model: 'gpt-4o'
-      }, 'openai');
-
-      expect(mockAddStats).toHaveBeenCalledTimes(1);
-      const call = mockAddStats.mock.calls[0][0];
-      expect(call.apiType).toBe('openai');
-      expect(call.model).toBe('gpt-4o');
-      expect(call.inputTokens).toBe(100);
-      expect(call.outputTokens).toBe(50);
-      expect(call.cost).toBeGreaterThan(0);
-    });
-
-    test('应正确合并缓存 token', async () => {
-      mockAddStats.mockClear();
-
-      await recordStats({
-        inputTokens: 100,
-        outputTokens: 50,
-        cacheReadTokens: 30,
-        cacheCreationTokens: 20,
-        model: 'claude-3-sonnet'
-      }, 'anthropic');
-
-      const call = mockAddStats.mock.calls[0][0];
-      expect(call.cachedTokens).toBe(50); // 30 + 20
-    });
-
-    test('未知模型应使用 fallback 价格计算费用', async () => {
-      mockAddStats.mockClear();
-
-      await recordStats({
-        inputTokens: 100,
-        outputTokens: 50,
-        cacheReadTokens: 0,
-        cacheCreationTokens: 0,
-        model: 'unknown-model'
-      }, 'openai');
-
-      const call = mockAddStats.mock.calls[0][0];
-      // 未知模型使用 fallback 价格：input=0.001, output=0.002
-      const expected = (100 / 1000) * 0.001 + (50 / 1000) * 0.002;
-      expect(call.cost).toBeCloseTo(expected, 6);
     });
   });
 

@@ -50,6 +50,29 @@ describe('ProxyServer 核心逻辑', () => {
       }
       expect(server['isCircuitOpen']('openai')).toBe(false);
     });
+
+    test('冷却期结束后应重置失败计数', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+
+      // 触发熔断
+      for (let i = 0; i < 5; i++) {
+        server['recordUpstreamFailure']('openai');
+      }
+      expect(server['isCircuitOpen']('openai')).toBe(true);
+
+      // 手动将冷却时间设为过去，模拟冷却期结束
+      const cb = server['getCircuitBreaker']('openai');
+      cb.openUntil = Date.now() - 1;
+
+      // 冷却期结束后应不再熔断，且失败计数应被重置
+      expect(server['isCircuitOpen']('openai')).toBe(false);
+      expect(cb.failures).toBe(0);
+
+      // 冷却期后单次失败不应立即重新触发熔断
+      server['recordUpstreamFailure']('openai');
+      expect(server['isCircuitOpen']('openai')).toBe(false);
+    });
   });
 
   describe('预算快照', () => {

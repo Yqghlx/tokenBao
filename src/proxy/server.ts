@@ -50,11 +50,15 @@ function logProxy(level: 'info' | 'warn' | 'error', msg: string, data?: Record<s
 
 /**
  * 检测请求是否为流式（stream: true）
+ * 优先使用已解析对象，避免重复 JSON.parse
  */
-function isStreamRequest(body: string): boolean {
-  try {
-    const parsed = JSON.parse(body);
+function isStreamRequest(body: string, parsed?: Record<string, unknown>): boolean {
+  if (parsed && typeof parsed === 'object') {
     return parsed.stream === true;
+  }
+  try {
+    const obj = JSON.parse(body);
+    return obj.stream === true;
   } catch {
     return false;
   }
@@ -363,10 +367,12 @@ class ProxyServer {
 
         let optimizedBody = rawBody;
         let savedTokens = 0;
+        let parsedBody: Record<string, unknown> | undefined;
 
         if (apiType !== 'unknown' && rawBody && clientReq.method === 'POST') {
           try {
             const parsed = JSON.parse(rawBody);
+            parsedBody = parsed;
             const result = applyOptimizations(apiType, parsed);
 
             if (result.appliedStrategies.length > 0) {
@@ -438,7 +444,7 @@ class ProxyServer {
         };
 
         // 流式请求：pipe 转发 + 拦截 SSE 提取 usage 统计
-        if (isStreamRequest(rawBody)) {
+        if (isStreamRequest(rawBody, parsedBody)) {
           let parsedModel = 'unknown';
           try { parsedModel = JSON.parse(rawBody).model || 'unknown'; } catch { logProxy('warn', '流式请求体 JSON 解析失败', { requestId }); }
 
@@ -807,7 +813,12 @@ class ProxyServer {
     if (apiType === 'unknown') return false;
     const cb = this.getCircuitBreaker(apiType);
     if (cb.openUntil === 0) return false;
-    if (Date.now() >= cb.openUntil) return false;
+    if (Date.now() >= cb.openUntil) {
+      // 冷却期结束，重置失败计数，给上游一个全新的失败周期
+      cb.failures = 0;
+      cb.openUntil = 0;
+      return false;
+    }
     return true;
   }
 
@@ -866,10 +877,13 @@ class ProxyServer {
   async loadBudgetSnapshot(): Promise<void> {
     try {
       const status = await budgetService.getBudgetStatus();
-      this.budgetState.monthlyLimit = status.monthly.limit;
-      this.budgetState.monthlySpent = status.monthly.spent;
-      this.budgetState.dailyLimit = status.daily.limit;
-      this.budgetState.dailySpent = status.daily.spent;
+      const { limit: mLimit, spent: mSpent } = status.monthly;
+      const { limit: dLimit, spent: dSpent } = status.daily;
+      // 防止持久化数据被污染时将 NaN/Infinity 写入内存快照
+      this.budgetState.monthlyLimit = isFinite(mLimit) ? mLimit : this.budgetState.monthlyLimit;
+      this.budgetState.monthlySpent = isFinite(mSpent) ? mSpent : this.budgetState.monthlySpent;
+      this.budgetState.dailyLimit = isFinite(dLimit) ? dLimit : this.budgetState.dailyLimit;
+      this.budgetState.dailySpent = isFinite(dSpent) ? dSpent : this.budgetState.dailySpent;
     } catch (err) {
       logProxy('warn', '预算快照加载失败，使用当前内存值', { error: (err instanceof Error ? err.message : String(err)) });
     }

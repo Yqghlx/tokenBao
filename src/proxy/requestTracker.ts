@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 interface RequestMetadata {
   requestId: string;
   apiType: string;
@@ -92,10 +94,7 @@ function getRetryDelay(attempt: number): number {
 }
 
 function generateRequestId(): string {
-  // 使用 crypto.randomUUID 保证唯一性，避免 Math.random 碰撞
-  const uuid = typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
-    : Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const uuid = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
   return `req_${uuid}`;
 }
 
