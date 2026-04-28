@@ -27,6 +27,8 @@ const MAX_BODY_SIZE = 10 * 1024 * 1024; // 请求体最大 10MB
 const BODY_COLLECT_TIMEOUT = 30000; // 请求体收集超时 30s，防 slowloris
 const MAX_CONNECTIONS = 100; // 最大并发连接数
 const SHUTDOWN_TIMEOUT = 5000; // 优雅关闭等待超时 5s
+const SSE_BUFFER_SOFT_LIMIT = 10240; // SSE 缓冲区软限制，保留最近 10KB
+const SSE_BUFFER_HARD_LIMIT = 1024 * 1024; // SSE 缓冲区绝对上限 1MB
 
 /** HTTPS 连接池：复用 TLS 连接，避免每次请求重新握手 */
 const httpsAgent = new https.Agent({
@@ -517,7 +519,6 @@ class ProxyServer {
             clientRes.writeHead(statusCode, streamHeaders);
 
             let sseBuffer = '';
-            const SSE_BUFFER_HARD_LIMIT = 1024 * 1024; // 1MB 绝对上限
             passThrough.on('data', (chunk: Buffer) => {
               if (clientDisconnected) return;
               sseBuffer += chunk.toString();
@@ -527,13 +528,13 @@ class ProxyServer {
                 passThrough.destroy(new Error('SSE buffer exceeded hard limit'));
                 return;
               }
-              // 保留最后 10KB 用于提取 usage，但确保不截断最后一个完整的 data: 行
-              if (sseBuffer.length > 10240) {
+              // 保留最近数据用于提取 usage，但确保不截断最后一个完整的 data: 行
+              if (sseBuffer.length > SSE_BUFFER_SOFT_LIMIT) {
                 const lastDataIdx = sseBuffer.lastIndexOf('\ndata: ');
                 if (lastDataIdx > 0) {
                   sseBuffer = sseBuffer.slice(lastDataIdx + 1);
                 } else {
-                  sseBuffer = sseBuffer.slice(-10240);
+                  sseBuffer = sseBuffer.slice(-SSE_BUFFER_SOFT_LIMIT);
                 }
               }
             });

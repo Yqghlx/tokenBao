@@ -31,17 +31,22 @@ let syncTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * 从远程 URL 拉取定价数据
+ * @param maxRedirects 剩余允许的重定向次数，防止无限循环
  */
-function fetchRemote(url: string): Promise<RemotePricingData> {
+function fetchRemote(url: string, maxRedirects = 5): Promise<RemotePricingData> {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { timeout: REQUEST_TIMEOUT_MS }, (res) => {
-      // 跟随重定向（最多 3 次）
+      // 跟随重定向（有深度限制）
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        if (maxRedirects <= 0) {
+          reject(new Error('重定向次数超限'));
+          return;
+        }
         if (url === res.headers.location) {
           reject(new Error('重定向循环'));
           return;
         }
-        fetchRemote(res.headers.location).then(resolve).catch(reject);
+        fetchRemote(res.headers.location, maxRedirects - 1).then(resolve).catch(reject);
         return;
       }
 
@@ -52,6 +57,7 @@ function fetchRemote(url: string): Promise<RemotePricingData> {
 
       let body = '';
       res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+      res.on('error', (err) => { reject(new Error(`响应流错误: ${err.message}`)); });
       res.on('end', () => {
         try {
           const data = JSON.parse(body) as RemotePricingData;

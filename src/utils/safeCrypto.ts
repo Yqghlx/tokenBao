@@ -15,10 +15,16 @@ type SafeStorageLike = {
 };
 
 let safeStorage: SafeStorageLike | null = null;
+let initialized = false;
 
-/** 初始化 safeStorage 实例（仅主进程 app.whenReady 后调用） */
+/** 初始化 safeStorage 实例（仅主进程 app.whenReady 后调用，多次调用视为空操作） */
 export function initSafeStorage(storage: SafeStorageLike | null): void {
+  if (initialized) {
+    console.warn('safeStorage 已初始化，忽略重复调用');
+    return;
+  }
   safeStorage = storage;
+  initialized = true;
 }
 
 /** 判断 safeStorage 是否可用 */
