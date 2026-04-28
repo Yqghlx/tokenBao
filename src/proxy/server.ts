@@ -844,7 +844,7 @@ class ProxyServer {
 
         // 运行时错误/关闭处理器：仅在 listen 成功后注册，
         // 防止启动失败（如 EADDRINUSE）时误触发 errorCallback → restartProxy
-        const srv = this.server!;
+        const srv = this.server as http.Server;
         srv.on('error', (err) => {
           logProxy('error', '代理服务器运行时错误', { error: (err as Error).message });
           if (this.budgetSyncTimer) {

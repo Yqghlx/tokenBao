@@ -105,6 +105,7 @@ export async function getApiKey(id: number): Promise<Omit<ApiKey, 'encryptedKey'
     const store = getStore();
     const key = store.keys.find(k => k.id === id);
     if (!key) return undefined;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { encryptedKey: _, ...rest } = key;
     return rest;
   });

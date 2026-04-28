@@ -221,6 +221,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle('proxy:setKeys', async (_, openaiKey: string, anthropicKey: string) => {
     try {
       // 主进程二次校验，防御 preload 绕过
+      // eslint-disable-next-line no-control-regex
       const ctrlCharRe = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
       if (openaiKey) {
         if (!openaiKey.startsWith('sk-') || openaiKey.length < 10 || openaiKey.length > 500) {

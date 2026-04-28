@@ -46,7 +46,7 @@ export function encrypt(plaintext: string): string {
 
   if (isSafeStorageAvailable()) {
     try {
-      const encrypted = safeStorage!.encryptString(plaintext);
+      const encrypted = (safeStorage as Electron.SafeStorage).encryptString(plaintext);
       return SS_PREFIX + encrypted.toString('base64');
     } catch (err) {
       console.warn('safeStorage 加密失败，回退到 AES:', (err as Error).message);
@@ -72,7 +72,7 @@ export function decrypt(ciphertext: string): string {
     }
     try {
       const buffer = Buffer.from(ciphertext.slice(SS_PREFIX.length), 'base64');
-      return safeStorage!.decryptString(buffer);
+      return (safeStorage as Electron.SafeStorage).decryptString(buffer);
     } catch (err) {
       throw new Error(`safeStorage 解密失败: ${(err as Error).message}`);
     }
