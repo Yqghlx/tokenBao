@@ -47,7 +47,6 @@ interface ApiKeyItem {
   id: number;
   name: string;
   type: string;
-  encryptedKey: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,10 +80,10 @@ interface ElectronAPI {
   };
 
   apiKeys: {
-    list: () => Promise<Array<Omit<ApiKeyItem, 'encryptedKey'>>>;
-    add: (name: string, type: string, key: string) => Promise<Omit<ApiKeyItem, 'encryptedKey'> | PreloadError>;
+    list: () => Promise<ApiKeyItem[]>;
+    add: (name: string, type: string, key: string) => Promise<ApiKeyItem | PreloadError>;
     delete: (id: number) => Promise<boolean | PreloadError>;
-    get: (id: number) => Promise<Omit<ApiKeyItem, 'encryptedKey'> | null>;
+    get: (id: number) => Promise<ApiKeyItem | null>;
   };
 
   history: {

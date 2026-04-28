@@ -1,6 +1,6 @@
 /**
  * tokenCounter 测试
- * 覆盖 countTokens/countMessages/estimateCost/calculateSavings
+ * 覆盖 countTokens/countMessages/countTokensOpenAI/countTokensAnthropic
  */
 
 import tokenCounter from '../utils/tokenCounter';
@@ -40,7 +40,6 @@ describe('tokenCounter', () => {
 
   describe('countMessages', () => {
     test('空数组应返回初始开销（3 tokens）', () => {
-      // countMessages 对空消息列表仍有 formatOverhead=3 + 初始值=3
       expect(tokenCounter.countMessages([])).toBe(3);
     });
 
@@ -82,39 +81,7 @@ describe('tokenCounter', () => {
       const multiple = [{ content: 'Hello' }, { content: 'World' }];
       const singleCount = tokenCounter.countMessages(single);
       const multipleCount = tokenCounter.countMessages(multiple);
-      // 多条消息有额外的 role 开销
       expect(multipleCount).toBeGreaterThan(singleCount);
-    });
-  });
-
-  describe('estimateCost', () => {
-    test('已知模型应返回正确费用', () => {
-      // gpt-4o: input=$0.0025, output=$0.01
-      const cost = tokenCounter.estimateCost(1000, 500, 'gpt-4o');
-      expect(cost).toBeCloseTo(0.0025 + 0.005, 6);
-    });
-
-    test('未知模型应返回 fallback 费用', () => {
-      const cost = tokenCounter.estimateCost(1000, 500, 'unknown-model');
-      expect(cost).toBeGreaterThan(0);
-    });
-
-    test('零 token 应返回 0', () => {
-      const cost = tokenCounter.estimateCost(0, 0, 'gpt-4o');
-      expect(cost).toBe(0);
-    });
-  });
-
-  describe('calculateSavings', () => {
-    test('有缓存 token 应返回正的节省费用', () => {
-      const savings = tokenCounter.calculateSavings(1000, 500, 'gpt-4o');
-      expect(savings).toBeGreaterThan(0);
-    });
-
-    test('无缓存 token 应返回 0 节省', () => {
-      // calculateSavings(0, 0) → fullCost=0, cachedCost=0, savings=0
-      const savings = tokenCounter.calculateSavings(0, 0, 'gpt-4o');
-      expect(savings).toBe(0);
     });
   });
 

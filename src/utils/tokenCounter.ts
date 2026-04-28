@@ -1,5 +1,4 @@
 import { getEncoding, Tiktoken } from 'js-tiktoken';
-import { MODEL_PRICING, normalizeModelName } from '../proxy/pricing';
 
 interface ContentBlock {
   type: string;
@@ -103,28 +102,6 @@ function countMessages(messages: Message[], apiType?: string): number {
   }, 3);
 }
 
-function estimateCost(
-  inputTokens: number,
-  outputTokens: number,
-  model: string
-): number {
-  const normalized = normalizeModelName(model);
-  const prices = MODEL_PRICING[normalized];
-  if (!prices) return (inputTokens + outputTokens) / 1000 * 0.001;
-
-  return (inputTokens / 1000) * prices.input + (outputTokens / 1000) * prices.output;
-}
-
-function calculateSavings(
-  inputTokens: number,
-  cachedTokens: number,
-  model: string
-): number {
-  const fullCost = estimateCost(inputTokens, 0, model);
-  const cachedCost = estimateCost(cachedTokens, 0, model);
-  return fullCost - cachedCost;
-}
-
 function cleanup(): void {
   encoder = null;
 }
@@ -132,8 +109,6 @@ function cleanup(): void {
 export default {
   countTokens,
   countMessages,
-  estimateCost,
-  calculateSavings,
   cleanup,
   countTokensOpenAI,
   countTokensAnthropic

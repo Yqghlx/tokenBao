@@ -389,7 +389,7 @@ function registerIpcHandlers(): void {
       return await statsService.getSummary();
     } catch (err) {
       console.error('stats:summary 错误:', err);
-      return { totalRequests: 0, totalTokens: 0, totalSaved: 0, totalCost: 0 };
+      return { totalRequests: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCachedTokens: 0, totalCost: 0, byApi: {}, byModel: {} };
     }
   });
 
