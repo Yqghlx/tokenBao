@@ -666,16 +666,16 @@ class ProxyServer {
           const bodyBuffer = Buffer.from(upstreamResult.body);
 
           if (isJson && bodyBuffer.length > 1024 && acceptEncoding.includes('gzip')) {
-            respHeaders['content-encoding'] = 'gzip';
-            delete respHeaders['content-length'];
-            clientRes.writeHead(statusCode, respHeaders);
             zlib.gzip(bodyBuffer, (gzipErr, compressed) => {
               if (gzipErr) {
                 // 压缩失败时回退到未压缩响应
                 logProxy('warn', 'Gzip 压缩失败，回退到未压缩响应', { requestId, error: gzipErr.message });
-                delete respHeaders['content-encoding'];
+                clientRes.writeHead(statusCode, respHeaders);
                 clientRes.end(upstreamResult.body);
               } else {
+                respHeaders['content-encoding'] = 'gzip';
+                delete respHeaders['content-length'];
+                clientRes.writeHead(statusCode, respHeaders);
                 clientRes.end(compressed);
               }
             });

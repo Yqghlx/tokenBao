@@ -94,7 +94,11 @@ export async function setBudgetLimit(type: 'daily' | 'monthly', limit: number): 
 
 export async function updateSpent(type: 'daily' | 'monthly', amount: number): Promise<void> {
   return mutex.runExclusive(async () => {
-    if (amount < 0 || !isFinite(amount)) return;
+    if (!isFinite(amount)) {
+      console.warn(`budget.updateSpent: 无效金额 (${amount})，已跳过`);
+      return;
+    }
+    if (amount < 0) return;
     const store = getStore();
     checkAutoReset(store);
     const newSpent = store[type].spent + amount;
@@ -129,7 +133,7 @@ export async function getBudgetStatus(): Promise<{
       limit: b.limit,
       spent: b.spent,
       remaining: Math.max(0, b.limit - b.spent),
-      percentage: Math.min(100, Math.round((b.spent / b.limit) * 100))
+      percentage: b.limit > 0 ? Math.min(100, Math.round((b.spent / b.limit) * 100)) : 0
     });
     return {
       daily: computeStatus(store.daily),
