@@ -16,6 +16,8 @@ function safeToken(value: unknown): number {
 
 /** SSE 解析最大行数，防止畸形数据消耗过多内存 */
 const MAX_SSE_LINES = 100000;
+/** 模型名称最大长度，超出截断防止畸形数据传播 */
+const MAX_MODEL_NAME_LEN = 100;
 
 /**
  * 从 SSE 流数据中提取 usage 统计（流式路径共用）
@@ -23,6 +25,12 @@ const MAX_SSE_LINES = 100000;
  */
 export function extractStreamUsage(sseData: string): UsageStats | null {
   if (!sseData || !sseData.includes('data: ')) return null;
+
+  /** 清理模型名：截断过长值，防止畸形数据传播到统计/计费系统 */
+  const sanitizeModel = (name: unknown): string => {
+    if (typeof name !== 'string' || !name) return 'unknown';
+    return name.length > MAX_MODEL_NAME_LEN ? name.slice(0, MAX_MODEL_NAME_LEN) : name;
+  };
 
   // 截断超长数据防止内存耗尽，usage 信息通常在流末尾，截掉头部不影响结果
   let dataToProcess = sseData;
@@ -54,7 +62,7 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
 
     // 提取 message_start 模型名（Anthropic 格式）
     if (!foundModel && parsed.type === 'message_start' && (parsed as { message?: { model?: string } }).message?.model) {
-      fallbackModel = (parsed as { message: { model: string } }).message.model;
+      fallbackModel = sanitizeModel((parsed as { message: { model: string } }).message.model);
       foundModel = true;
       // 已收集 usage 和模型名，提前退出
       if (foundUsage) {
@@ -89,7 +97,7 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
           outputTokens: safeToken(usage.completion_tokens),
           cacheReadTokens: safeToken(details?.cached_tokens),
           cacheCreationTokens: 0,
-          model: (parsed.model as string) || fallbackModel
+          model: sanitizeModel(parsed.model) || fallbackModel
         };
         if (foundModel) break;
         continue;
@@ -115,7 +123,7 @@ function parseNonStreamUsage(body: string): UsageStats | null {
         // OpenAI: prompt_tokens_details.cached_tokens
         cacheReadTokens: safeToken(parsed.usage.cache_read_input_tokens ?? parsed.usage.prompt_tokens_details?.cached_tokens),
         cacheCreationTokens: safeToken(parsed.usage.cache_creation_input_tokens),
-        model: parsed.model || 'unknown'
+        model: typeof parsed.model === 'string' && parsed.model.length <= MAX_MODEL_NAME_LEN ? parsed.model : 'unknown'
       };
     }
   } catch (e) {
