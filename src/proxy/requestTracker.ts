@@ -210,14 +210,16 @@ function getStatsSummary(): {
   const failedCount = Array.from(completedRequests.values()).filter(r => r.status >= 400).length;
 
   const durations = Array.from(completedRequests.values()).map(r => r.duration);
-  const avgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+  const rawAvgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+  const avgDuration = isFinite(rawAvgDuration) ? rawAvgDuration : 0;
 
   // 统计成功请求的平均输入 token 数
   const inputTokensList = Array.from(completedRequests.values())
     .filter(r => r.status < 400)
     .map(r => r.inputTokens);
-  const avgInputTokens = inputTokensList.length > 0
+  const rawAvgInput = inputTokensList.length > 0
     ? inputTokensList.reduce((a, b) => a + b, 0) / inputTokensList.length : 0;
+  const avgInputTokens = isFinite(rawAvgInput) ? rawAvgInput : 0;
 
   return {
     totalRequests,

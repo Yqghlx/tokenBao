@@ -15,6 +15,8 @@ interface UsageStats {
  * Anthropic: message_delta 事件中的 usage
  */
 export function extractStreamUsage(sseData: string): UsageStats | null {
+  if (!sseData || !sseData.includes('data: ')) return null;
+
   const lines = sseData.split('\n');
   let fallbackModel = 'unknown';
 
@@ -78,6 +80,7 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
  * 解析非流式响应的 usage（包含 Prompt Caching）
  */
 function parseNonStreamUsage(body: string): UsageStats | null {
+  if (!body || !body.trim()) return null;
   try {
     const parsed = JSON.parse(body);
     if (parsed.usage) {

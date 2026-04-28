@@ -93,6 +93,16 @@ describe('responseHandler', () => {
       const result = handleResponse('not json', { 'content-type': 'application/json' }, 'openai');
       expect(result.stats).toBeNull();
     });
+
+    test('空字符串应返回 null', () => {
+      const result = handleResponse('', { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).toBeNull();
+    });
+
+    test('纯空白 body 应返回 null', () => {
+      const result = handleResponse('   \n\t  ', { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).toBeNull();
+    });
   });
 
   describe('handleResponse - 流式响应', () => {
@@ -275,6 +285,17 @@ describe('responseHandler', () => {
       const { handleResponse } = require('../proxy/responseHandler');
       const result = handleResponse(sseData, { 'content-type': 'text/event-stream' }, 'openai');
       expect(result.stats).toBeNull();
+    });
+
+    test('空 SSE 数据应返回 null', () => {
+      const { extractStreamUsage } = require('../proxy/responseHandler');
+      expect(extractStreamUsage('')).toBeNull();
+      expect(extractStreamUsage('   ')).toBeNull();
+    });
+
+    test('无 data: 行的 SSE 应返回 null', () => {
+      const { extractStreamUsage } = require('../proxy/responseHandler');
+      expect(extractStreamUsage('just some text\nno data here')).toBeNull();
     });
   });
 });
