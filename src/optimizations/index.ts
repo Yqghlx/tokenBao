@@ -133,6 +133,11 @@ function countSystemTokens(system: unknown, apiType: string): number {
   return 0;
 }
 
+/** 检查是否有任何优化策略处于启用状态 */
+function hasEnabledStrategy(): boolean {
+  return config.dlp || config.rules || config.compression || config.routing || config.caching;
+}
+
 export function applyOptimizations(apiType: string, body: ApiRequestBody): OptimizationResult {
   const startTime = Date.now();
   const result: OptimizationResult = {
@@ -144,6 +149,16 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
   };
 
   if (!body || !body.messages) {
+    return result;
+  }
+
+  // 无策略启用时跳过昂贵的 structuredClone 和 token 计数，直接返回原 body
+  if (!hasEnabledStrategy()) {
+    return result;
+  }
+
+  // 空消息数组无需优化，直接返回
+  if (body.messages.length === 0) {
     return result;
   }
 

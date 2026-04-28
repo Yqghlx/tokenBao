@@ -57,7 +57,14 @@ const DEFAULT_CONFIG: ConfigStore = {
 };
 
 function getStore(): ConfigStore {
-  return loadJson<ConfigStore>(STORAGE_FILE, structuredClone(DEFAULT_CONFIG));
+  const store = loadJson<ConfigStore>(STORAGE_FILE, structuredClone(DEFAULT_CONFIG));
+  // 剥离不在白名单中的多余配置键，防止历史遗留或手动编辑引入的无效项
+  for (const key of Object.keys(store.config)) {
+    if (!VALID_CONFIG_KEYS.has(key)) {
+      delete store.config[key];
+    }
+  }
+  return store;
 }
 
 async function saveStore(store: ConfigStore): Promise<void> {
