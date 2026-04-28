@@ -64,7 +64,7 @@ describe('crypto 模块', () => {
     const parts = encrypted.split(':');
     // IV 截断为奇数长度
     parts[0] = '0123456789abcde';
-    expect(() => decrypt(parts.join(':'))).toThrow('IV 长度或格式错误');
+    expect(() => decrypt(parts.join(':'))).toThrow('密文格式无效');
   });
 
   test('解密畸形认证标签应抛出格式错误', () => {
@@ -72,7 +72,7 @@ describe('crypto 模块', () => {
     const parts = encrypted.split(':');
     // 认证标签替换为非 hex 字符
     parts[1] = 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
-    expect(() => decrypt(parts.join(':'))).toThrow('认证标签长度或格式错误');
+    expect(() => decrypt(parts.join(':'))).toThrow('密文格式无效');
   });
 
   test('解密两段式密文应抛出格式错误', () => {
@@ -91,7 +91,14 @@ describe('crypto 模块', () => {
     const encrypted = encrypt('test');
     const parts = encrypted.split(':');
     parts[0] = 'abcd';
-    expect(() => decrypt(parts.join(':'))).toThrow('IV 长度或格式错误');
+    expect(() => decrypt(parts.join(':'))).toThrow('密文格式无效');
+  });
+
+  test('解密 authTag 格式错误应抛出格式错误', () => {
+    const encrypted = encrypt('test');
+    const parts = encrypted.split(':');
+    parts[1] = 'abcd';
+    expect(() => decrypt(parts.join(':'))).toThrow('密文格式无效');
   });
 
   test('加密空字符串应成功', () => {
@@ -103,7 +110,6 @@ describe('crypto 模块', () => {
   test('篡改认证标签后解密应失败', () => {
     const encrypted = encrypt('sensitive data');
     const parts = encrypted.split(':');
-    // 翻转认证标签的第一个字节
     const bytes = Buffer.from(parts[1], 'hex');
     bytes[0] ^= 0xff;
     parts[1] = bytes.toString('hex');
