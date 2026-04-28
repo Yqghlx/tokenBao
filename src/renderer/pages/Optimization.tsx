@@ -36,7 +36,13 @@ function Optimization() {
         window.electronAPI?.rules?.list?.()
       ]);
       if (results[0].status === 'fulfilled' && results[0].value) {
-        setOptimizationConfig(results[0].value);
+        const cfg = results[0].value;
+        setOptimizationConfig({
+          caching: cfg.caching ?? true,
+          compression: cfg.compression ?? true,
+          routing: cfg.routing ?? true,
+          batching: cfg.batching ?? false
+        });
       }
       if (results[1].status === 'fulfilled') {
         setCacheTTL(results[1].value || '5min');

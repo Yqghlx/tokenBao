@@ -60,7 +60,7 @@ class ErrorBoundary extends Component<Props, State> {
       const isDev = process.env.NODE_ENV === 'development';
 
       return (
-        <div className="error-boundary">
+        <div className="error-boundary" role="alert">
           <h1 className="error-boundary-title">出错了</h1>
           <p className="error-boundary-desc">
             页面发生了错误，请尝试刷新或联系支持。

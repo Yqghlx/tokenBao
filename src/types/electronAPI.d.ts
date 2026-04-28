@@ -81,10 +81,10 @@ interface ElectronAPI {
   };
 
   apiKeys: {
-    list: () => Promise<Omit<ApiKeyItem, 'encryptedKey'>[]>;
-    add: (name: string, type: string, key: string) => Promise<ApiKeyItem | PreloadError>;
+    list: () => Promise<Array<Omit<ApiKeyItem, 'encryptedKey'>>>;
+    add: (name: string, type: string, key: string) => Promise<Omit<ApiKeyItem, 'encryptedKey'> | PreloadError>;
     delete: (id: number) => Promise<boolean | PreloadError>;
-    get: (id: number) => Promise<ApiKeyItem | null>;
+    get: (id: number) => Promise<Omit<ApiKeyItem, 'encryptedKey'> | null>;
   };
 
   history: {
@@ -126,8 +126,8 @@ interface ElectronAPI {
     validate: (pattern: string) => Promise<{ error: string | null }>;
   };
 
-  on: (channel: string, callback: (...args: unknown[]) => void) => void;
-  off: (channel: string, callback?: (...args: unknown[]) => void) => void;
+  on: (channel: 'proxy:statusChanged' | 'proxy:error' | 'stats:updated', callback: (...args: unknown[]) => void) => void;
+  off: (channel: 'proxy:statusChanged' | 'proxy:error' | 'stats:updated', callback?: (...args: unknown[]) => void) => void;
 }
 
 interface Window {
