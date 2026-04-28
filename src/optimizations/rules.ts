@@ -30,8 +30,11 @@ function loadFromStorage(): void {
     const store = loadJson<RuleStore>(STORAGE_FILE, { rules: [], nextId: 1 });
     store.rules.forEach(r => rules.set(r.id, r));
     nextId = store.nextId;
-  } catch {
-    // 首次加载可能失败
+  } catch (err) {
+    // 首次加载文件不存在是正常的，其他错误需要记录
+    if (err instanceof Error && !err.message.includes('ENOENT')) {
+      console.error('加载规则存储失败:', err);
+    }
   }
 }
 

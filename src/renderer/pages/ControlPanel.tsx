@@ -235,7 +235,7 @@ function ControlPanel() {
       <div className="status-cards">
         <div className="status-card">
           <h3>代理状态</h3>
-          <p className={`status-value ${proxyStatus.running ? 'running' : ''}`}>
+          <p className={`status-value ${proxyStatus.running ? 'running' : ''}`} aria-live="polite">
             {proxyStatus.running ? '运行中' : '已停止'}
           </p>
           <span className="status-label">端口: {proxyStatus.port}</span>
@@ -270,7 +270,7 @@ function ControlPanel() {
 
         <div className="status-card">
           <h3>本月成本</h3>
-          <p className="status-value">${budgetStatus.spent.toFixed(2)}</p>
+          <p className="status-value" aria-live="polite">${budgetStatus.spent.toFixed(2)}</p>
           <span className="status-label">预算: ${budgetStatus.limit.toFixed(2)}</span>
           {budgetStatus.limit > 0 && (
             <div className="progress-bar" role="progressbar" aria-valuenow={budgetPercent} aria-valuemin={0} aria-valuemax={100} aria-label={`预算使用 ${budgetPercent}%`}>

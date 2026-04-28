@@ -20,16 +20,16 @@ function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLa
 
   // 打开时自动聚焦确认按钮，Escape 取消
   useEffect(() => {
-    if (open) {
-      confirmRef.current?.focus();
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') onCancel();
-        // Enter 仅在确认按钮聚焦时触发，避免用户在取消按钮上按 Enter 误确认
-        if (e.key === 'Enter' && document.activeElement === confirmRef.current) onConfirm();
-      };
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
+    if (!open) return;
+
+    confirmRef.current?.focus();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+      // Enter 仅在确认按钮聚焦时触发，避免用户在取消按钮上按 Enter 误确认
+      if (e.key === 'Enter' && document.activeElement === confirmRef.current) onConfirm();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onCancel, onConfirm]);
 
   if (!open) return null;

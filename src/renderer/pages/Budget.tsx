@@ -90,7 +90,7 @@ function Budget() {
   const renderProgressBar = (percentage: number) => {
     const color = percentage >= 100 ? '#ef4444' : percentage >= 80 ? '#f59e0b' : '#22c55e';
     return (
-      <div className="progress-bar">
+      <div className="progress-bar" role="progressbar" aria-valuenow={Math.min(100, Math.round(percentage))} aria-valuemin={0} aria-valuemax={100} aria-label={`预算使用 ${Math.round(percentage)}%`}>
         <div className="progress-bar-fill" style={{ width: `${Math.min(100, percentage)}%`, background: color }} />
       </div>
     );
