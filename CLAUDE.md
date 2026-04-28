@@ -94,7 +94,7 @@ typescript-language-server --version  # 需全局安装
 
 ### 渲染进程
 
-独立 `package.json`，Vite 构建。Toast 通知（滑入动画、手动关闭、堆叠上限 5、定时器清理防泄漏、`×` 关闭符号），所有页面骨架屏 shimmer 加载态。响应式断点（1024px/768px），`focus-visible` 无障碍焦点样式，`aria-live` 动态区域（Monitor 统计卡片），`aria-label` 表格/按钮/表单。ConfirmDialog 焦点陷阱（Tab 循环）+ Escape 取消 + Enter 仅确认按钮聚焦时触发 + 背景点击关闭，支持 `ReactNode` 消息，`aria-describedby` 无障碍。ErrorBoundary 含返回首页 + 复制反馈 + 剪贴板不可用时回退选中文本。ControlPanel 预算进度条（`role="progressbar"`），Monitor 数据导出 JSON + aria-live，Optimization 规则表单 label 通过 `htmlFor`/`id` 关联 input + 批量启用/禁用规则 + 删除确认弹窗 + 实时正则校验 + 防双击 + 优先级范围（0-1000），ApiKeys 类型切换自动清空 key + 骨架屏 + 删除确认含 Key 名称 + 删除 loading 保护 + 无障碍表单。Budget 轮询不覆盖编辑中字段（useRef 追踪编辑状态）。History 分页边界自动修正 + CSV 导出含成功提示 + blob URL 延迟释放。Settings 表单 label 通过 `htmlFor`/`id` 关联 input + 变更检测（isDirty）+ 恢复默认确认弹窗。Layout 含 skip-nav 链接 + 语义化 nav/footer。
+独立 `package.json`，Vite 构建。Toast 通知（滑入动画、手动关闭、堆叠上限 5、定时器清理防泄漏、`×` 关闭符号），所有页面骨架屏 shimmer 加载态。响应式断点（1024px/768px），`focus-visible` 无障碍焦点样式，`aria-live` 动态区域（Monitor 统计卡片），`aria-label` 表格/按钮/表单。ConfirmDialog 焦点陷阱（Tab 循环）+ Escape 取消 + Enter 仅确认按钮聚焦时触发 + 背景点击关闭，支持 `ReactNode` 消息，`aria-describedby` 无障碍。ErrorBoundary 含返回首页 + 复制反馈 + 剪贴板不可用时回退选中文本。ControlPanel 预算进度条（`role="progressbar"`），Monitor 数据导出 JSON + aria-live，Optimization 规则表单 label 通过 `htmlFor`/`id` 关联 input + 批量启用/禁用规则 + 删除确认弹窗 + 实时正则校验 + 防双击 + 优先级 clamp（0-1000）+ 规则表 aria-label，ApiKeys 类型切换自动清空 key + 骨架屏 + 删除确认含 Key 名称 + 删除 loading 保护 + 无障碍表单。Budget 轮询不覆盖编辑中字段（useRef 追踪编辑状态）。History 分页边界自动修正 + CSV 导出含成功提示 + blob URL 延迟释放。Settings 表单 label 通过 `htmlFor`/`id` 关联 input + 变更检测（isDirty）+ 恢复默认确认弹窗。Layout 含 skip-nav 链接 + 语义化 nav/footer。usePolling 提取 safeInvoke 公共函数消除重复错误处理。
 
 ## 关键配置文件
 

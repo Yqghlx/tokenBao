@@ -14,18 +14,20 @@ export function usePolling(callback: () => void, intervalMs: number): void {
   useEffect(() => {
     let timerId: ReturnType<typeof setInterval>;
 
-    const startPolling = () => {
-      timerId = setInterval(() => {
-        try {
-          const result = savedCallback.current() as unknown;
-          // 支持 async 回调：捕获 promise 拒绝
-          if (result instanceof Promise) {
-            result.catch((err: unknown) => console.warn('轮询回调异常:', err));
-          }
-        } catch (err) {
-          console.warn('轮询回调异常:', err);
+    /** 安全执行回调，捕获同步异常和异步拒绝 */
+    const safeInvoke = () => {
+      try {
+        const result = savedCallback.current() as unknown;
+        if (result instanceof Promise) {
+          result.catch((err: unknown) => console.warn('轮询回调异常:', err));
         }
-      }, intervalMs);
+      } catch (err) {
+        console.warn('轮询回调异常:', err);
+      }
+    };
+
+    const startPolling = () => {
+      timerId = setInterval(safeInvoke, intervalMs);
     };
 
     const stopPolling = () => {
@@ -37,14 +39,7 @@ export function usePolling(callback: () => void, intervalMs: number): void {
         stopPolling();
       } else {
         // 页面重新可见时立即刷新一次再恢复轮询
-        try {
-          const result = savedCallback.current() as unknown;
-          if (result instanceof Promise) {
-            result.catch((err: unknown) => console.warn('可见性切换回调异常:', err));
-          }
-        } catch (err) {
-          console.warn('可见性切换回调异常:', err);
-        }
+        safeInvoke();
         startPolling();
       }
     };

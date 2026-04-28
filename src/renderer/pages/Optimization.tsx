@@ -283,7 +283,8 @@ function Optimization() {
                 <label htmlFor="rule-priority">优先级（0-1000，数字越大越先执行）</label>
                 <input id="rule-priority" type="number" value={newRule.priority} min={0} max={1000} onChange={(e) => {
                   const val = parseInt(e.target.value);
-                  setNewRule(p => ({ ...p, priority: isNaN(val) ? 0 : val }));
+                  // HTML min 属性不阻止 JS 解析负数，需手动 clamp
+                  setNewRule(p => ({ ...p, priority: isNaN(val) ? 0 : Math.max(0, Math.min(1000, val)) }));
                 }} />
               </div>
               <div className="form-actions">
@@ -313,7 +314,7 @@ function Optimization() {
           {rules.length === 0 ? (
             <p className="toggle-desc">暂无自定义规则</p>
           ) : (
-            <table className="data-table">
+            <table className="data-table" aria-label="自定义替换规则列表">
               <thead>
                 <tr>
                   <th>名称</th>

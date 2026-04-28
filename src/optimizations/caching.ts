@@ -126,6 +126,10 @@ export function addCache(apiType: string, content: string): void {
     content: content.slice(0, 1000),
     timestamp: Date.now()
   });
+  // 内容被截断时记录日志，便于排查缓存命中率问题
+  if (content.length > 1000) {
+    console.warn(`caching: 内容超过 1000 字符被截断（原始 ${content.length} 字符），缓存键 ${key.slice(0, 20)}...`);
+  }
   cacheOrder.push(key);
   evictIfNeeded();
   scheduleSave();
