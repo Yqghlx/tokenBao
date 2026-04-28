@@ -78,6 +78,33 @@ export function getOptimizationConfig(): OptimizationConfig {
   return { ...config };
 }
 
+/**
+ * 对消息列表中的文本内容统一应用变换函数
+ * 同时处理 string 和 array 两种 content 格式，消除策略间的重复代码
+ */
+function processMessageTexts(
+  messages: ChatMessage[],
+  transform: (text: string) => string
+): ChatMessage[] {
+  return messages.map((msg: ChatMessage) => {
+    if (typeof msg.content === 'string') {
+      return { ...msg, content: transform(msg.content) };
+    }
+    if (Array.isArray(msg.content)) {
+      return {
+        ...msg,
+        content: msg.content.map((block) => {
+          if (block.type === 'text' && (block as TextContentBlock).text) {
+            return { ...block, text: transform((block as TextContentBlock).text) };
+          }
+          return block;
+        })
+      };
+    }
+    return msg;
+  });
+}
+
 export function applyOptimizations(apiType: string, body: ApiRequestBody): OptimizationResult {
   const startTime = Date.now();
   const result: OptimizationResult = {
@@ -100,30 +127,7 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
   // 规则替换 —— 错误隔离，失败则跳过
   if (config.rules) {
     try {
-      modifiedBody.messages = modifiedBody.messages.map((msg: ChatMessage) => {
-        if (typeof msg.content === 'string') {
-          const processed = rulesModule.applyRules(msg.content);
-          if (processed !== msg.content) {
-            return { ...msg, content: processed };
-          }
-        }
-        if (Array.isArray(msg.content)) {
-          return {
-            ...msg,
-            content: msg.content.map((block) => {
-              if (block.type === 'text' && (block as TextContentBlock).text) {
-                const textBlock = block as TextContentBlock;
-                const processed = rulesModule.applyRules(textBlock.text);
-                if (processed !== textBlock.text) {
-                  return { ...block, text: processed };
-                }
-              }
-              return block;
-            })
-          };
-        }
-        return msg;
-      });
+      modifiedBody.messages = processMessageTexts(modifiedBody.messages, (text) => rulesModule.applyRules(text));
       const enabledRules = rulesModule.listRules().filter(r => r.enabled);
       if (enabledRules.length > 0) {
         result.appliedStrategies.push(`rules(${enabledRules.length})`);
@@ -136,26 +140,7 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
   // 文本压缩 —— 错误隔离，失败则跳过
   if (config.compression) {
     try {
-      modifiedBody.messages = modifiedBody.messages.map((msg: ChatMessage) => {
-        if (typeof msg.content === 'string') {
-          const compressed = compressionModule.compress(msg.content);
-          return { ...msg, content: compressed.text };
-        }
-        if (Array.isArray(msg.content)) {
-          return {
-            ...msg,
-            content: msg.content.map((block) => {
-              if (block.type === 'text' && (block as TextContentBlock).text) {
-                const textBlock = block as TextContentBlock;
-                const compressed = compressionModule.compress(textBlock.text);
-                return { ...block, text: compressed.text };
-              }
-              return block;
-            })
-          };
-        }
-        return msg;
-      });
+      modifiedBody.messages = processMessageTexts(modifiedBody.messages, (text) => compressionModule.compress(text).text);
       result.appliedStrategies.push('compression');
     } catch (err) {
       console.warn('文本压缩优化失败，已跳过:', (err as Error).message);

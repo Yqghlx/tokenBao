@@ -66,6 +66,9 @@ function getEncryptionKey(): Buffer {
 }
 
 export function encrypt(plaintext: string): string {
+  if (typeof plaintext !== 'string') {
+    throw new Error('加密输入必须为字符串');
+  }
   const key = getEncryptionKey();
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
@@ -79,6 +82,9 @@ export function encrypt(plaintext: string): string {
 }
 
 export function decrypt(ciphertext: string): string {
+  if (typeof ciphertext !== 'string') {
+    throw new Error('密文必须为字符串');
+  }
   const key = getEncryptionKey();
   const parts = ciphertext.split(':');
   if (parts.length !== 3) {

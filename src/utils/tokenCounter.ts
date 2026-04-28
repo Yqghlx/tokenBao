@@ -10,22 +10,29 @@ interface Message {
 }
 
 let encoder: Tiktoken | null = null;
+let encoderFailed = false;
 
-function getEncoder(): Tiktoken {
+function getEncoder(): Tiktoken | null {
+  if (encoderFailed) return null;
   if (!encoder) {
-    encoder = getEncoding('cl100k_base');
+    try {
+      encoder = getEncoding('cl100k_base');
+    } catch (err) {
+      console.warn('tiktoken 初始化失败，后续将使用估算:', (err as Error).message);
+      encoderFailed = true;
+      return null;
+    }
   }
   return encoder;
 }
 function countTokensOpenAI(text: string): number {
   if (!text) return 0;
+  const enc = getEncoder();
+  if (!enc) return estimateTokensFallback(text);
   try {
-    const enc = getEncoder();
-    const tokens = enc.encode(text);
-    return tokens.length;
+    return enc.encode(text).length;
   } catch (err) {
     console.warn('tiktoken 编码失败，使用估算 fallback:', (err as Error).message);
-    // 编码器异常后重置，下次调用重新初始化
     encoder = null;
     return estimateTokensFallback(text);
   }
