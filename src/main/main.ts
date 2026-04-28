@@ -111,7 +111,8 @@ function registerIpcHandlers(): void {
     try {
       // 优先使用传入端口，否则从配置读取，最终默认 3000
       const configPort = await configService.getConfig('proxyPort');
-      const effectivePort = port || (configPort ? parseInt(configPort, 10) : 3000);
+      const parsedConfigPort = configPort ? parseInt(configPort, 10) : NaN;
+      const effectivePort = port || (Number.isFinite(parsedConfigPort) && parsedConfigPort >= 1024 && parsedConfigPort <= 65535 ? parsedConfigPort : 3000);
 
       const openaiKey = await apiKeyService.getDecryptedKeyByType('openai');
       const anthropicKey = await apiKeyService.getDecryptedKeyByType('anthropic');

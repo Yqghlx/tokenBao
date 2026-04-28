@@ -1,3 +1,7 @@
+/** 复杂度检测的 prompt 长度阈值 */
+const LENGTH_THRESHOLD_MEDIUM = 500;
+const LENGTH_THRESHOLD_COMPLEX = 1000;
+
 interface RoutingRule {
   sourceModel: string;
   targetModel: string;
@@ -94,8 +98,8 @@ function detectComplexity(prompt: string): 'simple' | 'classification' | 'extrac
   }
 
   // 长度因子：长 prompt 倾向于复杂任务
-  if (prompt.length > 500) complexScore += 2;
-  if (prompt.length > 1000) complexScore += 3;
+  if (prompt.length > LENGTH_THRESHOLD_MEDIUM) complexScore += 2;
+  if (prompt.length > LENGTH_THRESHOLD_COMPLEX) complexScore += 3;
 
   const maxScore = Math.max(simpleScore, extractionScore, complexScore);
 
