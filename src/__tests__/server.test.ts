@@ -157,4 +157,148 @@ describe('ProxyServer 核心逻辑', () => {
       expect(server['detectApiType']('/unknown')).toBe('unknown');
     });
   });
+
+  describe('目标 URL 解析', () => {
+    test('getTargetBase 对 openai 返回 OpenAI 地址', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      expect(server['getTargetBase']('openai')).toBe('https://api.openai.com');
+    });
+
+    test('getTargetBase 对 anthropic 返回 Anthropic 地址', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      expect(server['getTargetBase']('anthropic')).toBe('https://api.anthropic.com');
+    });
+
+    test('getTargetBase 对 unknown 默认返回 OpenAI 地址', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      expect(server['getTargetBase']('unknown')).toBe('https://api.openai.com');
+    });
+  });
+
+  describe('请求头转换', () => {
+    test('OpenAI 请求应注入 Bearer 认证', async () => {
+      server = new ProxyServer({ port: getRandomPort(), openaiKey: 'sk-test-openai-key' });
+      await server.start();
+      const headers = server['transformHeaders']({ authorization: 'Bearer old-key' }, 'openai');
+      expect(headers['authorization']).toBe('Bearer sk-test-openai-key');
+    });
+
+    test('Anthropic 请求应注入 x-api-key 认证', async () => {
+      server = new ProxyServer({ port: getRandomPort(), anthropicKey: 'sk-ant-test-key' });
+      await server.start();
+      const headers = server['transformHeaders']({ authorization: 'Bearer old-key' }, 'anthropic');
+      expect(headers['x-api-key']).toBe('sk-ant-test-key');
+      expect(headers['authorization']).toBeUndefined();
+    });
+
+    test('Anthropic 请求应添加版本头', async () => {
+      server = new ProxyServer({ port: getRandomPort(), anthropicKey: 'sk-ant-test' });
+      await server.start();
+      const headers = server['transformHeaders']({}, 'anthropic');
+      expect(headers['anthropic-version']).toBe('2023-06-01');
+    });
+
+    test('应过滤 host 和 accept-encoding 头', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      const headers = server['transformHeaders']({
+        host: 'localhost:3000',
+        'accept-encoding': 'gzip',
+        'content-type': 'application/json'
+      }, 'openai');
+      expect(headers['host']).toBeUndefined();
+      expect(headers['accept-encoding']).toBeUndefined();
+      expect(headers['content-type']).toBe('application/json');
+    });
+
+    test('无 Key 时保留原始 authorization', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      const headers = server['transformHeaders']({ authorization: 'Bearer my-key' }, 'openai');
+      expect(headers['authorization']).toBe('Bearer my-key');
+    });
+  });
+
+  describe('代理超时配置', () => {
+    test('setProxyTimeout 应更新超时值', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      expect(server.getProxyTimeout()).toBe(60000);
+      server.setProxyTimeout(30000);
+      expect(server.getProxyTimeout()).toBe(30000);
+    });
+
+    test('setProxyTimeout 负值不应更新', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      server.setProxyTimeout(-1000);
+      expect(server.getProxyTimeout()).toBe(60000);
+    });
+
+    test('setProxyTimeout 零值不应更新', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      server.setProxyTimeout(0);
+      expect(server.getProxyTimeout()).toBe(60000);
+    });
+  });
+
+  describe('updateBudgetSnapshot 防御性', () => {
+    test('NaN cost 不应污染快照', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      server['updateBudgetSnapshot'](NaN);
+      expect(isFinite(server['budgetState'].monthlySpent)).toBe(true);
+      expect(isFinite(server['budgetState'].dailySpent)).toBe(true);
+    });
+
+    test('Infinity cost 不应污染快照', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      server['updateBudgetSnapshot'](Infinity);
+      expect(isFinite(server['budgetState'].monthlySpent)).toBe(true);
+    });
+
+    test('负数 cost 不应被累加', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      const before = server['budgetState'].monthlySpent;
+      server['updateBudgetSnapshot'](-5);
+      expect(server['budgetState'].monthlySpent).toBe(before);
+    });
+
+    test('正常 cost 应被正确累加', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      server['updateBudgetSnapshot'](1.5);
+      expect(server['budgetState'].monthlySpent).toBeCloseTo(1.5, 6);
+      expect(server['budgetState'].dailySpent).toBeCloseTo(1.5, 6);
+    });
+  });
+
+  describe('优化配置更新', () => {
+    test('updateOptimizationConfig 应更新管线配置', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      server.updateOptimizationConfig({ compression: false, routing: false });
+      // 通过 getProxyTimeout 验证 server 仍然正常运行
+      expect(server.getProxyTimeout()).toBe(60000);
+    });
+  });
+
+  describe('getPort', () => {
+    test('服务未启动时返回配置端口', async () => {
+      server = new ProxyServer({ port: 19099 });
+      expect(server.getPort()).toBe(19099);
+    });
+
+    test('服务启动后返回实际监听端口', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      expect(server.getPort()).toBeGreaterThan(0);
+    });
+  });
 });

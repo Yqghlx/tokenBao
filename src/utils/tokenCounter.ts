@@ -75,10 +75,13 @@ function countTokens(text: string, apiType?: string): number {
 }
 function countMessages(messages: Message[], apiType?: string): number {
   if (!messages || !Array.isArray(messages)) return 0;
-  
+
+  // 每条消息的固定格式开销（role 标记 + 分隔符等）
   const formatOverhead = 4;
+  // 角色标记开销（system/user/assistant 等）
   const roleOverhead = 1;
-  
+
+  // 初始值 3：消息列表整体的 priming 开销（<|im_start|> 等边界标记）
   return messages.reduce((total: number, msg: Message) => {
     let contentTokens = 0;
     

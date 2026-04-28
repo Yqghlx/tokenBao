@@ -124,7 +124,7 @@ describe('优化管线 pipeline', () => {
       messages: [{ role: 'user', content: originalContent }]
     };
     // 保存原始快照
-    const originalSnapshot = JSON.parse(JSON.stringify(body));
+    const originalSnapshot = structuredClone(body);
 
     applyOptimizations('openai', body);
 

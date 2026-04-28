@@ -246,6 +246,9 @@ class ProxyServer {
           result['x-api-key'] = this.anthropicKey;
         } else if (apiType === 'openai' && this.openaiKey) {
           result['authorization'] = `Bearer ${this.openaiKey}`;
+        } else if (stringValue) {
+          // 未配置自定义 Key 时透传原始认证头
+          result['authorization'] = stringValue;
         }
       } else if (lowerKey === 'x-api-key') {
         if (apiType === 'anthropic' && this.anthropicKey) {
@@ -826,6 +829,8 @@ class ProxyServer {
 
   /** 更新内存中的预算快照（请求记录后调用） */
   private updateBudgetSnapshot(cost: number): void {
+    // 防止 NaN/Infinity 污染内存快照
+    if (!isFinite(cost) || cost < 0) return;
     this.budgetState.monthlySpent += cost;
     this.budgetState.dailySpent += cost;
   }
