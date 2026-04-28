@@ -7,6 +7,8 @@ function Budget() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmReset, setConfirmReset] = useState<{ type: 'daily' | 'monthly'; label: string } | null>(null);
+  // 记录正在编辑的字段，轮询时不覆盖
+  const [editingField, setEditingField] = useState<'daily' | 'monthly' | null>(null);
   const [status, setStatus] = useState<{
     daily: { limit: number; spent: number; remaining: number; percentage: number };
     monthly: { limit: number; spent: number; remaining: number; percentage: number };
@@ -22,8 +24,9 @@ function Budget() {
       try {
         const data = await window.electronAPI.budget.status();
         setStatus(data);
-        setDailyLimit(String(data.daily.limit));
-        setMonthlyLimit(String(data.monthly.limit));
+        // 轮询时只更新未在编辑的字段，避免覆盖用户输入
+        if (editingField !== 'daily') setDailyLimit(String(data.daily.limit));
+        if (editingField !== 'monthly') setMonthlyLimit(String(data.monthly.limit));
       } catch (err) {
         console.error('加载预算状态失败:', err);
       } finally {
@@ -32,7 +35,7 @@ function Budget() {
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [editingField]);
 
   useEffect(() => {
     loadBudget();
@@ -128,6 +131,8 @@ function Budget() {
           className="budget-input"
           value={limit}
           onChange={(e) => setLimit(e.target.value)}
+          onFocus={() => setEditingField(type)}
+          onBlur={() => setEditingField(null)}
           min={0}
           step={1}
         />

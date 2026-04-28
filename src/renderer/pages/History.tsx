@@ -29,8 +29,9 @@ function History() {
   const loadHistory = useCallback(async () => {
     if (window.electronAPI?.history?.list) {
       try {
-        // 服务端分页：只请求当前页的数据
-        const offset = (currentPage - 1) * PAGE_SIZE;
+        // 计算安全页码，防止数据减少后请求空页
+        const safeP = Math.min(currentPage, Math.max(1, Math.ceil(totalCount / PAGE_SIZE)) || 1);
+        const offset = (safeP - 1) * PAGE_SIZE;
         const options: { limit: number; offset: number; apiType?: string; search?: string } = {
           limit: PAGE_SIZE,
           offset
@@ -48,6 +49,9 @@ function History() {
           if (search.trim()) countOptions.search = search.trim();
           const count = await window.electronAPI.history.count(countOptions);
           setTotalCount(count);
+          // 数据减少导致当前页超出范围时自动回退
+          const maxPage = Math.max(1, Math.ceil(count / PAGE_SIZE));
+          if (currentPage > maxPage) setCurrentPage(maxPage);
         } else {
           setTotalCount(data.length < PAGE_SIZE ? offset + data.length : offset + PAGE_SIZE + 1);
         }
@@ -60,7 +64,7 @@ function History() {
     } else {
       setLoading(false);
     }
-  }, [currentPage, filter, search]);
+  }, [currentPage, filter, search, totalCount]);
 
   useEffect(() => {
     loadHistory();
@@ -120,8 +124,11 @@ function History() {
         const a = document.createElement('a');
         a.href = url;
         a.download = `tokenbao-history-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        // 延迟释放 blob URL，确保浏览器完成下载
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
       } catch (err) {
         showToast('导出失败', 'error');
       }
