@@ -46,7 +46,8 @@ function ControlPanel() {
         let port = status.port;
         if (!port && window.electronAPI?.config?.get) {
           const configPort = await window.electronAPI.config.get('proxyPort');
-          port = configPort ? parseInt(configPort, 10) : 3000;
+          const parsed = configPort ? parseInt(configPort, 10) : NaN;
+          port = Number.isFinite(parsed) && parsed >= 1024 && parsed <= 65535 ? parsed : 3000;
         }
         setProxyStatus(prev => ({
           ...prev,

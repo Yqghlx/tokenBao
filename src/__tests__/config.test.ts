@@ -155,4 +155,32 @@ describe('config 服务', () => {
       await expect(configService.setConfig('dataRetentionDays', '30days')).rejects.toThrow('配置值无效');
     });
   });
+
+  describe('优化配置验证', () => {
+    test('setOptimizationConfig 未知键应被拒绝', async () => {
+      await expect(configService.setOptimizationConfig({ unknownKey: true } as any))
+        .rejects.toThrow('未知的优化配置项');
+    });
+
+    test('setOptimizationConfig 非布尔值应被拒绝', async () => {
+      await expect(configService.setOptimizationConfig({ caching: 'yes' } as any))
+        .rejects.toThrow('必须为布尔值');
+    });
+
+    test('setOptimizationConfig 空对象应成功', async () => {
+      await expect(configService.setOptimizationConfig({})).resolves.toBeUndefined();
+    });
+
+    test('setOptimizationConfig proxyPort 边界值 1024 应被接受', async () => {
+      await expect(configService.setConfig('proxyPort', '1024')).resolves.toBeUndefined();
+    });
+
+    test('setOptimizationConfig proxyPort 边界值 65535 应被接受', async () => {
+      await expect(configService.setConfig('proxyPort', '65535')).resolves.toBeUndefined();
+    });
+
+    test('setOptimizationConfig dataRetentionDays 边界值 365 应被接受', async () => {
+      await expect(configService.setConfig('dataRetentionDays', '365')).resolves.toBeUndefined();
+    });
+  });
 });

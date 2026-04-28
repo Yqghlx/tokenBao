@@ -91,6 +91,9 @@ function Optimization() {
     try {
       await window.electronAPI?.rules?.update?.(rule.id, { enabled: !rule.enabled });
       loadConfig();
+    } catch (err) {
+      console.error('切换规则状态失败:', err);
+      showToast('操作失败', 'error');
     } finally {
       setOperatingRuleId(null);
     }

@@ -53,8 +53,7 @@ const DEFAULT_CONFIG: ConfigStore = {
 };
 
 function getStore(): ConfigStore {
-  // 深拷贝默认值，避免 loadJson 返回引用导致 DEFAULT_CONFIG 被外部修改
-  return loadJson<ConfigStore>(STORAGE_FILE, JSON.parse(JSON.stringify(DEFAULT_CONFIG)));
+  return loadJson<ConfigStore>(STORAGE_FILE, structuredClone(DEFAULT_CONFIG));
 }
 
 async function saveStore(store: ConfigStore): Promise<void> {
@@ -92,7 +91,7 @@ export async function getAllConfig(): Promise<Record<string, string>> {
 
 export async function resetConfig(): Promise<void> {
   return mutex.runExclusive(async () => {
-    await saveStore(JSON.parse(JSON.stringify(DEFAULT_CONFIG)));
+    await saveStore(structuredClone(DEFAULT_CONFIG));
   });
 }
 
