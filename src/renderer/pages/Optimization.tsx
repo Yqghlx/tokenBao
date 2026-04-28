@@ -139,20 +139,14 @@ function Optimization() {
   /** 批量启用/禁用所有规则 */
   const setAllRules = async (enabled: boolean) => {
     setOperatingRuleId(-1); // -1 表示批量操作中
-    let successCount = 0;
-    let failCount = 0;
 
-    for (const rule of rules) {
-      if (rule.enabled !== enabled) {
-        try {
-          await window.electronAPI?.rules?.update?.(rule.id, { enabled });
-          successCount++;
-        } catch (err) {
-          console.error(`规则「${rule.name}」操作失败:`, err);
-          failCount++;
-        }
-      }
-    }
+    const targets = rules.filter(rule => rule.enabled !== enabled);
+    const results = await Promise.allSettled(
+      targets.map(rule => window.electronAPI?.rules?.update?.(rule.id, { enabled }))
+    );
+
+    const failCount = results.filter(r => r.status === 'rejected').length;
+    const successCount = results.length - failCount;
 
     loadConfig();
     setOperatingRuleId(null);

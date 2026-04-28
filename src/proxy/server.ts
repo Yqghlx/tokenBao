@@ -530,9 +530,12 @@ class ProxyServer {
 
           const proxyReq = https.request({ ...options, agent: httpsAgent }, (proxyRes) => {
             const statusCode = proxyRes.statusCode || 500;
-            if (statusCode >= 400) {
+            // 熔断器仅对服务端错误和限流计入故障；4xx 客户端错误说明上游正常响应
+            if (statusCode >= 500 || statusCode === 429) {
               logProxy('error', `流式请求失败`, { requestId, statusCode });
               this.recordUpstreamFailure(apiType);
+            } else if (statusCode >= 400) {
+              this.recordUpstreamSuccess(apiType);
             } else {
               this.recordUpstreamSuccess(apiType);
             }
@@ -718,7 +721,12 @@ class ProxyServer {
           if (requestId) {
             requestTracker.failRequest(requestId, upstreamResult.body, statusCode);
           }
-          this.recordUpstreamFailure(apiType);
+          // 熔断器仅对服务端错误和限流计入故障；4xx 客户端错误说明上游正常响应
+          if (statusCode >= 500 || statusCode === 429) {
+            this.recordUpstreamFailure(apiType);
+          } else {
+            this.recordUpstreamSuccess(apiType);
+          }
         } else {
           this.recordUpstreamSuccess(apiType);
           const handleResult = handleResponse(upstreamResult.body, upstreamResult.headers as Record<string, string>, apiType);
