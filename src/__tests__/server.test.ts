@@ -289,15 +289,15 @@ describe('ProxyServer 核心逻辑', () => {
       server = new ProxyServer({ port: getRandomPort() });
       await server.start();
       server['updateBudgetSnapshot'](NaN);
-      expect(isFinite(server['budgetState'].monthlySpent)).toBe(true);
-      expect(isFinite(server['budgetState'].dailySpent)).toBe(true);
+      expect(Number.isFinite(server['budgetState'].monthlySpent)).toBe(true);
+      expect(Number.isFinite(server['budgetState'].dailySpent)).toBe(true);
     });
 
     test('Infinity cost 不应污染快照', async () => {
       server = new ProxyServer({ port: getRandomPort() });
       await server.start();
       server['updateBudgetSnapshot'](Infinity);
-      expect(isFinite(server['budgetState'].monthlySpent)).toBe(true);
+      expect(Number.isFinite(server['budgetState'].monthlySpent)).toBe(true);
     });
 
     test('负数 cost 不应被累加', async () => {

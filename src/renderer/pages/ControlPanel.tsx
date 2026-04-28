@@ -34,7 +34,8 @@ function ControlPanel() {
     caching: true,
     compression: true,
     routing: true,
-    batching: false
+    batching: false,
+    rules: true
   });
   const [loading, setLoading] = useState(true);
   const [togglingProxy, setTogglingProxy] = useState(false);
@@ -116,7 +117,8 @@ function ControlPanel() {
           caching: config.caching ?? true,
           compression: config.compression ?? true,
           routing: config.routing ?? true,
-          batching: config.batching ?? false
+          batching: config.batching ?? false,
+          rules: config.rules ?? true
         });
       } catch (err) {
         console.error('获取优化配置失败:', err);
@@ -336,6 +338,15 @@ function ControlPanel() {
               aria-label="请求批处理优化开关"
             />
             <span>请求批处理</span>
+          </label>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={optimizations.rules}
+              onChange={() => toggleOptimization('rules')}
+              aria-label="自定义替换规则开关"
+            />
+            <span>自定义替换规则</span>
           </label>
         </div>
       </div>

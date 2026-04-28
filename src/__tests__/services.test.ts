@@ -120,8 +120,8 @@ describe('stats 服务', () => {
     await statsService.recordOptimization({ apiType: 'overflow-api', model: 'overflow-model', savedTokens: 10 });
 
     const summary = await statsService.getSummary();
-    expect(isFinite(summary.byApi['overflow-api'].tokens)).toBe(true);
-    expect(isFinite(summary.byModel['overflow-model'].tokens)).toBe(true);
+    expect(Number.isFinite(summary.byApi['overflow-api'].tokens)).toBe(true);
+    expect(Number.isFinite(summary.byModel['overflow-model'].tokens)).toBe(true);
   });
 
   test('recordOptimization 应拒绝 NaN 的 savedTokens', async () => {
@@ -238,8 +238,8 @@ describe('stats 服务', () => {
     });
     const summary = await statsService.getSummary();
     // 正常数据 byApi 和 byModel 应存在且为有限值
-    expect(isFinite(summary.byApi['openai']!.cost)).toBe(true);
-    expect(isFinite(summary.byModel['gpt-4']!.cost)).toBe(true);
+    expect(Number.isFinite(summary.byApi['openai']!.cost)).toBe(true);
+    expect(Number.isFinite(summary.byModel['gpt-4']!.cost)).toBe(true);
   });
 });
 
