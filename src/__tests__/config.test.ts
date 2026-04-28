@@ -75,6 +75,7 @@ describe('config 服务', () => {
     expect(optim.compression).toBe(true);
     expect(optim.routing).toBe(true);
     expect(optim.batching).toBe(false);
+    expect(optim.rules).toBe(true);
   });
 
   test('setOptimizationConfig 应正确更新', async () => {
@@ -180,6 +181,12 @@ describe('config 服务', () => {
 
     test('setOptimizationConfig 空对象应成功', async () => {
       await expect(configService.setOptimizationConfig({})).resolves.toBeUndefined();
+    });
+
+    test('setOptimizationConfig rules 键应被接受', async () => {
+      await configService.setOptimizationConfig({ rules: false });
+      const optim = await configService.getOptimizationConfig();
+      expect(optim.rules).toBe(false);
     });
 
     test('setOptimizationConfig proxyPort 边界值 1024 应被接受', async () => {

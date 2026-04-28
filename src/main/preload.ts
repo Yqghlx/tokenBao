@@ -17,7 +17,7 @@ const VALID_BUDGET_TYPES = ['daily', 'monthly'] as const;
 const VALID_CONFIG_KEYS = ['proxyPort', 'dataRetentionDays', 'cacheTTL', 'theme'] as const;
 
 /** 优化配置允许的属性白名单 */
-const VALID_OPTIM_KEYS = ['caching', 'compression', 'routing', 'batching'] as const;
+const VALID_OPTIM_KEYS = ['caching', 'compression', 'routing', 'batching', 'rules'] as const;
 
 /** 检测字符串中是否含有控制字符（\x00-\x1F 除 \t\n\r 外，以及 \x7F） */
 function hasControlChars(str: string): boolean {

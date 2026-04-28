@@ -8,6 +8,7 @@ interface ConfigStore {
     compression: boolean;
     routing: boolean;
     batching: boolean;
+    rules: boolean;
   };
 }
 
@@ -34,7 +35,7 @@ const CONFIG_VALIDATORS: Record<string, (val: string) => boolean> = {
 };
 
 /** 优化配置允许的键白名单 */
-const VALID_OPTIM_KEYS = new Set(['caching', 'compression', 'routing', 'batching']);
+const VALID_OPTIM_KEYS = new Set(['caching', 'compression', 'routing', 'batching', 'rules']);
 
 /** 默认配置（单一来源，消除 DRY 违规） */
 const DEFAULT_CONFIG: ConfigStore = {
@@ -48,7 +49,8 @@ const DEFAULT_CONFIG: ConfigStore = {
     caching: true,
     compression: true,
     routing: true,
-    batching: false
+    batching: false,
+    rules: true
   }
 };
 

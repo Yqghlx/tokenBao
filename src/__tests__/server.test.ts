@@ -268,6 +268,20 @@ describe('ProxyServer 核心逻辑', () => {
       server.setProxyTimeout(0);
       expect(server.getProxyTimeout()).toBe(60000);
     });
+
+    test('setProxyTimeout 超过 5min 不应更新', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      server.setProxyTimeout(300001);
+      expect(server.getProxyTimeout()).toBe(60000);
+    });
+
+    test('setProxyTimeout 低于 1s 不应更新', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+      server.setProxyTimeout(500);
+      expect(server.getProxyTimeout()).toBe(60000);
+    });
   });
 
   describe('updateBudgetSnapshot 防御性', () => {

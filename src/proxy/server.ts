@@ -902,13 +902,13 @@ class ProxyServer {
     return typeof addr === 'object' && addr ? addr.port : this.port;
   }
 
-  updateOptimizationConfig(config: { caching?: boolean; compression?: boolean; routing?: boolean; batching?: boolean }): void {
+  updateOptimizationConfig(config: { caching?: boolean; compression?: boolean; routing?: boolean; batching?: boolean; rules?: boolean }): void {
     setOptimizationConfig(config);
   }
 
-  /** 设置代理请求超时（毫秒） */
+  /** 设置代理请求超时（毫秒），限制 1s-5min 防止异常值 */
   setProxyTimeout(timeout: number): void {
-    if (timeout > 0) {
+    if (timeout >= 1000 && timeout <= 300000) {
       this.proxyTimeout = timeout;
     }
   }
