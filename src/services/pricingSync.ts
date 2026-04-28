@@ -132,7 +132,7 @@ function saveCache(data: RemotePricingData, source: string): void {
 /** 从本地缓存加载远程定价（启动时使用，避免等待网络） */
 function loadCache(): CachedPricing | null {
   try {
-    return loadJson<CachedPricing | null>(STORAGE_FILE, null as unknown as CachedPricing);
+    return loadJson<CachedPricing | null>(STORAGE_FILE, null);
   } catch {
     return null;
   }

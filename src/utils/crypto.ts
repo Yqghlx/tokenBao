@@ -35,6 +35,17 @@ function getEncryptionKey(): Buffer {
 
   try {
     if (fs.existsSync(keyPath)) {
+      // 校验密钥文件权限未被意外放宽，防止密钥暴露
+      try {
+        const stat = fs.statSync(keyPath);
+        const mode = stat.mode & 0o777;
+        if (mode !== 0o600) {
+          console.warn(`密钥文件权限不安全 (${mode.toString(8)})，预期 600，已自动修复`);
+          fs.chmodSync(keyPath, 0o600);
+        }
+      } catch {
+        // 权限检查失败不影响正常读取
+      }
       const savedKey = fs.readFileSync(keyPath, 'utf8').trim();
       if (isValidHexKey(savedKey)) {
         cachedKey = Buffer.from(savedKey, 'hex');

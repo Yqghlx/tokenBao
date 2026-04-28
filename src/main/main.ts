@@ -50,7 +50,9 @@ async function restartProxy(): Promise<void> {
   }
 }
 
-/** 每 10 秒检查代理服务器健康状态 */
+/** 健康检查间隔（毫秒） */
+const HEALTH_CHECK_INTERVAL = 10000;
+
 let healthCheckTimer: ReturnType<typeof setInterval> | null = null;
 
 function startHealthCheck(): void {
@@ -59,7 +61,7 @@ function startHealthCheck(): void {
     if (proxyServer && !proxyServer.isRunning()) {
       restartProxy().catch(err => console.error('健康检查重启失败:', err));
     }
-  }, 10000);
+  }, HEALTH_CHECK_INTERVAL);
 }
 
 function stopHealthCheck(): void {

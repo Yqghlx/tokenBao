@@ -130,6 +130,16 @@ const BUILTIN_RULES: DLPRule[] = [
     enabled: false,
     severity: 'normal',
     maskMode: 'mask'
+  },
+  // 美国社会安全号码（SSN：###-##-#### 或 #########）
+  {
+    id: 'us_ssn',
+    name: '美国社会安全号码',
+    pattern: /\b(?!000|666|9\d{2})\d{3}[-\s]?(?!00)\d{2}[-\s]?(?!0000)\d{4}\b/g,
+    replacement: '',
+    enabled: true,
+    severity: 'high',
+    maskMode: 'mask'
   }
 ];
 
@@ -156,6 +166,8 @@ function maskContent(match: string, rule: DLPRule): string {
     }
     case 'cn_id_card':
       return match.slice(0, 4) + '**********' + match.slice(-4);
+    case 'us_ssn':
+      return '***-**-' + match.slice(-4);
     case 'ipv4': {
       const parts = match.split('.');
       // 防御异常 IP 格式
