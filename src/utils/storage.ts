@@ -98,8 +98,14 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
             return structuredClone(defaultValue) as T;
           }
         }
-        // 恢复成功，用备份数据覆盖损坏的主文件
-        fs.writeFileSync(filePath, backupContent, 'utf-8');
+        // 恢复成功，用备份数据覆盖损坏的主文件（含 fsync 持久化保证）
+        const fd = fs.openSync(filePath, 'w');
+        try {
+          fs.writeFileSync(fd, backupContent, 'utf-8');
+          fs.fsyncSync(fd);
+        } finally {
+          fs.closeSync(fd);
+        }
         console.info(`从备份恢复 ${filename} 成功`);
         return restored;
       }

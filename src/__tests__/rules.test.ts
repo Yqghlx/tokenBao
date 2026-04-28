@@ -230,6 +230,14 @@ describe('rules 优化模块', () => {
     expect(() => rulesModule.updateRule(rule.id, { type: 'invalid' as any })).toThrow('不支持的规则类型');
   });
 
+  test('updateRule priority 小数应被拒绝', () => {
+    const rule = rulesModule.addRule({
+      name: 'test', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 0
+    });
+    expect(() => rulesModule.updateRule(rule.id, { priority: 1.5 })).toThrow('整数');
+    expect(() => rulesModule.updateRule(rule.id, { priority: 0.1 })).toThrow('整数');
+  });
+
   test('addRule replacement 超长应被拒绝', () => {
     expect(() => {
       rulesModule.addRule({

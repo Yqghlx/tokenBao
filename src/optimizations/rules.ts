@@ -122,8 +122,8 @@ export function getRule(id: number): Rule | undefined {
 export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined {
   const rule = rules.get(id);
   if (rule) {
-    // 校验 priority 范围
-    if (updates.priority !== undefined && (typeof updates.priority !== 'number' || updates.priority < 0 || updates.priority > 1000)) {
+    // 校验 priority 范围（与 addRule 一致：必须为整数）
+    if (updates.priority !== undefined && (!Number.isInteger(updates.priority) || updates.priority < 0 || updates.priority > 1000)) {
       throw new Error('优先级范围应为 0-1000 的整数');
     }
     // 校验 pattern 长度 + 正则语法（与 addRule 保持一致）
