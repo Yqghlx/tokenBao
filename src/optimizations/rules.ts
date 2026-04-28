@@ -77,6 +77,14 @@ export function validatePattern(pattern: string): string | null {
 }
 
 export function addRule(rule: Omit<Rule, 'id'>): Rule {
+  // 校验 name 字段
+  if (!rule.name || typeof rule.name !== 'string' || rule.name.trim().length === 0 || rule.name.length > 100) {
+    throw new Error('规则名称无效（1-100 字符）');
+  }
+  // 校验 enabled 字段
+  if (typeof rule.enabled !== 'boolean') {
+    throw new Error('enabled 必须为布尔值');
+  }
   // 类型为 replace 时验证正则语法
   if (rule.type === 'replace') {
     const err = validatePattern(rule.pattern);
@@ -119,6 +127,18 @@ export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined
     // 校验 type 合法性
     if (updates.type !== undefined && !['replace', 'filter', 'route'].includes(updates.type)) {
       throw new Error('不支持的规则类型');
+    }
+    // 校验 name 长度
+    if (updates.name !== undefined && (typeof updates.name !== 'string' || updates.name.trim().length === 0 || updates.name.length > 100)) {
+      throw new Error('规则名称无效（1-100 字符）');
+    }
+    // 校验 replacement 长度
+    if (updates.replacement !== undefined && (typeof updates.replacement !== 'string' || updates.replacement.length > 1000)) {
+      throw new Error('替换文本不能超过 1000 字符');
+    }
+    // 校验 enabled 类型
+    if (updates.enabled !== undefined && typeof updates.enabled !== 'boolean') {
+      throw new Error('enabled 必须为布尔值');
     }
     Object.assign(rule, updates);
     sortedRulesCache = null;

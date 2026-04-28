@@ -496,7 +496,15 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('rules:update', async (_, id: number, updates: Record<string, unknown>) => {
     try {
-      const result = rulesModule.updateRule(id, updates);
+      // 字段白名单校验，防止注入非法字段
+      const allowedFields = new Set(['name', 'type', 'pattern', 'replacement', 'enabled', 'priority']);
+      const safeUpdates: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.has(key)) {
+          safeUpdates[key] = value;
+        }
+      }
+      const result = rulesModule.updateRule(id, safeUpdates);
       return result ? { success: true, rule: result } : { success: false, error: '规则不存在' };
     } catch (err) {
       console.error('rules:update 错误:', err);

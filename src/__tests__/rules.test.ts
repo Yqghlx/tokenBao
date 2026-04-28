@@ -260,4 +260,36 @@ describe('rules 优化模块', () => {
     rulesModule.deleteRule(ruleB.id);
     expect(rulesModule.applyRules('x')).toBe('x');
   });
+
+  test('addRule 空 name 应被拒绝', () => {
+    expect(() => rulesModule.addRule({
+      name: '', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 0
+    })).toThrow('规则名称无效');
+  });
+
+  test('addRule 过长 name 应被拒绝', () => {
+    expect(() => rulesModule.addRule({
+      name: 'x'.repeat(101), type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 0
+    })).toThrow('规则名称无效');
+  });
+
+  test('addRule enabled 非布尔应被拒绝', () => {
+    expect(() => rulesModule.addRule({
+      name: 'test', type: 'replace', pattern: 'a', replacement: 'b', enabled: 'yes' as any, priority: 0
+    })).toThrow('enabled 必须为布尔值');
+  });
+
+  test('updateRule 过长 name 应被拒绝', () => {
+    const rule = rulesModule.addRule({
+      name: 'test', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 0
+    });
+    expect(() => rulesModule.updateRule(rule.id, { name: 'y'.repeat(101) })).toThrow('规则名称无效');
+  });
+
+  test('updateRule 过长 replacement 应被拒绝', () => {
+    const rule = rulesModule.addRule({
+      name: 'test', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 0
+    });
+    expect(() => rulesModule.updateRule(rule.id, { replacement: 'r'.repeat(1001) })).toThrow('替换文本');
+  });
 });

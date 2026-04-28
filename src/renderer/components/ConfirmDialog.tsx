@@ -46,12 +46,16 @@ function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLa
     }
   }, []);
 
-  // 打开时保存当前焦点并聚焦确认按钮，关闭时恢复焦点
+  // 打开时保存当前焦点并聚焦确认按钮，锁定背景滚动；关闭时恢复
   useEffect(() => {
     if (!open) return;
     previousFocusRef.current = document.activeElement as HTMLElement;
     confirmRef.current?.focus();
+    // 锁定背景滚动，防止对话框打开时页面被滚动
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     return () => {
+      document.body.style.overflow = prevOverflow;
       // 对话框关闭后将焦点恢复到触发元素，符合 WAI-ARIA 对话框模式
       if (previousFocusRef.current && 'focus' in previousFocusRef.current) {
         previousFocusRef.current.focus();

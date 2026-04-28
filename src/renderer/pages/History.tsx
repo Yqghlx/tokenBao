@@ -249,7 +249,7 @@ function History() {
             ) : (
               history.map((item) => (
                 <tr key={item.id}>
-                  <td>{new Date(item.timestamp).toLocaleString()}</td>
+                  <td>{(() => { const d = new Date(item.timestamp); return Number.isFinite(d.getTime()) ? d.toLocaleString() : item.timestamp; })()}</td>
                   <td>{item.apiType}</td>
                   <td>{item.model}</td>
                   <td>{item.inputTokens}</td>
