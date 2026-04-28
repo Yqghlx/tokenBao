@@ -105,7 +105,7 @@ const BUILTIN_RULES: DLPRule[] = [
   {
     id: 'private_key',
     name: '私钥',
-    pattern: /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----/g,
+    pattern: /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----[\s\S]{1,10000}?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----/g,
     replacement: '----- PRIVATE KEY REDACTED -----',
     enabled: true,
     severity: 'high',
@@ -150,13 +150,16 @@ function maskContent(match: string, rule: DLPRule): string {
       return match.slice(0, 3) + '****' + match.slice(-4);
     case 'email': {
       const atIdx = match.indexOf('@');
-      if (atIdx <= 1) return '***' + match.slice(atIdx);
+      // 防御异常匹配（无 @ 或 @ 在首位），回退到通用脱敏
+      if (atIdx <= 0) return match.slice(0, 3) + '****' + match.slice(-3);
       return match.slice(0, 2) + '***' + match.slice(atIdx);
     }
     case 'cn_id_card':
       return match.slice(0, 4) + '**********' + match.slice(-4);
     case 'ipv4': {
       const parts = match.split('.');
+      // 防御异常 IP 格式
+      if (parts.length !== 4) return match.slice(0, 3) + '****' + match.slice(-3);
       return parts[0] + '.***.***.' + parts[3];
     }
     default:

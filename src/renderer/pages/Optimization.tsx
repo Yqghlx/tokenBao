@@ -384,11 +384,13 @@ function Optimization() {
                 }} />
               </div>
               <div className="form-actions">
-                <button className="btn-primary btn-sm" onClick={async () => {
+                <button className="btn-primary btn-sm" disabled={operatingRuleId !== null} onClick={async () => {
                   if (!newRule.name || !newRule.pattern) {
                     showToast('请填写规则名称和正则表达式', 'error');
                     return;
                   }
+                  setOperatingRuleId(-2);
+                  try {
                   const result = await window.electronAPI?.rules?.add?.({
                     name: newRule.name, type: 'replace', pattern: newRule.pattern,
                     replacement: newRule.replacement, enabled: true, priority: newRule.priority
@@ -401,7 +403,10 @@ function Optimization() {
                   } else {
                     showToast(result?.error || '添加失败', 'error');
                   }
-                }}>保存</button>
+                  } finally {
+                    setOperatingRuleId(null);
+                  }
+                }}>{operatingRuleId === -2 ? '保存中...' : '保存'}</button>
                 <button className="btn-secondary btn-sm" onClick={() => setShowRuleForm(false)}>取消</button>
               </div>
             </div>

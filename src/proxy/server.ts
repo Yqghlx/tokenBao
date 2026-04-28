@@ -641,9 +641,9 @@ class ProxyServer {
         const maxAttempts = requestId ? requestTracker.MAX_RETRIES + 1 : 1;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          // 客户端已断连或响应已结束时放弃重试，避免浪费上游 API 资源
-          if (clientRes.destroyed || clientRes.writableEnded) {
-            logProxy('info', '客户端连接不可用，终止重试', { requestId, attempt });
+          // 客户端已断连、响应已结束或代理正在关闭时放弃重试
+          if (clientRes.destroyed || clientRes.writableEnded || this.shuttingDown) {
+            logProxy('info', '连接不可用或代理正在关闭，终止重试', { requestId, attempt, shuttingDown: this.shuttingDown });
             break;
           }
           try {
