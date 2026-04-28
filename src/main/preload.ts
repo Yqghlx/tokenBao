@@ -226,7 +226,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
           return Promise.resolve({ success: false, error: `不允许更新的字段: ${key}` });
         }
       }
-      // 更新 pattern 时校验语法
+      // 更新 name 时校验长度
+      if (updates.name !== undefined) {
+        if (typeof updates.name !== 'string' || updates.name.length > 100) {
+          return Promise.resolve({ success: false, error: '规则名称无效' });
+        }
+      }
+      // 更新 pattern 时校验语法和长度
       if (updates.pattern !== undefined) {
         if (typeof updates.pattern !== 'string' || updates.pattern.length > 500) {
           return Promise.resolve({ success: false, error: '正则表达式过长' });
@@ -235,6 +241,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
           new RegExp(updates.pattern as string);
         } catch {
           return Promise.resolve({ success: false, error: '正则表达式语法无效' });
+        }
+      }
+      // 更新 replacement 时校验长度
+      if (updates.replacement !== undefined) {
+        if (typeof updates.replacement !== 'string' || updates.replacement.length > 1000) {
+          return Promise.resolve({ success: false, error: '替换文本过长' });
         }
       }
       return ipcRenderer.invoke('rules:update', id, updates);

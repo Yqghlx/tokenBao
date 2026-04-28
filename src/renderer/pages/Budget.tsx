@@ -152,7 +152,7 @@ function Budget() {
     <div className="page">
       <div className="page-header">
         <h2>预算管理</h2>
-        <button className="btn-secondary" onClick={loadBudget}>刷新</button>
+        <button className="btn-secondary" onClick={loadBudget} disabled={saving}>刷新</button>
       </div>
 
       <div className="stats-grid">

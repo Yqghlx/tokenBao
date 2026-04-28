@@ -26,6 +26,7 @@ function History() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [exporting, setExporting] = useState(false);
   // 用 ref 追踪 totalCount，避免作为 loadHistory 依赖导致循环更新
   const totalCountRef = useRef(0);
 
@@ -84,7 +85,9 @@ function History() {
   }, [search, filter]);
 
   const exportCsv = async () => {
+    if (exporting) return;
     if (window.electronAPI?.history?.list) {
+      setExporting(true);
       try {
         // 导出时全量拉取（服务端过滤）
         const options: { limit: number; offset: number; apiType?: string; search?: string } = {
@@ -138,6 +141,8 @@ function History() {
         showToast(`已导出 ${allData.length} 条记录`, 'success');
       } catch (err) {
         showToast('导出失败', 'error');
+      } finally {
+        setExporting(false);
       }
     }
   };
@@ -193,7 +198,7 @@ function History() {
           <option value="openai">OpenAI</option>
           <option value="anthropic">Anthropic</option>
         </select>
-        <button className="btn-secondary" onClick={exportCsv}>导出 CSV</button>
+        <button className="btn-secondary" onClick={exportCsv} disabled={exporting}>{exporting ? '导出中...' : '导出 CSV'}</button>
         <button className="btn-secondary" onClick={() => setShowClearConfirm(true)}>清除历史</button>
         <span className="record-count">
           {totalCount > 0 ? `共 ${totalCount} 条记录` : '暂无记录'}

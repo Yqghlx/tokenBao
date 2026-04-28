@@ -20,8 +20,8 @@ async function restartProxy(): Promise<void> {
   console.warn(`代理服务器异常停止，尝试自动重启 (端口: ${port})...`);
   try {
     await proxyServer.stop();
-  } catch {
-    /* 停止失败忽略 */
+  } catch (err) {
+    console.warn('重启时代理停止失败:', (err as Error).message);
   }
   proxyServer = null;
 
@@ -129,7 +129,7 @@ function registerIpcHandlers(): void {
       // 重入保护：代理已在运行时先停止旧实例
       if (proxyServer) {
         stopHealthCheck();
-        try { await proxyServer.stop(); } catch { /* 停止失败忽略 */ }
+        try { await proxyServer.stop(); } catch (err) { console.warn('重入停止旧代理失败:', (err as Error).message); }
         proxyServer = null;
       }
 
@@ -507,8 +507,8 @@ app.on('before-quit', async () => {
   if (proxyServer) {
     try {
       await proxyServer.stop();
-    } catch {
-      /* 退出时忽略停止失败 */
+    } catch (err) {
+      console.warn('退出时代理停止失败:', (err as Error).message);
     }
     proxyServer = null;
   }
