@@ -46,6 +46,13 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, 'utf-8');
       const data = JSON.parse(content) as T;
+      // 结构验证：期望对象类型但实际为数组或原始类型时回退默认值
+      if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+          console.warn(`加载 ${filename} 结构异常（期望对象，实际为 ${Array.isArray(data) ? '数组' : typeof data}），使用默认值`);
+          return JSON.parse(JSON.stringify(defaultValue)) as T;
+        }
+      }
       // 加载成功后创建备份，供未来损坏时恢复
       try {
         fs.writeFileSync(backupPath, content, 'utf-8');
@@ -62,6 +69,13 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
       if (fs.existsSync(backupPath)) {
         const backupContent = fs.readFileSync(backupPath, 'utf-8');
         const restored = JSON.parse(backupContent) as T;
+        // 恢复时同样验证结构
+        if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
+          if (typeof restored !== 'object' || restored === null || Array.isArray(restored)) {
+            console.warn(`备份 ${filename} 结构也异常，使用默认值`);
+            return JSON.parse(JSON.stringify(defaultValue)) as T;
+          }
+        }
         // 恢复成功，用备份数据覆盖损坏的主文件
         fs.writeFileSync(filePath, backupContent, 'utf-8');
         console.log(`从备份恢复 ${filename} 成功`);

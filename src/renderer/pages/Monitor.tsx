@@ -76,8 +76,11 @@ function Monitor() {
       const a = document.createElement('a');
       a.href = url;
       a.download = `tokenbao-stats-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      // 延迟释放 blob URL，确保浏览器完成下载
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       showToast('统计数据已导出', 'success');
     } catch (err) {
       console.error('导出统计数据失败:', err);

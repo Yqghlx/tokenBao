@@ -62,7 +62,11 @@ async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
 
   const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
   const before = store.requests.length;
-  store.requests = store.requests.filter(r => new Date(r.timestamp).getTime() >= cutoff);
+  store.requests = store.requests.filter(r => {
+    const ts = new Date(r.timestamp).getTime();
+    // 无效 timestamp（NaN）保留，避免误删数据
+    return isNaN(ts) || ts >= cutoff;
+  });
 
   if (store.requests.length < before) {
     console.log(`历史记录清理: 删除 ${before - store.requests.length} 条过期记录（保留 ${retentionDays} 天）`);

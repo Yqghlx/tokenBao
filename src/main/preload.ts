@@ -87,6 +87,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       if (hasControlChars(key)) {
         return Promise.resolve({ success: false, error: '密钥包含非法控制字符' });
       }
+      // 校验 Key 前缀格式
+      if (type === 'openai' && !key.startsWith('sk-')) {
+        return Promise.resolve({ success: false, error: 'OpenAI API Key 应以 sk- 开头' });
+      }
+      if (type === 'anthropic' && !key.startsWith('sk-ant-')) {
+        return Promise.resolve({ success: false, error: 'Anthropic API Key 应以 sk-ant- 开头' });
+      }
       return ipcRenderer.invoke('apiKeys:add', name, type, key);
     },
     delete: (id: number) => {
