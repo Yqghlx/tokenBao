@@ -183,4 +183,91 @@ describe('集成测试', () => {
     // 清理
     (server as any).recordUpstreamSuccess('unknown');
   });
+
+  test('非 JSON Content-Type 的 POST 应返回 415', async () => {
+    const response = await new Promise<{ statusCode: number; body: string }>((resolve) => {
+      const req = http.request({
+        hostname: 'localhost',
+        port: 18091,
+        path: '/v1/chat/completions',
+        method: 'POST',
+        headers: { 'Content-Type': 'text/xml' },
+        timeout: 5000
+      }, (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => { resolve({ statusCode: res.statusCode ?? 0, body }); });
+      });
+      req.on('error', () => resolve({ statusCode: 0, body: '' }));
+      req.write('<xml>test</xml>');
+      req.end();
+    });
+    expect(response.statusCode).toBe(415);
+    const data = JSON.parse(response.body);
+    expect(data.error).toBe('Unsupported Media Type');
+  });
+
+  test('熔断器冷却后应自动恢复', () => {
+    // 触发 openai 熔断器
+    for (let i = 0; i < 6; i++) {
+      (server as any).recordUpstreamFailure('openai');
+    }
+    expect((server as any).isCircuitOpen('openai')).toBe(true);
+
+    // 手动将 openUntil 设为已过期的时间
+    const cb = (server as any).getCircuitBreaker('openai');
+    cb.openUntil = Date.now() - 1000;
+    // 冷却已过，熔断器应自动关闭
+    expect((server as any).isCircuitOpen('openai')).toBe(false);
+
+    // 清理
+    (server as any).recordUpstreamSuccess('openai');
+  });
+
+  test('熔断器成功请求应重置计数', () => {
+    // 积累部分失败
+    for (let i = 0; i < 3; i++) {
+      (server as any).recordUpstreamFailure('anthropic');
+    }
+    const cb = (server as any).getCircuitBreaker('anthropic');
+    expect(cb.failures).toBe(3);
+
+    // 成功请求应重置
+    (server as any).recordUpstreamSuccess('anthropic');
+    expect(cb.failures).toBe(0);
+    expect(cb.openUntil).toBe(0);
+  });
+
+  test('GET /v1/models 应跳过预算检查（只读请求）', async () => {
+    // 将预算设为超限状态
+    (server as any).budgetState.monthlyLimit = 1;
+    (server as any).budgetState.monthlySpent = 2;
+
+    const response = await new Promise<number>((resolve) => {
+      http.get('http://localhost:18091/v1/models', (res) => {
+        resolve(res.statusCode ?? 0);
+      }).on('error', () => resolve(0));
+    });
+
+    // 只读 GET 请求应跳过预算检查，不会被 429 拦截
+    // 实际返回取决于上游 API 响应（可能是 401/502），但不应是 429
+    expect(response).not.toBe(429);
+
+    // 恢复
+    (server as any).budgetState.monthlyLimit = 100;
+    (server as any).budgetState.monthlySpent = 0;
+  });
+
+  test('GET / 应返回健康状态', async () => {
+    const response = await new Promise<{ statusCode: number; body: string }>((resolve) => {
+      http.get('http://localhost:18091/', (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => { resolve({ statusCode: res.statusCode ?? 0, body }); });
+      }).on('error', () => resolve({ statusCode: 0, body: '' }));
+    });
+    expect(response.statusCode).toBe(200);
+    const data = JSON.parse(response.body);
+    expect(data.status).toBe('healthy');
+  });
 });

@@ -27,6 +27,8 @@ const defaultOptions: BatchOptions = {
   maxBatchSize: 10
 };
 
+const MAX_BATCH_HISTORY = 50; // 历史记录上限，防止长时间运行内存泄漏
+
 const pendingBatch: RequestLog[] = [];
 const batchHistory: BatchStats[] = [];
 let batchTimer: NodeJS.Timeout | null = null;
@@ -108,6 +110,10 @@ export function flushBatch(): BatchStats | null {
   };
   
   batchHistory.push(stats);
+  // FIFO 淘汰最旧记录，防止长时间运行内存泄漏
+  if (batchHistory.length > MAX_BATCH_HISTORY) {
+    batchHistory.splice(0, batchHistory.length - MAX_BATCH_HISTORY);
+  }
   
   console.log(`批次完成: ${batchId}, 请求=${requestCount}, 总 Tokens=${totalTokens}, 平均=${avgTokens}`);
   
