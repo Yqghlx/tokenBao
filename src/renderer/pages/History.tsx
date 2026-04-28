@@ -182,6 +182,7 @@ function History() {
         setHistory([]);
         setCurrentPage(1);
         setTotalCount(0);
+        totalCountRef.current = 0;
         showToast('历史记录已清除', 'success');
       } catch (err) {
         console.error('清除历史记录失败:', err);

@@ -84,10 +84,14 @@ function ApiKeys() {
     if (window.electronAPI?.apiKeys?.delete) {
       setDeletingId(id);
       try {
-        await window.electronAPI.apiKeys.delete(id);
-        setConfirmDeleteId(null);
-        loadApiKeys();
-        showToast('API Key 已删除', 'info');
+        const result = await window.electronAPI.apiKeys.delete(id);
+        if (result) {
+          setConfirmDeleteId(null);
+          loadApiKeys();
+          showToast('API Key 已删除', 'info');
+        } else {
+          showToast('删除失败：API Key 不存在', 'error');
+        }
       } catch (err) {
         console.error('删除 API Key 失败:', err);
         showToast('删除失败', 'error');

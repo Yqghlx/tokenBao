@@ -17,6 +17,7 @@ interface ConfirmDialogProps {
  */
 function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLabel = '取消', danger, onConfirm, onCancel }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   // 记录对话框打开前的焦点元素，关闭后恢复
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -46,11 +47,16 @@ function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLa
     }
   }, []);
 
-  // 打开时保存当前焦点并聚焦确认按钮，锁定背景滚动；关闭时恢复
+  // 打开时保存当前焦点并聚焦按钮，锁定背景滚动；关闭时恢复
+  // 危险操作（danger=true）聚焦取消按钮，防止快速 Enter 误确认
   useEffect(() => {
     if (!open) return;
     previousFocusRef.current = document.activeElement as HTMLElement;
-    confirmRef.current?.focus();
+    if (danger) {
+      cancelRef.current?.focus();
+    } else {
+      confirmRef.current?.focus();
+    }
     // 锁定背景滚动，防止对话框打开时页面被滚动
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -78,7 +84,7 @@ function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLa
         <h3 id="confirm-title">{title}</h3>
         <div id="confirm-message">{message}</div>
         <div className="confirm-actions">
-          <button className="btn-secondary btn-sm" onClick={onCancel}>{cancelLabel}</button>
+          <button ref={cancelRef} className="btn-secondary btn-sm" onClick={onCancel}>{cancelLabel}</button>
           <button ref={confirmRef} className={`btn-primary btn-sm ${danger ? 'btn-danger' : ''}`} onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
