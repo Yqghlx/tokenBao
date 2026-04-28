@@ -18,7 +18,8 @@ function Optimization() {
     caching: true,
     compression: true,
     routing: true,
-    batching: false
+    batching: false,
+    rules: true
   });
   const [cacheTTL, setCacheTTL] = useState('5min');
   const [rules, setRules] = useState<RuleItem[]>([]);
@@ -41,7 +42,8 @@ function Optimization() {
           caching: cfg.caching ?? true,
           compression: cfg.compression ?? true,
           routing: cfg.routing ?? true,
-          batching: cfg.batching ?? false
+          batching: cfg.batching ?? false,
+          rules: cfg.rules ?? true
         });
       }
       if (results[1].status === 'fulfilled') {
@@ -247,6 +249,18 @@ function Optimization() {
 
         <section className="optim-section">
           <h3>自定义替换规则</h3>
+          <div className="form-group">
+            <label className="toggle-row">
+              <input
+                type="checkbox"
+                checked={optimizationConfig.rules}
+                onChange={(e) => updateConfig('rules', e.target.checked)}
+                aria-label="启用自定义替换规则"
+              />
+              <span>启用自定义替换规则</span>
+            </label>
+            <span className="feature-desc">通过正则表达式替换请求内容中的文本，优先级越高越先执行。</span>
+          </div>
           <span className="feature-desc">通过正则表达式替换请求内容中的文本，优先级越高越先执行。</span>
           <div className="form-actions">
             <button className="btn-primary btn-sm" onClick={() => setShowRuleForm(true)}>

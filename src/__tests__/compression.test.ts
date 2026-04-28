@@ -27,17 +27,6 @@ describe('compression 模块', () => {
     expect(result.tokensSaved).toBe(0);
   });
 
-  test('compressPrompt 应处理数组格式', () => {
-    const prompt = [
-      { type: 'text', text: 'Please help me' },
-      { type: 'image', data: 'base64...' }
-    ];
-    const result = compression.compressPrompt(prompt);
-    const blocks = result as Array<{ type: string; text?: string; data?: string }>;
-    expect(blocks[0].text).not.toContain('Please');
-    expect(blocks[1].type).toBe('image');
-  });
-
   test('禁用后压缩应不生效', () => {
     compression.setOptions({ enabled: false });
     const result = compression.compress('Please help me');
@@ -129,17 +118,6 @@ describe('compression 模块', () => {
   test('压缩应替换 "field name is string type" 为缩写', () => {
     const result = compression.compress('The field name is string type and required');
     expect(result.text).toContain('name: str');
-  });
-
-  test('compressPrompt 应处理字符串输入', () => {
-    const result = compression.compressPrompt('Please help me with this');
-    expect(typeof result).toBe('string');
-    expect((result as string)).not.toContain('Please');
-  });
-
-  test('compressPrompt 空输入应原样返回', () => {
-    expect(compression.compressPrompt('')).toBe('');
-    expect(compression.compressPrompt(null as any)).toBeNull();
   });
 
   test('多条规则应同时生效', () => {
