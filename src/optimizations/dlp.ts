@@ -145,6 +145,8 @@ const BUILTIN_RULES: DLPRule[] = [
 
 /** 安全阈值：单次替换操作上限，防止极端输入导致性能问题 */
 const MAX_REPLACE_PER_RULE = 100;
+/** 扫描文本最大长度，超出跳过避免正则回溯消耗过多 CPU */
+const MAX_SCAN_TEXT_SIZE = 1_000_000;
 
 /**
  * 脱敏替换函数，将匹配内容按规则替换为掩码
@@ -186,6 +188,11 @@ function maskContent(match: string, rule: DLPRule): string {
  */
 export function scan(text: string): DLPScanResult {
   if (!defaultOptions.enabled || !text) {
+    return { text, detections: [], modified: false };
+  }
+  // 超大文本跳过扫描，避免多规则正则回溯消耗过多 CPU
+  if (text.length > MAX_SCAN_TEXT_SIZE) {
+    console.warn(`DLP: 文本超过 ${MAX_SCAN_TEXT_SIZE} 字符，跳过扫描`);
     return { text, detections: [], modified: false };
   }
 

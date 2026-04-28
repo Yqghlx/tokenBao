@@ -126,9 +126,13 @@ export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined
     if (updates.priority !== undefined && (typeof updates.priority !== 'number' || updates.priority < 0 || updates.priority > 1000)) {
       throw new Error('优先级范围应为 0-1000 的整数');
     }
-    // 校验 pattern 格式
+    // 校验 pattern 长度 + 正则语法（与 addRule 保持一致）
     if (updates.pattern !== undefined && typeof updates.pattern === 'string' && updates.pattern.length > 500) {
       throw new Error('正则表达式过长');
+    }
+    if (updates.pattern !== undefined && typeof updates.pattern === 'string') {
+      const err = validatePattern(updates.pattern);
+      if (err) throw new Error(err);
     }
     // 校验 type 合法性
     if (updates.type !== undefined && !['replace', 'filter', 'route'].includes(updates.type)) {
@@ -150,7 +154,7 @@ export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined
     sortedRulesCache = null;
     saveToStorage();
   }
-  return rule;
+  return rule ? { ...rule } : undefined;
 }
 
 export function deleteRule(id: number): boolean {

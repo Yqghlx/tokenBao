@@ -57,7 +57,8 @@ function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLa
     return () => {
       document.body.style.overflow = prevOverflow;
       // 对话框关闭后将焦点恢复到触发元素，符合 WAI-ARIA 对话框模式
-      if (previousFocusRef.current && 'focus' in previousFocusRef.current) {
+      // isConnected 检查：快速开关多个对话框时，前一个触发元素可能已从 DOM 移除
+      if (previousFocusRef.current && previousFocusRef.current.isConnected) {
         previousFocusRef.current.focus();
       }
     };
