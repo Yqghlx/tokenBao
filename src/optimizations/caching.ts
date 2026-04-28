@@ -61,14 +61,16 @@ function evictIfNeeded(): void {
   }
 }
 
-function saveToStorage(): void {
+function saveToStorage(): boolean {
   try {
     const patterns = Array.from(cachePatterns.entries()).map(([key, value]) => ({
       key, content: value.content, timestamp: value.timestamp
     }));
     saveJson(STORAGE_FILE, { patterns });
+    return true;
   } catch (err) {
     console.warn('缓存数据写入失败:', (err as Error).message);
+    return false;
   }
 }
 
@@ -82,8 +84,10 @@ function scheduleSave(): void {
   saveTimer = setTimeout(() => {
     saveTimer = null;
     if (isDirty) {
-      isDirty = false;
-      saveToStorage();
+      // 写入成功后再清除脏标记，失败时保留以便下次重试
+      if (saveToStorage()) {
+        isDirty = false;
+      }
     }
   }, 500);
   // 不阻塞进程退出
@@ -103,8 +107,9 @@ function flushSave(): void {
     saveTimer = null;
   }
   if (isDirty) {
-    isDirty = false;
-    saveToStorage();
+    if (saveToStorage()) {
+      isDirty = false;
+    }
   }
 }
 
