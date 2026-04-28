@@ -57,6 +57,10 @@ export function addToBatch(request: RequestLog): void {
     batchTimer = setTimeout(() => {
       flushBatch();
     }, defaultOptions.windowMs);
+    // 不阻塞进程退出
+    if (batchTimer && typeof batchTimer === 'object' && 'unref' in batchTimer) {
+      batchTimer.unref();
+    }
   }
 }
 
@@ -95,8 +99,9 @@ export function flushBatch(): BatchStats | null {
   const requestCount = pendingBatch.length;
   const totalTokens = pendingBatch.reduce((sum, r) => sum + (r.inputTokens || 0) + (r.outputTokens || 0), 0);
   const avgTokens = Math.round(totalTokens / requestCount);
-  const startTime: number = pendingBatch[0]?.timestamp ? 
-    (typeof pendingBatch[0].timestamp === 'number' ? pendingBatch[0].timestamp : Date.now()) 
+  // timestamp 是 ISO 字符串，解析为毫秒数
+  const startTime: number = pendingBatch[0]?.timestamp
+    ? new Date(pendingBatch[0].timestamp).getTime()
     : Date.now();
   const endTime = Date.now();
   

@@ -58,10 +58,14 @@ function evictIfNeeded(): void {
 }
 
 function saveToStorage(): void {
-  const patterns = Array.from(cachePatterns.entries()).map(([key, value]) => ({
-    key, content: value.content, timestamp: value.timestamp
-  }));
-  saveJson(STORAGE_FILE, { patterns });
+  try {
+    const patterns = Array.from(cachePatterns.entries()).map(([key, value]) => ({
+      key, content: value.content, timestamp: value.timestamp
+    }));
+    saveJson(STORAGE_FILE, { patterns });
+  } catch (err) {
+    console.warn('缓存数据写入失败:', (err as Error).message);
+  }
 }
 
 /** 防抖写入：标记脏数据，延迟 500ms 后一次性写入 */

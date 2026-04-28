@@ -53,7 +53,7 @@ function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLa
     <div className="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message" onClick={onCancel}>
       <div className="confirm-dialog" ref={dialogRef} onClick={(e) => e.stopPropagation()}>
         <h3 id="confirm-title">{title}</h3>
-        <p id="confirm-message">{message}</p>
+        <div id="confirm-message">{message}</div>
         <div className="confirm-actions">
           <button className="btn-secondary btn-sm" onClick={onCancel}>{cancelLabel}</button>
           <button ref={confirmRef} className={`btn-primary btn-sm ${danger ? 'btn-danger' : ''}`} onClick={onConfirm}>{confirmLabel}</button>
