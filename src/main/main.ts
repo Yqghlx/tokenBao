@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, safeStorage } from 'electron';
 import * as path from 'path';
 import ProxyServer from '../proxy/server';
 import * as configService from '../services/config';
@@ -9,6 +9,7 @@ import * as statsService from '../services/stats';
 import * as rulesModule from '../optimizations/rules';
 import cachingModule from '../optimizations/caching';
 import * as pricingSync from '../services/pricingSync';
+import { initSafeStorage, isSafeStorageAvailable } from '../utils/safeCrypto';
 import { getOptimizationConfig, setOptimizationConfig } from '../services/config';
 
 let mainWindow: BrowserWindow | null = null;
@@ -479,6 +480,11 @@ function registerIpcHandlers(): void {
 }
 
 app.whenReady().then(() => {
+  // 初始化系统级安全存储（macOS Keychain / Windows DPAPI）
+  if (safeStorage.isEncryptionAvailable()) {
+    initSafeStorage(safeStorage);
+    console.log('系统安全存储已启用:', isSafeStorageAvailable() ? 'active' : 'unavailable');
+  }
   registerIpcHandlers();
   createWindow();
   // 启动定价远程同步（从缓存加载 + 异步拉取最新 + 24h 定时刷新）

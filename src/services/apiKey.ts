@@ -1,4 +1,4 @@
-import { encrypt, decrypt } from '../utils/crypto';
+import { encrypt, decrypt, isSafeStorageFormat, isSafeStorageAvailable } from '../utils/safeCrypto';
 import { loadJson, saveJsonAsync } from '../utils/storage';
 import { getMutex } from '../utils/mutex';
 
@@ -101,41 +101,47 @@ export async function getApiKey(id: number): Promise<Omit<ApiKey, 'encryptedKey'
   });
 }
 
+/** 解密并尝试自动迁移到 safeStorage */
+async function decryptWithMigration(store: ApiKeyStore, key: ApiKey): Promise<string | undefined> {
+  try {
+    const decrypted = decrypt(key.encryptedKey);
+    if (!decrypted || decrypted.length < 10) {
+      console.warn(`apiKey: ID=${key.id} 解密结果异常，已跳过`);
+      return undefined;
+    }
+    // 自动迁移：AES 格式密钥在 safeStorage 可用时重新加密
+    if (!isSafeStorageFormat(key.encryptedKey) && isSafeStorageAvailable()) {
+      try {
+        key.encryptedKey = encrypt(decrypted);
+        key.updatedAt = new Date().toISOString();
+        await saveStore(store);
+        console.log(`apiKey: ID=${key.id} 已自动迁移到系统安全存储`);
+      } catch (migrateErr) {
+        console.warn(`apiKey: ID=${key.id} 迁移失败，继续使用 AES:`, (migrateErr as Error).message);
+      }
+    }
+    return decrypted;
+  } catch (err) {
+    console.error(`apiKey: ID=${key.id} 解密失败:`, (err instanceof Error ? err.message : String(err)));
+    return undefined;
+  }
+}
+
 export async function getDecryptedKey(id: number): Promise<string | undefined> {
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const store = getStore();
     const key = store.keys.find(k => k.id === id);
     if (!key) return undefined;
-    try {
-      const decrypted = decrypt(key.encryptedKey);
-      if (!decrypted || decrypted.length < 10) {
-        console.warn(`apiKey: ID=${id} 解密结果异常，已跳过`);
-        return undefined;
-      }
-      return decrypted;
-    } catch (err) {
-      console.error(`apiKey: ID=${id} 解密失败:`, (err instanceof Error ? err.message : String(err)));
-      return undefined;
-    }
+    return decryptWithMigration(store, key);
   });
 }
 
 export async function getDecryptedKeyByType(apiType: string): Promise<string | undefined> {
-  return mutex.runExclusive(() => {
+  return mutex.runExclusive(async () => {
     const store = getStore();
     const key = store.keys.find(k => k.type === apiType);
     if (!key) return undefined;
-    try {
-      const decrypted = decrypt(key.encryptedKey);
-      if (!decrypted || decrypted.length < 10) {
-        console.warn(`apiKey: type=${apiType} 解密结果异常，已跳过`);
-        return undefined;
-      }
-      return decrypted;
-    } catch (err) {
-      console.error(`apiKey: type=${apiType} 解密失败:`, (err instanceof Error ? err.message : String(err)));
-      return undefined;
-    }
+    return decryptWithMigration(store, key);
   });
 }
 
