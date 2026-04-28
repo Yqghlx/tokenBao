@@ -110,4 +110,24 @@ describe('routing 模块', () => {
     // 同时含 simple 和 complex 关键词 → complex → 无 complex 路由规则 → 保持原模型
     expect(routing.routeModel('gpt-4', 'Classify and analyze this data')).toBe('gpt-4');
   });
+
+  test('空 prompt 应保持原模型', () => {
+    expect(routing.routeModel('gpt-4', '')).toBe('gpt-4');
+  });
+
+  test('空 model 应返回原 model', () => {
+    expect(routing.routeModel('', 'Classify this')).toBe('');
+  });
+
+  test('o3 简单任务应降级为 o4-mini', () => {
+    expect(routing.routeModel('o3', 'List the topics')).toBe('o4-mini');
+  });
+
+  test('claude-sonnet-4.6 简单任务应降级为 claude-haiku-4.5', () => {
+    expect(routing.routeModel('claude-sonnet-4.6', 'Define the term')).toBe('claude-haiku-4.5');
+  });
+
+  test('无路由规则的模型应保持不变', () => {
+    expect(routing.routeModel('gpt-4o-mini', 'Classify this')).toBe('gpt-4o-mini');
+  });
 });

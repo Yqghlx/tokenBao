@@ -66,7 +66,7 @@ function protectCodeBlocks(text: string): { protected: string; restore: (t: stri
   return {
     protected: protectedText,
     // eslint-disable-next-line no-control-regex
-    restore: (t: string) => t.replace(/\x00CODE_BLOCK_(\d+)\x00/g, (_, i) => blocks[parseInt(i)])
+    restore: (t: string) => t.replace(/\x00CODE_BLOCK_(\d+)\x00/g, (_, i) => blocks[parseInt(i, 10)])
   };
 }
 

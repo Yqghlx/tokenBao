@@ -117,7 +117,7 @@ function detectComplexity(prompt: string): 'simple' | 'classification' | 'extrac
 }
 
 function routeModel(model: string, prompt: string): string {
-  if (!defaultOptions.enabled) return model;
+  if (!defaultOptions.enabled || !model || !prompt) return model;
 
   const condition = detectComplexity(prompt);
 

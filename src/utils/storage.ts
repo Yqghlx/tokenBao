@@ -56,8 +56,8 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
       // 加载成功后创建备份，供未来损坏时恢复
       try {
         fs.writeFileSync(backupPath, content, 'utf-8');
-      } catch {
-        /* 备份失败不影响正常流程 */
+      } catch (backupErr) {
+        console.warn(`创建 ${filename} 备份失败:`, (backupErr as Error).message);
       }
       return data;
     }
@@ -91,15 +91,11 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
 
 export function saveJson<T>(filename: string, data: T): void {
   const filePath = getFilePath(filename);
-  try {
-    const content = JSON.stringify(data, null, 2);
-    // 原子写入：先写临时文件再重命名，防止写入中断导致数据损坏
-    const tmpPath = filePath + '.tmp';
-    fs.writeFileSync(tmpPath, content, 'utf-8');
-    fs.renameSync(tmpPath, filePath);
-  } catch (err) {
-    console.error(`保存 ${filename} 失败:`, err);
-  }
+  const content = JSON.stringify(data, null, 2);
+  // 原子写入：先写临时文件再重命名，防止写入中断导致数据损坏
+  const tmpPath = filePath + '.tmp';
+  fs.writeFileSync(tmpPath, content, 'utf-8');
+  fs.renameSync(tmpPath, filePath);
 }
 
 /**
@@ -107,21 +103,17 @@ export function saveJson<T>(filename: string, data: T): void {
  */
 export async function saveJsonAsync<T>(filename: string, data: T): Promise<void> {
   const filePath = getFilePath(filename);
+  const content = JSON.stringify(data, null, 2);
+  const tmpPath = filePath + '.tmp';
+  await writeFileAsync(tmpPath, content, 'utf-8');
+  // fsync 确保数据落盘后再 rename，防止系统崩溃导致数据丢失
+  const fd = await openAsync(tmpPath, 'r');
   try {
-    const content = JSON.stringify(data, null, 2);
-    const tmpPath = filePath + '.tmp';
-    await writeFileAsync(tmpPath, content, 'utf-8');
-    // fsync 确保数据落盘后再 rename，防止系统崩溃导致数据丢失
-    const fd = await openAsync(tmpPath, 'r');
-    try {
-      await fsyncAsync(fd);
-    } finally {
-      await closeAsync(fd);
-    }
-    await renameAsync(tmpPath, filePath);
-  } catch (err) {
-    console.error(`异步保存 ${filename} 失败:`, err);
+    await fsyncAsync(fd);
+  } finally {
+    await closeAsync(fd);
   }
+  await renameAsync(tmpPath, filePath);
 }
 
 export function deleteJson(filename: string): boolean {
