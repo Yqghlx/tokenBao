@@ -375,6 +375,21 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('history:count', async (_, options?) => {
     try {
+      // 校验 options 结构，与 history:list 保持一致的防御性验证
+      if (options !== undefined && options !== null && typeof options !== 'object') {
+        console.warn('history:count: options 参数类型无效');
+        return 0;
+      }
+      if (options) {
+        if (options.search !== undefined && (typeof options.search !== 'string' || options.search.length > 200)) {
+          console.warn('history:count: search 参数无效');
+          return 0;
+        }
+        if (options.apiType !== undefined && !['openai', 'anthropic'].includes(options.apiType)) {
+          console.warn('history:count: apiType 参数无效');
+          return 0;
+        }
+      }
       return await historyService.getRequestCount(options);
     } catch (err) {
       console.error('history:count 错误:', err);
@@ -519,6 +534,10 @@ function registerIpcHandlers(): void {
     try {
       // 字段白名单校验，防止注入非法字段
       const allowedFields = new Set(['name', 'type', 'pattern', 'replacement', 'enabled', 'priority']);
+      // 主进程二次校验 priority 类型和范围（与 rules:add 保持一致）
+      if (updates.priority !== undefined && (typeof updates.priority !== 'number' || !Number.isInteger(updates.priority) || updates.priority < 0 || updates.priority > 1000)) {
+        return { success: false, error: 'priority 必须是 0-1000 之间的整数' };
+      }
       const safeUpdates: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(updates)) {
         if (allowedFields.has(key)) {
