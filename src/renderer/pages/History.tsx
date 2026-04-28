@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { showToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { usePolling } from '../hooks/usePolling';
@@ -25,12 +25,14 @@ function History() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  // 用 ref 追踪 totalCount，避免作为 loadHistory 依赖导致循环更新
+  const totalCountRef = useRef(0);
 
   const loadHistory = useCallback(async () => {
     if (window.electronAPI?.history?.list) {
       try {
         // 计算安全页码，防止数据减少后请求空页
-        const safeP = Math.min(currentPage, Math.max(1, Math.ceil(totalCount / PAGE_SIZE)) || 1);
+        const safeP = Math.min(currentPage, Math.max(1, Math.ceil(totalCountRef.current / PAGE_SIZE)) || 1);
         const offset = (safeP - 1) * PAGE_SIZE;
         const options: { limit: number; offset: number; apiType?: string; search?: string } = {
           limit: PAGE_SIZE,
@@ -48,12 +50,15 @@ function History() {
           if (filter) countOptions.apiType = filter;
           if (search.trim()) countOptions.search = search.trim();
           const count = await window.electronAPI.history.count(countOptions);
+          totalCountRef.current = count;
           setTotalCount(count);
           // 数据减少导致当前页超出范围时自动回退
           const maxPage = Math.max(1, Math.ceil(count / PAGE_SIZE));
           if (currentPage > maxPage) setCurrentPage(maxPage);
         } else {
-          setTotalCount(data.length < PAGE_SIZE ? offset + data.length : offset + PAGE_SIZE + 1);
+          const estimatedTotal = data.length < PAGE_SIZE ? offset + data.length : offset + PAGE_SIZE + 1;
+          totalCountRef.current = estimatedTotal;
+          setTotalCount(estimatedTotal);
         }
       } catch (err) {
         console.error('获取历史记录失败:', err);
@@ -64,7 +69,7 @@ function History() {
     } else {
       setLoading(false);
     }
-  }, [currentPage, filter, search, totalCount]);
+  }, [currentPage, filter, search]);
 
   useEffect(() => {
     loadHistory();
@@ -129,6 +134,7 @@ function History() {
         document.body.removeChild(a);
         // 延迟释放 blob URL，确保浏览器完成下载
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast(`已导出 ${allData.length} 条记录`, 'success');
       } catch (err) {
         showToast('导出失败', 'error');
       }

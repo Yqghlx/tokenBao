@@ -91,6 +91,14 @@ export function getRule(id: number): Rule | undefined {
 export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined {
   const rule = rules.get(id);
   if (rule) {
+    // 校验 priority 范围
+    if (updates.priority !== undefined && (typeof updates.priority !== 'number' || updates.priority < 0 || updates.priority > 1000)) {
+      throw new Error('优先级范围应为 0-1000 的整数');
+    }
+    // 校验 pattern 格式
+    if (updates.pattern !== undefined && typeof updates.pattern === 'string' && updates.pattern.length > 500) {
+      throw new Error('正则表达式过长');
+    }
     Object.assign(rule, updates);
     saveToStorage();
   }

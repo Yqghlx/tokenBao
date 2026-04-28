@@ -128,7 +128,7 @@ function ApiKeys() {
             <select
               id="key-type"
               value={newKey.type}
-              onChange={(e) => setNewKey(prev => ({ ...prev, type: e.target.value }))}
+              onChange={(e) => setNewKey(prev => ({ ...prev, type: e.target.value, key: '' }))}
             >
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
