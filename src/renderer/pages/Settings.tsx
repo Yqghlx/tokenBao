@@ -155,8 +155,9 @@ function Settings() {
       <h2>设置</h2>
       <div className="settings-form">
         <div className="form-group">
-          <label>代理端口</label>
+          <label htmlFor="setting-proxy-port">代理端口</label>
           <input
+            id="setting-proxy-port"
             type="number"
             value={proxyPort}
             onChange={(e) => handlePortChange(e.target.value)}
@@ -171,8 +172,9 @@ function Settings() {
           )}
         </div>
         <div className="form-group">
-          <label>数据保留天数</label>
+          <label htmlFor="setting-retention-days">数据保留天数</label>
           <input
+            id="setting-retention-days"
             type="number"
             value={dataRetentionDays}
             onChange={(e) => handleDaysChange(e.target.value)}
@@ -183,8 +185,9 @@ function Settings() {
           {daysError && <span className="form-error">{daysError}</span>}
         </div>
         <div className="form-group">
-          <label>缓存 TTL</label>
+          <label htmlFor="setting-cache-ttl">缓存 TTL</label>
           <select
+            id="setting-cache-ttl"
             value={cacheTTL}
             onChange={(e) => setCacheTTL(e.target.value)}
             aria-label="缓存 TTL"

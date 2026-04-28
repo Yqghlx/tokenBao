@@ -25,6 +25,9 @@ function hasControlChars(str: string): boolean {
   return /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(str);
 }
 
+/** 跟踪每个 callback 对应的 ipcRenderer listener，支持精确移除 */
+const listenerMap = new WeakMap<(...args: unknown[]) => void, (_: unknown, ...args: unknown[]) => void>();
+
 contextBridge.exposeInMainWorld('electronAPI', {
   proxy: {
     start: (port?: number) => {
@@ -228,13 +231,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return;
     }
     const listener = (_: unknown, ...args: unknown[]) => callback(...args);
+    listenerMap.set(callback, listener);
     ipcRenderer.on(channel, listener);
   },
 
-  off: (channel: string) => {
+  off: (channel: string, callback?: (...args: unknown[]) => void) => {
     if (!ALLOWED_CHANNELS.includes(channel as typeof ALLOWED_CHANNELS[number])) {
       return;
     }
-    ipcRenderer.removeAllListeners(channel);
+    if (callback) {
+      // 精确移除该 callback 对应的 listener，不影响同通道其他监听器
+      const listener = listenerMap.get(callback);
+      if (listener) {
+        ipcRenderer.removeListener(channel, listener);
+        listenerMap.delete(callback);
+      }
+    } else {
+      ipcRenderer.removeAllListeners(channel);
+    }
   }
 });

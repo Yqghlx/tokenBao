@@ -31,8 +31,25 @@ class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       const text = this.state.error.stack || this.state.error.message;
       navigator.clipboard.writeText(text).then(
-        () => { /* 复制成功 */ },
-        () => { /* 复制失败，静默处理 */ }
+        () => {
+          const btn = document.activeElement as HTMLButtonElement | null;
+          if (btn) {
+            const original = btn.textContent || '';
+            btn.textContent = '已复制';
+            setTimeout(() => { btn.textContent = original; }, 1500);
+          }
+        },
+        () => {
+          // 剪贴板 API 不可用时回退到选中文本
+          const pre = document.querySelector('.error-boundary-stack') as HTMLPreElement | null;
+          if (pre) {
+            const range = document.createRange();
+            range.selectNodeContents(pre);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+          }
+        }
       );
     }
   };

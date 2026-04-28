@@ -149,5 +149,20 @@ describe('pricing 定价模块', () => {
     test('0 token 应产生 0 费用', () => {
       expect(calculateCost('gpt-4', 0, 0)).toBe(0);
     });
+
+    test('负数 token 应视为 0', () => {
+      expect(calculateCost('gpt-4', -100, -50)).toBe(0);
+      expect(calculateCost('gpt-4', -100, 1000)).toBeCloseTo(0.06, 6);
+    });
+
+    test('NaN token 应视为 0', () => {
+      expect(calculateCost('gpt-4', NaN, 1000)).toBeCloseTo(0.06, 6);
+      expect(calculateCost('gpt-4', 1000, NaN)).toBeCloseTo(0.03, 6);
+    });
+
+    test('Infinity token 应视为 0', () => {
+      expect(calculateCost('gpt-4', Infinity, 0)).toBe(0);
+      expect(calculateCost('gpt-4', 0, Infinity)).toBe(0);
+    });
   });
 });

@@ -84,7 +84,10 @@ export function normalizeModelName(model: string): string {
 }
 
 export function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
+  // 防御异常 usage 数据（NaN/负数/非有限数）
+  const safeInput = isFinite(inputTokens) && inputTokens > 0 ? inputTokens : 0;
+  const safeOutput = isFinite(outputTokens) && outputTokens > 0 ? outputTokens : 0;
   const normalized = normalizeModelName(model);
   const pricing = MODEL_PRICING[normalized] || { input: 0.001, output: 0.002 };
-  return (inputTokens / 1000) * pricing.input + (outputTokens / 1000) * pricing.output;
+  return (safeInput / 1000) * pricing.input + (safeOutput / 1000) * pricing.output;
 }
