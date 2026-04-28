@@ -7,6 +7,7 @@ import * as historyService from '../services/history';
 import * as budgetService from '../services/budget';
 import * as statsService from '../services/stats';
 import * as rulesModule from '../optimizations/rules';
+import cachingModule from '../optimizations/caching';
 import { getOptimizationConfig, setOptimizationConfig } from '../services/config';
 
 let mainWindow: BrowserWindow | null = null;
@@ -120,6 +121,12 @@ function registerIpcHandlers(): void {
       proxyServer = new ProxyServer({ port: effectivePort, openaiKey, anthropicKey });
       await proxyServer.start();
 
+      // 应用当前配置到缓存模块
+      const cacheTTL = await configService.getConfig('cacheTTL');
+      if (cacheTTL) {
+        cachingModule.setOptions({ ttl: cacheTTL as '5min' | '1hour' });
+      }
+
       const optimConfig = await getOptimizationConfig();
       proxyServer.updateOptimizationConfig(optimConfig);
       startHealthCheck();
@@ -204,6 +211,10 @@ function registerIpcHandlers(): void {
   ipcMain.handle('config:set', async (_, key: string, value: string) => {
     try {
       await configService.setConfig(key, value);
+      // 配置变更后同步到运行中的模块
+      if (key === 'cacheTTL') {
+        cachingModule.setOptions({ ttl: value as '5min' | '1hour' });
+      }
       return { success: true };
     } catch (err) {
       console.error('config:set 错误:', err);

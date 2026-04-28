@@ -16,7 +16,7 @@ describe('crypto 模块', () => {
   });
 
   test('解密无效格式应抛出异常', () => {
-    expect(() => decrypt('invalid-format')).toThrow('Invalid ciphertext format');
+    expect(() => decrypt('invalid-format')).toThrow('密文格式无效');
   });
 
   test('generateId 应生成唯一且长度为 32 的 ID', () => {

@@ -82,7 +82,7 @@ export function decrypt(ciphertext: string): string {
   const key = getEncryptionKey();
   const parts = ciphertext.split(':');
   if (parts.length !== 3) {
-    throw new Error('Invalid ciphertext format');
+    throw new Error('密文格式无效');
   }
   const [ivHex, authTagHex, encrypted] = parts;
 
