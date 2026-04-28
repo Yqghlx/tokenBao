@@ -5,6 +5,7 @@
     "lib": ["ES2022", "DOM"],
     "outDir": "dist",
     "rootDir": "src",
+    "sourceMap": true,
     "strict": true,
     "moduleResolution": "node",
     "esModuleInterop": true,
