@@ -32,6 +32,24 @@ describe('优化管线 pipeline', () => {
     expect(result.appliedStrategies).toEqual([]);
   });
 
+  test('空 messages 数组应提前返回零消耗结果', () => {
+    const body = { model: 'gpt-4', messages: [] };
+    const result = applyOptimizations('openai', body);
+    expect(result.appliedStrategies).toEqual([]);
+    expect(result.savedTokens).toBe(0);
+    expect(result.modifiedBody).toBe(body);
+  });
+
+  test('所有策略关闭时应跳过 structuredClone 直接返回原 body', () => {
+    setOptimizationConfig({ caching: false, compression: false, routing: false, batching: false, rules: false, dlp: false });
+    const body = { model: 'gpt-4', messages: [{ role: 'user', content: 'hello' }] };
+    const result = applyOptimizations('openai', body);
+    expect(result.appliedStrategies).toEqual([]);
+    expect(result.savedTokens).toBe(0);
+    // 无策略时应直接返回原 body 引用，不做深拷贝
+    expect(result.modifiedBody).toBe(body);
+  });
+
   test('压缩应应用于 string 类型消息', () => {
     const body = {
       model: 'gpt-4',

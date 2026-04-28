@@ -330,6 +330,26 @@ describe('responseHandler', () => {
     });
   });
 
+  describe('模型名长度截断', () => {
+    test('流式响应中超长模型名应被截断为 100 字符', () => {
+      const longModel = 'gpt-4-' + 'a'.repeat(200);
+      const body = `data: {"type":"message_start","message":{"model":"${longModel}"}}\n\ndata: {"type":"message_delta","usage":{"output_tokens":10}}\n\n`;
+      const result = handleResponse(body, { 'content-type': 'text/event-stream' }, 'anthropic');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.model.length).toBeLessThanOrEqual(100);
+      expect(result.stats!.model).toBe(longModel.slice(0, 100));
+    });
+
+    test('非流式响应中超长模型名应被标记为 unknown', () => {
+      const longModel = 'gpt-4-' + 'b'.repeat(200);
+      const body = JSON.stringify({ model: longModel, usage: { prompt_tokens: 10, completion_tokens: 5 } });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      // 非流式路径对超长模型名返回 unknown（拒绝畸形数据）
+      expect(result.stats!.model).toBe('unknown');
+    });
+  });
+
   describe('SSE 大数据截断', () => {
     test('超过 10 万行的 SSE 应正确提取末尾 usage', () => {
       // 回归测试：effectiveLines 切片后索引必须用 effectiveLines[i] 而非 lines[i]

@@ -90,6 +90,22 @@ describe('rules 优化模块', () => {
     expect(() => rulesModule.updateRule(rule.id, { pattern: 'x'.repeat(500) })).not.toThrow();
   });
 
+  test('updateRule 应拒绝无效的 pattern 语法', () => {
+    const rule = rulesModule.addRule({ name: '语法测试', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1 });
+    expect(() => rulesModule.updateRule(rule.id, { pattern: '[invalid' })).toThrow('正则表达式语法错误');
+    // 合法正则不应报错
+    expect(() => rulesModule.updateRule(rule.id, { pattern: '\\d+' })).not.toThrow();
+  });
+
+  test('updateRule 返回值应为防御性拷贝，修改不影响内部状态', () => {
+    const rule = rulesModule.addRule({ name: '隔离测试', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1 });
+    const updated = rulesModule.updateRule(rule.id, { name: '已更新' });
+    // 修改返回值不应影响内部存储
+    (updated as unknown as Record<string, unknown>).name = '被篡改';
+    const internal = rulesModule.getRule(rule.id);
+    expect(internal!.name).toBe('已更新');
+  });
+
   test('deleteRule 应删除规则', () => {
     const rule = rulesModule.addRule({ name: '删除测试', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1 });
     const result = rulesModule.deleteRule(rule.id);

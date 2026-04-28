@@ -798,7 +798,8 @@ class ProxyServer {
                 clientRes.end(upstreamResult.body);
               } else {
                 respHeaders['content-encoding'] = 'gzip';
-                delete respHeaders['content-length'];
+                // 设置压缩后的准确长度，避免使用 chunked 编码产生额外开销
+                respHeaders['content-length'] = String(compressed.length);
                 clientRes.writeHead(statusCode, respHeaders);
                 clientRes.end(compressed);
               }

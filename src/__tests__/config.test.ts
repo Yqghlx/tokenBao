@@ -202,4 +202,16 @@ describe('config 服务', () => {
       await expect(configService.setConfig('dataRetentionDays', '365')).resolves.toBeUndefined();
     });
   });
+
+  test('getStore 加载时应剥离不在白名单中的多余配置键', async () => {
+    await configService.setConfig('proxyPort', '8080');
+    // 注入未知键到配置文件
+    const all = await configService.getAllConfig();
+    const { saveJson } = require('../utils/storage');
+    saveJson(CONFIG_FILE, { config: { ...all, unknownKey: 'should_be_removed' }, optimization: { caching: true, compression: true, routing: true, batching: false, rules: true, dlp: false } });
+    // 重新读取应自动剥离未知键
+    const result = await configService.getAllConfig();
+    expect(result).not.toHaveProperty('unknownKey');
+    expect(result.proxyPort).toBe('8080');
+  });
 });
