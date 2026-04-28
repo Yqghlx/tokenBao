@@ -23,6 +23,13 @@ class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught:', error, errorInfo);
   }
 
+  /** 路由切换时 children 变化，重置错误状态让新页面正常渲染 */
+  componentDidUpdate(prevProps: Props): void {
+    if (this.state.hasError && prevProps.children !== this.props.children) {
+      this.setState({ hasError: false, error: undefined });
+    }
+  }
+
   handleRetry = (): void => {
     // 状态损坏时仅清除 state 无法恢复，刷新页面是唯一可靠方案
     window.location.reload();
@@ -76,7 +83,7 @@ class ErrorBoundary extends Component<Props, State> {
             <button className="btn-primary" onClick={this.handleRetry}>
               重试
             </button>
-            <button className="btn-secondary" onClick={() => { window.location.hash = '#/'; window.location.reload(); }}>
+            <button className="btn-secondary" onClick={() => { window.location.href = '#/'; }}>
               返回首页
             </button>
             {isDev && this.state.error && (

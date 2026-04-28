@@ -68,14 +68,19 @@ function fetchRemote(url: string, maxRedirects = 5, visited = new Set<string>())
       // 跟随重定向（有深度限制）
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         if (maxRedirects <= 0) {
+          res.resume();
           reject(new Error('重定向次数超限'));
           return;
         }
+        // 消费重定向响应体，避免连接池泄漏
+        res.resume();
         fetchRemote(res.headers.location, maxRedirects - 1, visited).then(resolve).catch(reject);
         return;
       }
 
       if (res.statusCode !== 200) {
+        // 消费响应体释放连接池资源，避免流挂起导致连接泄漏
+        res.resume();
         reject(new Error(`HTTP ${res.statusCode}`));
         return;
       }
