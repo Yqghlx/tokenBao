@@ -16,69 +16,76 @@ function safeToken(value: unknown): number {
 
 /**
  * 从 SSE 流数据中提取 usage 统计（流式路径共用）
- * OpenAI: 最后一个包含 usage 的 data 事件
- * Anthropic: message_delta 事件中的 usage
+ * 单次反向遍历：先收集末尾的 usage，再继续向前扫描 message_start 模型名
  */
 export function extractStreamUsage(sseData: string): UsageStats | null {
   if (!sseData || !sseData.includes('data: ')) return null;
 
   const lines = sseData.split('\n');
   let fallbackModel = 'unknown';
+  let foundUsage: UsageStats | null = null;
+  let foundModel = false;
 
-  // 先从 message_start 事件提取模型名（Anthropic 流式）
-  for (const line of lines) {
-    if (!line.startsWith('data: ')) continue;
-    const data = line.slice(6);
-    if (data === '[DONE]') continue;
-    try {
-      const parsed = JSON.parse(data);
-      if (parsed.type === 'message_start' && parsed.message?.model) {
-        fallbackModel = parsed.message.model;
-        break;
-      }
-    } catch {
-      console.warn('SSE message_start 解析失败，跳过:', data.slice(0, 100));
-      continue;
-    }
-  }
-
+  // 反向遍历：先遇到末尾的 usage，再向前寻找 message_start 的模型名
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     if (!line.startsWith('data: ')) continue;
     const data = line.slice(6);
     if (data === '[DONE]') continue;
 
+    let parsed: Record<string, unknown>;
     try {
-      const parsed = JSON.parse(data);
+      parsed = JSON.parse(data);
+    } catch {
+      continue;
+    }
 
-      // Anthropic 格式优先检测：message_delta 事件也有 usage 字段，需先排除
+    // 提取 message_start 模型名（Anthropic 格式）
+    if (!foundModel && parsed.type === 'message_start' && (parsed as { message?: { model?: string } }).message?.model) {
+      fallbackModel = (parsed as { message: { model: string } }).message.model;
+      foundModel = true;
+      // 已收集 usage 和模型名，提前退出
+      if (foundUsage) {
+        foundUsage.model = fallbackModel;
+        break;
+      }
+      continue;
+    }
+
+    // 首次遇到的 usage 来自流末尾（最完整的数据）
+    if (!foundUsage) {
+      // Anthropic 格式：message_delta 中的 usage
       if (parsed.type === 'message_delta' && parsed.usage) {
-        return {
-          inputTokens: safeToken(parsed.usage.input_tokens),
-          outputTokens: safeToken(parsed.usage.output_tokens),
-          cacheReadTokens: safeToken(parsed.usage.cache_read_input_tokens),
-          cacheCreationTokens: safeToken(parsed.usage.cache_creation_input_tokens),
+        const usage = parsed.usage as Record<string, unknown>;
+        foundUsage = {
+          inputTokens: safeToken(usage.input_tokens),
+          outputTokens: safeToken(usage.output_tokens),
+          cacheReadTokens: safeToken(usage.cache_read_input_tokens),
+          cacheCreationTokens: safeToken(usage.cache_creation_input_tokens),
           model: fallbackModel
         };
+        if (foundModel) break;
+        continue;
       }
 
       // OpenAI 格式
       if (parsed.usage) {
-        return {
-          inputTokens: safeToken(parsed.usage.prompt_tokens),
-          outputTokens: safeToken(parsed.usage.completion_tokens),
-          cacheReadTokens: safeToken(parsed.usage.prompt_tokens_details?.cached_tokens),
+        const usage = parsed.usage as Record<string, unknown>;
+        const details = usage.prompt_tokens_details as Record<string, unknown> | undefined;
+        foundUsage = {
+          inputTokens: safeToken(usage.prompt_tokens),
+          outputTokens: safeToken(usage.completion_tokens),
+          cacheReadTokens: safeToken(details?.cached_tokens),
           cacheCreationTokens: 0,
-          model: parsed.model || fallbackModel
+          model: (parsed.model as string) || fallbackModel
         };
+        if (foundModel) break;
+        continue;
       }
-    } catch {
-      console.warn('SSE usage 解析失败，跳过:', data.slice(0, 100));
-      continue;
     }
   }
 
-  return null;
+  return foundUsage;
 }
 
 /**

@@ -153,17 +153,20 @@ function ControlPanel() {
   }, [loadProxyStatus, loadBudgetStatus, loadStats, loadOptimizations]);
 
   const pollStats = useCallback(() => {
-    loadProxyStatus();
-    loadStats();
+    const tasks: Promise<void>[] = [loadProxyStatus(), loadStats()];
     if (window.electronAPI?.proxy?.health) {
-      window.electronAPI.proxy.health().then(h => {
-        if (h.status === 'healthy') {
-          setHealth({ uptime: h.uptime, activeConnections: h.activeConnections });
-        }
-      }).catch(err => {
-        console.warn('健康检查轮询失败:', err);
-      });
+      tasks.push(
+        window.electronAPI.proxy.health().then(h => {
+          if (h.status === 'healthy') {
+            setHealth({ uptime: h.uptime, activeConnections: h.activeConnections });
+          }
+        }).catch(err => {
+          console.warn('健康检查轮询失败:', err);
+        })
+      );
     }
+    // 所有请求并行发出，任一失败不影响其他
+    Promise.allSettled(tasks);
   }, [loadProxyStatus, loadStats]);
 
   usePolling(pollStats, 10000);

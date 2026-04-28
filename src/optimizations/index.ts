@@ -203,8 +203,14 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
     result.appliedStrategies = [];
   }
 
-  result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages, apiType);
-  result.savedTokens = result.originalTokens - result.optimizedTokens;
+  // 无策略应用时 body 未修改，跳过昂贵的 token 重计数
+  if (result.appliedStrategies.length > 0) {
+    result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages, apiType);
+    result.savedTokens = result.originalTokens - result.optimizedTokens;
+  } else {
+    result.optimizedTokens = result.originalTokens;
+    result.savedTokens = 0;
+  }
   result.modifiedBody = modifiedBody;
 
   const duration = Date.now() - startTime;

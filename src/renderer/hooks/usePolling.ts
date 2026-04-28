@@ -13,15 +13,23 @@ export function usePolling(callback: () => void, intervalMs: number): void {
 
   useEffect(() => {
     let timerId: ReturnType<typeof setInterval>;
+    // 防止可见性切换时的并发调用
+    let invoking = false;
 
     /** 安全执行回调，捕获同步异常和异步拒绝 */
     const safeInvoke = () => {
+      if (invoking) return;
+      invoking = true;
       try {
         const result = savedCallback.current() as unknown;
         if (result instanceof Promise) {
-          result.catch((err: unknown) => console.warn('轮询回调异常:', err));
+          result.catch((err: unknown) => console.warn('轮询回调异常:', err))
+            .finally(() => { invoking = false; });
+        } else {
+          invoking = false;
         }
       } catch (err) {
+        invoking = false;
         console.warn('轮询回调异常:', err);
       }
     };
