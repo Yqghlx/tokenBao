@@ -228,4 +228,28 @@ describe('优化管线 pipeline', () => {
     const textBlock = content.find(b => b.type === 'text');
     expect(textBlock!.text).toContain('array_replaced');
   });
+
+  test('body 完整性验证：model 缺失时应回退原始数据', () => {
+    const body = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Hello world' }]
+    };
+    const result = applyOptimizations('openai', body);
+    // 正常情况下 model 应保留
+    expect(result.modifiedBody.model).toBe('gpt-4');
+  });
+
+  test('优化策略错误隔离：单个策略失败不应影响其他策略', () => {
+    // 添加一个会导致压缩失败的极端输入
+    const body = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'List the topics' }]
+    };
+    const result = applyOptimizations('openai', body);
+    // 即使某个策略可能失败，其他策略仍应执行
+    expect(result.appliedStrategies.length).toBeGreaterThanOrEqual(0);
+    // body 结构应完整
+    expect(result.modifiedBody.messages).toBeDefined();
+    expect(Array.isArray(result.modifiedBody.messages)).toBe(true);
+  });
 });

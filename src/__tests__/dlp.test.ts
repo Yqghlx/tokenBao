@@ -184,5 +184,31 @@ describe('DLP 敏感数据脱敏', () => {
       // 100 次扫描应在 100ms 内完成
       expect(duration).toBeLessThan(100);
     });
+
+    test('邮箱脱敏应保留域名部分', () => {
+      const result = dlp.scan('联系 user@example.com 了解详情');
+      expect(result.modified).toBe(true);
+      // 邮箱脱敏后应包含域名
+      expect(result.text).toContain('example.com');
+      // 不应暴露完整用户名
+      expect(result.text).not.toContain('user@example');
+    });
+
+    test('IP 脱敏应隐藏中间两段', () => {
+      const result = dlp.scan('服务器地址 192.168.1.100 正常');
+      expect(result.modified).toBe(true);
+      expect(result.text).toContain('192');
+      expect(result.text).toContain('100');
+      expect(result.text).not.toContain('168.1');
+    });
+
+    test('身份证脱敏应保留首尾各 4 位', () => {
+      const result = dlp.scan('身份证号 110101199001011234');
+      expect(result.modified).toBe(true);
+      expect(result.text).toContain('1101');
+      expect(result.text).toContain('1234');
+      // 中间部分应用 * 遮盖
+      expect(result.text).not.toContain('19900101');
+    });
   });
 });

@@ -160,7 +160,14 @@ export function checkCache(apiType: string, content: string): boolean {
   if (!cached) { misses++; return false; }
 
   const ttlMs = defaultOptions.ttl === '5min' ? 5 * 60 * 1000 : 60 * 60 * 1000;
-  if (Date.now() - cached.timestamp >= ttlMs) { misses++; return false; }
+  if (Date.now() - cached.timestamp >= ttlMs) {
+    misses++;
+    // 过期条目即时清理，避免长期驻留内存
+    cachePatterns.delete(key);
+    cacheOrder.delete(key);
+    scheduleSave();
+    return false;
+  }
 
   hits++;
   // 命中时更新 LRU 顺序：O(1) 移动到末尾
