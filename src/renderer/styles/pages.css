@@ -42,7 +42,7 @@
 
 .status-label {
   font-size: 12px;
-  color: #666;
+  color: var(--text-label);
 }
 
 .controls-section {
@@ -158,7 +158,7 @@
 
 .data-table th {
   font-size: 12px;
-  color: #666;
+  color: var(--text-label);
   font-weight: 500;
   text-transform: uppercase;
 }
@@ -183,7 +183,7 @@
 
 .empty-state {
   text-align: center;
-  color: #666;
+  color: var(--text-label);
   padding: 40px !important;
 }
 
@@ -331,12 +331,12 @@
 
 .budget-limit {
   font-size: 14px;
-  color: #666;
+  color: var(--text-label);
 }
 
 .budget-remaining {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 2px;
 }
 
@@ -373,7 +373,7 @@
 
 .budget-input-suffix {
   font-size: 12px;
-  color: #666;
+  color: var(--text-label);
 }
 
 .btn-sm {
@@ -410,7 +410,7 @@
 
 .breakdown-item-detail {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 /* 缓存效果卡片（绿色背景） */
@@ -483,7 +483,7 @@
 .history-toolbar .record-count {
   margin-left: auto;
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 /* 表格容器（横向滚动） */
@@ -495,7 +495,7 @@
 .toggle-desc {
   margin-left: 8px;
   font-size: 11px;
-  color: #666;
+  color: var(--text-label);
 }
 
 /* 代理提示信息 */
@@ -509,7 +509,7 @@
 .proxy-request-count {
   margin-top: 8px;
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 /* 代理健康信息（运行时长、活跃连接） */
@@ -518,7 +518,7 @@
   display: flex;
   gap: 12px;
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 /* 代理控制按钮区 */
@@ -530,7 +530,7 @@
 .empty-placeholder {
   text-align: center;
   padding: 60px 20px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .empty-placeholder .title {
@@ -561,7 +561,7 @@ code.inline-code {
 /* 功能描述文字 */
 .feature-desc {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   margin-top: 8px;
   display: block;
 }

@@ -6,7 +6,8 @@ module.exports = {
   testTimeout: 10000,
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      tsconfig: 'tsconfig.json'
+      // 测试编译使用包含测试目录的独立配置
+      tsconfig: 'tsconfig.test.json'
     }]
   },
   moduleNameMapper: {

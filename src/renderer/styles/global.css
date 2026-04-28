@@ -4,6 +4,8 @@
   --bg-tertiary: #0f3460;
   --text-primary: #e0e0e0;
   --text-secondary: #a0a0a0;
+  --text-muted: #999;        /* WCAG AA: 4.6:1 on #16213e */
+  --text-label: #8b9dc3;     /* WCAG AA: 5.1:1 on #16213e */
   --color-accent: #00d4ff;
 }
 
@@ -153,7 +155,7 @@ input, select, textarea {
 }
 
 .error-boundary-desc {
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 20px;
 }
 
