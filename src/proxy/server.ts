@@ -728,8 +728,8 @@ class ProxyServer {
 
           if (isJson && bodyBuffer.length > 1024 && acceptEncoding.includes('gzip')) {
             zlib.gzip(bodyBuffer, (gzipErr, compressed) => {
-              // 异步回调时客户端可能已断开，写入会触发 EPIPE/ERR_STREAM_DESTROYED
-              if (clientRes.destroyed) return;
+              // 异步回调时客户端可能已断开或响应已发送，防止重复写入
+              if (clientRes.destroyed || clientRes.headersSent) return;
               if (gzipErr) {
                 // 压缩失败时回退到未压缩响应
                 logProxy('warn', 'Gzip 压缩失败，回退到未压缩响应', { requestId, error: gzipErr.message });

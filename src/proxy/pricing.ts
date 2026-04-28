@@ -137,6 +137,10 @@ export function calculateCost(model: string, inputTokens: number, outputTokens: 
   const safeInput = Number.isFinite(inputTokens) && inputTokens > 0 ? inputTokens : 0;
   const safeOutput = Number.isFinite(outputTokens) && outputTokens > 0 ? outputTokens : 0;
   const normalized = normalizeModelName(model);
-  const pricing = MODEL_PRICING[normalized] || { input: 0.001, output: 0.002 };
-  return (safeInput / 1000) * pricing.input + (safeOutput / 1000) * pricing.output;
+  const pricing = MODEL_PRICING[normalized];
+  if (!pricing) {
+    console.warn(`未知模型定价 "${model}" (归一化: "${normalized}")，使用默认值`);
+  }
+  const finalPricing = pricing || { input: 0.001, output: 0.002 };
+  return (safeInput / 1000) * finalPricing.input + (safeOutput / 1000) * finalPricing.output;
 }

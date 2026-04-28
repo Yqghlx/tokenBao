@@ -24,6 +24,8 @@ interface RuleStore {
 
 const rules: Map<number, Rule> = new Map();
 let nextId = 1;
+// 排序缓存：add/update/delete 时失效，applyRules 时按需重建
+let sortedRulesCache: Rule[] | null = null;
 
 function loadFromStorage(): void {
   try {
@@ -90,6 +92,7 @@ export function addRule(rule: Omit<Rule, 'id'>): Rule {
   }
   const newRule = { ...rule, id: nextId++ };
   rules.set(newRule.id, newRule);
+  sortedRulesCache = null;
   saveToStorage();
   return newRule;
 }
@@ -118,6 +121,7 @@ export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined
       throw new Error('不支持的规则类型');
     }
     Object.assign(rule, updates);
+    sortedRulesCache = null;
     saveToStorage();
   }
   return rule;
@@ -125,7 +129,10 @@ export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined
 
 export function deleteRule(id: number): boolean {
   const result = rules.delete(id);
-  if (result) saveToStorage();
+  if (result) {
+    sortedRulesCache = null;
+    saveToStorage();
+  }
   return result;
 }
 
@@ -156,10 +163,12 @@ function safeRegexReplace(text: string, pattern: string, replacement: string): s
 export function applyRules(content: string): string {
   let result = content;
 
-  // 按优先级降序应用规则（与 listRules 排序一致），确保高优先级先执行
-  const sortedRules = Array.from(rules.values()).sort((a, b) => b.priority - a.priority);
+  // 使用排序缓存，避免每次请求重排序
+  if (!sortedRulesCache) {
+    sortedRulesCache = Array.from(rules.values()).sort((a, b) => b.priority - a.priority);
+  }
 
-  for (const rule of sortedRules) {
+  for (const rule of sortedRulesCache) {
     if (!rule.enabled) continue;
 
     if (rule.type === 'replace') {
