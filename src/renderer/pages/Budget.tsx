@@ -45,6 +45,7 @@ function Budget() {
   usePolling(loadBudget, 15000);
 
   const saveBudget = async (type: 'daily' | 'monthly', value: string) => {
+    editingFieldRef.current = null; // 保存时立即退出编辑态，防止后续轮询覆盖
     const limit = parseFloat(value);
     if (!Number.isFinite(limit) || limit <= 0) {
       showToast('预算限额必须为正数', 'error');

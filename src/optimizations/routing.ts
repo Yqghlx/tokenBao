@@ -130,9 +130,10 @@ function routeModel(model: string, prompt: string): string {
   // 无法判断复杂度时保持原模型，避免盲目降级影响输出质量
   if (condition === 'unknown') return model;
 
-  // 精确匹配 condition
+  // 精确匹配 condition（模型名大小写不敏感，兼容 "GPT-4" / "gpt-4" 等变体）
+  const modelLower = model.toLowerCase();
   for (const rule of defaultOptions.rules) {
-    if (rule.sourceModel === model && rule.condition === condition) {
+    if (rule.sourceModel.toLowerCase() === modelLower && rule.condition === condition) {
       return rule.targetModel;
     }
   }
@@ -146,7 +147,7 @@ function routeModel(model: string, prompt: string): string {
 
   for (const fallback of fallbackChain) {
     for (const rule of defaultOptions.rules) {
-      if (rule.sourceModel === model && rule.condition === fallback) {
+      if (rule.sourceModel.toLowerCase() === modelLower && rule.condition === fallback) {
         return rule.targetModel;
       }
     }

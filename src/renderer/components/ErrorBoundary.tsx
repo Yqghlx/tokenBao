@@ -35,10 +35,10 @@ class ErrorBoundary extends Component<Props, State> {
       const btn = document.activeElement as HTMLButtonElement | null;
       navigator.clipboard.writeText(text).then(
         () => {
-          if (btn) {
+          if (btn && btn.isConnected) {
             const original = btn.textContent || '';
             btn.textContent = '已复制';
-            setTimeout(() => { btn.textContent = original; }, 1500);
+            setTimeout(() => { if (btn.isConnected) btn.textContent = original; }, 1500);
           }
         },
         () => {

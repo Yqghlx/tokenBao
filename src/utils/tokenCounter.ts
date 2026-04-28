@@ -1,5 +1,8 @@
 import { getEncoding, Tiktoken } from 'js-tiktoken';
 
+/** 图片 token 固定成本估算值（基于 Claude 3.5 Sonnet 1080x1080 约 85 tokens） */
+const IMAGE_TOKEN_ESTIMATE = 85;
+
 interface ContentBlock {
   type: string;
   text?: string;
@@ -132,7 +135,7 @@ function countMessages(messages: Message[], apiType?: string): number {
           return msgTotal + countTokens(block.text, apiType);
         }
         if (block.type === 'image') {
-          return msgTotal + 85;
+          return msgTotal + IMAGE_TOKEN_ESTIMATE;
         }
         return msgTotal;
       }, 0);

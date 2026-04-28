@@ -33,9 +33,29 @@ let syncTimer: ReturnType<typeof setInterval> | null = null;
 /**
  * 从远程 URL 拉取定价数据
  * @param maxRedirects 剩余允许的重定向次数，防止无限循环
+ * @param visited 已访问 URL 集合，检测多跳循环（A→B→C→A）
  */
-function fetchRemote(url: string, maxRedirects = 5): Promise<RemotePricingData> {
+function fetchRemote(url: string, maxRedirects = 5, visited = new Set<string>()): Promise<RemotePricingData> {
   return new Promise((resolve, reject) => {
+    // 仅允许 HTTPS 协议，防止明文传输定价数据被篡改
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:') {
+        reject(new Error(`不支持的协议: ${parsed.protocol}，仅允许 HTTPS`));
+        return;
+      }
+    } catch {
+      reject(new Error(`无效的 URL 格式: ${url.slice(0, 100)}`));
+      return;
+    }
+
+    // 检测重定向循环
+    if (visited.has(url)) {
+      reject(new Error('检测到重定向循环'));
+      return;
+    }
+    visited.add(url);
+
     const req = https.get(url, { timeout: REQUEST_TIMEOUT_MS }, (res) => {
       // 跟随重定向（有深度限制）
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -43,11 +63,7 @@ function fetchRemote(url: string, maxRedirects = 5): Promise<RemotePricingData> 
           reject(new Error('重定向次数超限'));
           return;
         }
-        if (url === res.headers.location) {
-          reject(new Error('重定向循环'));
-          return;
-        }
-        fetchRemote(res.headers.location, maxRedirects - 1).then(resolve).catch(reject);
+        fetchRemote(res.headers.location, maxRedirects - 1, visited).then(resolve).catch(reject);
         return;
       }
 

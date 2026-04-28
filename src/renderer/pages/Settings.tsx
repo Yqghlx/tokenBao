@@ -146,7 +146,7 @@ function Settings() {
 
   const hasError = portError || daysError;
   const isDirty = useMemo(() =>
-    proxyPort !== savedValues.proxyPort || dataRetentionDays !== savedValues.dataRetentionDays || cacheTTL !== savedValues.cacheTTL,
+    String(proxyPort) !== String(savedValues.proxyPort) || String(dataRetentionDays) !== String(savedValues.dataRetentionDays) || String(cacheTTL) !== String(savedValues.cacheTTL),
     [proxyPort, dataRetentionDays, cacheTTL, savedValues]
   );
 
