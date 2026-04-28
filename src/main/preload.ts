@@ -287,6 +287,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       console.warn(`IPC 通道 "${channel}" 不在白名单中，拒绝监听`);
       return;
     }
+    if (typeof callback !== 'function') {
+      console.warn('IPC on: callback 必须为函数');
+      return;
+    }
     const listener = (_: unknown, ...args: unknown[]) => callback(...args);
     listenerMap.set(callback, listener);
     ipcRenderer.on(channel, listener);

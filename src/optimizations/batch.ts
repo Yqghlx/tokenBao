@@ -38,6 +38,14 @@ export function getOptions(): BatchOptions {
 }
 
 export function setOptions(options: Partial<BatchOptions>): void {
+  if (options.windowMs !== undefined && (typeof options.windowMs !== 'number' || options.windowMs < 100 || options.windowMs > 60000)) {
+    console.warn(`batch.setOptions: windowMs 无效 (${options.windowMs})，已忽略`);
+    delete options.windowMs;
+  }
+  if (options.maxBatchSize !== undefined && (typeof options.maxBatchSize !== 'number' || options.maxBatchSize < 1 || options.maxBatchSize > 100)) {
+    console.warn(`batch.setOptions: maxBatchSize 无效 (${options.maxBatchSize})，已忽略`);
+    delete options.maxBatchSize;
+  }
   Object.assign(defaultOptions, options);
 }
 
