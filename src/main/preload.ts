@@ -101,13 +101,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return ipcRenderer.invoke('apiKeys:add', name, type, key);
     },
     delete: (id: number) => {
-      if (typeof id !== 'number' || id < 1) {
+      if (typeof id !== 'number' || !Number.isFinite(id) || id < 1) {
         return Promise.resolve({ success: false, error: '无效的 ID' });
       }
       return ipcRenderer.invoke('apiKeys:delete', id);
     },
     get: (id: number) => {
-      if (typeof id !== 'number' || id < 1) return Promise.resolve(null);
+      if (typeof id !== 'number' || !Number.isFinite(id) || id < 1) return Promise.resolve(null);
       return ipcRenderer.invoke('apiKeys:get', id);
     }
   },
@@ -150,7 +150,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       if (!VALID_BUDGET_TYPES.includes(type as typeof VALID_BUDGET_TYPES[number])) {
         return Promise.resolve({ success: false, error: '无效的预算类型' });
       }
-      if (typeof limit !== 'number' || limit <= 0 || limit > 1000000) {
+      if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0 || limit > 1000000) {
         return Promise.resolve({ success: false, error: '预算限额无效' });
       }
       return ipcRenderer.invoke('budget:set', type, limit);
@@ -216,7 +216,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return ipcRenderer.invoke('rules:add', rule);
     },
     update: (id: number, updates: Record<string, unknown>) => {
-      if (typeof id !== 'number' || id < 1) {
+      if (typeof id !== 'number' || !Number.isFinite(id) || id < 1) {
         return Promise.resolve({ success: false, error: '无效的规则 ID' });
       }
       // 字段白名单验证，防止注入未知属性
@@ -252,7 +252,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return ipcRenderer.invoke('rules:update', id, updates);
     },
     delete: (id: number) => {
-      if (typeof id !== 'number' || id < 1) {
+      if (typeof id !== 'number' || !Number.isFinite(id) || id < 1) {
         return Promise.resolve({ success: false, error: '无效的规则 ID' });
       }
       return ipcRenderer.invoke('rules:delete', id);

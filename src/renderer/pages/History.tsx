@@ -29,6 +29,8 @@ function History() {
   const [exporting, setExporting] = useState(false);
   // 用 ref 追踪 totalCount，避免作为 loadHistory 依赖导致循环更新
   const totalCountRef = useRef(0);
+  // 追踪待释放的 blob URL，组件卸载时清理
+  const pendingBlobUrlRef = useRef<string | null>(null);
 
   const loadHistory = useCallback(async () => {
     if (window.electronAPI?.history?.list) {
@@ -75,6 +77,11 @@ function History() {
 
   useEffect(() => {
     loadHistory();
+    return () => {
+      if (pendingBlobUrlRef.current) {
+        URL.revokeObjectURL(pendingBlobUrlRef.current);
+      }
+    };
   }, [loadHistory]);
 
   usePolling(loadHistory, 15000);
@@ -136,8 +143,9 @@ function History() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        // 延迟释放 blob URL，确保浏览器完成下载
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        // 追踪 blob URL，组件卸载时可清理；延迟释放确保浏览器完成下载
+        pendingBlobUrlRef.current = url;
+        setTimeout(() => { URL.revokeObjectURL(url); pendingBlobUrlRef.current = null; }, 1000);
         showToast(`已导出 ${allData.length} 条记录`, 'success');
       } catch (err) {
         showToast('导出失败', 'error');

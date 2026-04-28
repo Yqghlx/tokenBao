@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { showToast } from '../components/Toast';
 import { usePolling } from '../hooks/usePolling';
 import { formatMoney } from '../utils/format';
@@ -15,6 +15,7 @@ function formatCost(value: number): string {
 }
 
 function Monitor() {
+  const pendingBlobUrlRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
@@ -45,6 +46,12 @@ function Monitor() {
 
   useEffect(() => {
     loadStats();
+    return () => {
+      // 组件卸载时释放未清理的 blob URL
+      if (pendingBlobUrlRef.current) {
+        URL.revokeObjectURL(pendingBlobUrlRef.current);
+      }
+    };
   }, [loadStats]);
 
   usePolling(loadStats, 10000);
@@ -87,8 +94,9 @@ function Monitor() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      // 延迟释放 blob URL，确保浏览器完成下载
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      // 追踪 blob URL，组件卸载时可清理；延迟释放确保浏览器完成下载
+      pendingBlobUrlRef.current = url;
+      setTimeout(() => { URL.revokeObjectURL(url); pendingBlobUrlRef.current = null; }, 1000);
       showToast('统计数据已导出', 'success');
     } catch (err) {
       console.error('导出统计数据失败:', err);
