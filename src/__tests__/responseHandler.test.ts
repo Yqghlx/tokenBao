@@ -261,4 +261,20 @@ describe('responseHandler', () => {
       expect(call.cost).toBeCloseTo(expected, 6);
     });
   });
+
+  describe('extractStreamUsage - 边界场景', () => {
+    test('畸形 SSE JSON 应返回 null 而不崩溃', () => {
+      const malformedSse = 'data: {invalid json}\ndata: more bad {json}\n\n';
+      const { handleResponse } = require('../proxy/responseHandler');
+      const result = handleResponse(malformedSse, { 'content-type': 'text/event-stream' }, 'openai');
+      expect(result.stats).toBeNull();
+    });
+
+    test('data: [DONE] 应跳过不报错', () => {
+      const sseData = 'data: [DONE]\n\n';
+      const { handleResponse } = require('../proxy/responseHandler');
+      const result = handleResponse(sseData, { 'content-type': 'text/event-stream' }, 'openai');
+      expect(result.stats).toBeNull();
+    });
+  });
 });

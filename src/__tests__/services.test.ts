@@ -376,6 +376,67 @@ describe('history 输入验证', () => {
     expect(result.responseBody).toContain('[truncated]');
     expect(result.responseBody!.length).toBeLessThan(hugeBody.length);
   });
+
+  test('clearRequests 应清空所有记录', async () => {
+    await historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
+    });
+    await historyService.clearRequests();
+    const recent = await historyService.getRecentRequests();
+    expect(recent.length).toBe(0);
+  });
+
+  test('getRequest 应按 ID 查询单条记录', async () => {
+    const added = await historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
+    });
+    const found = await historyService.getRequest(added.id);
+    expect(found).toBeDefined();
+    expect(found!.model).toBe('gpt-4');
+  });
+
+  test('getRequest 不存在的 ID 应返回 undefined', async () => {
+    const found = await historyService.getRequest(999999);
+    expect(found).toBeUndefined();
+  });
+
+  test('getRequestCount 应返回匹配条件的总数', async () => {
+    await historyService.clearRequests();
+    await historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
+    });
+    await historyService.addRequest({
+      apiType: 'anthropic', model: 'claude-3', inputTokens: 20, outputTokens: 10,
+      cachedTokens: 0, cost: 0.02, cached: false, timestamp: new Date().toISOString()
+    });
+    const total = await historyService.getRequestCount();
+    expect(total).toBe(2);
+    const openaiCount = await historyService.getRequestCount({ apiType: 'openai' });
+    expect(openaiCount).toBe(1);
+  });
+
+  test('listRequests 搜索应按关键词过滤', async () => {
+    await historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4-turbo-special', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
+    });
+    const results = await historyService.listRequests({ search: 'turbo-special' });
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    expect(results.every(r => r.model.toLowerCase().includes('turbo-special'))).toBe(true);
+  });
+
+  test('listRequests offset 应正确偏移', async () => {
+    await historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
+    });
+    const all = await historyService.listRequests({ limit: 100 });
+    const offset = await historyService.listRequests({ limit: 100, offset: Math.max(0, all.length - 1) });
+    expect(offset.length).toBeLessThanOrEqual(1);
+  });
 });
 
 describe('apiKey 输入验证', () => {
@@ -388,5 +449,27 @@ describe('apiKey 输入验证', () => {
     const longName = 'a'.repeat(101);
     await expect(apiKeyService.addApiKey(longName, 'openai', 'sk-test-key-1234567890abcdefghij'))
       .rejects.toThrow('名称不能超过 100 个字符');
+  });
+
+  test('deleteApiKey 成功删除应返回 true', async () => {
+    const added = await apiKeyService.addApiKey('待删除', 'openai', 'sk-del-test-1234567890abcdefghij');
+    const result = await apiKeyService.deleteApiKey(added.id);
+    expect(result).toBe(true);
+    // 确认已删除
+    const keys = await apiKeyService.listApiKeys();
+    expect(keys.find(k => k.id === added.id)).toBeUndefined();
+  });
+
+  test('getApiKey 应返回不含 encryptedKey 的记录', async () => {
+    const added = await apiKeyService.addApiKey('查询测试', 'openai', 'sk-get-test-1234567890abcdefghij');
+    const key = await apiKeyService.getApiKey(added.id);
+    expect(key).toBeDefined();
+    expect(key!.id).toBe(added.id);
+    expect((key as any).encryptedKey).toBeUndefined();
+  });
+
+  test('getApiKey 不存在的 ID 应返回 undefined', async () => {
+    const key = await apiKeyService.getApiKey(999999);
+    expect(key).toBeUndefined();
   });
 });
