@@ -317,6 +317,25 @@ describe('ProxyServer 核心逻辑', () => {
     });
   });
 
+  describe('熔断器客户端错误不计入故障', () => {
+    test('连续 4xx 不应触发熔断', async () => {
+      server = new ProxyServer({ port: getRandomPort() });
+      await server.start();
+
+      // 模拟 4xx 场景：客户端错误调用 recordUpstreamSuccess（而非 recordUpstreamFailure）
+      for (let i = 0; i < 10; i++) {
+        server['recordUpstreamSuccess']('openai');
+      }
+      expect(server['isCircuitOpen']('openai')).toBe(false);
+
+      // 真正的 5xx 故障仍应正常触发
+      for (let i = 0; i < 5; i++) {
+        server['recordUpstreamFailure']('openai');
+      }
+      expect(server['isCircuitOpen']('openai')).toBe(true);
+    });
+  });
+
   describe('优化配置更新', () => {
     test('updateOptimizationConfig 应更新管线配置', async () => {
       server = new ProxyServer({ port: getRandomPort() });

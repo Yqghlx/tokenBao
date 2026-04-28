@@ -160,6 +160,39 @@ describe('DLP 敏感数据脱敏', () => {
     });
   });
 
+  describe('美国社会安全号码脱敏', () => {
+    beforeEach(() => dlp.setOptions({ enabled: true }));
+
+    test('应脱敏标准格式 SSN', () => {
+      const result = dlp.scan('SSN: 123-45-6789');
+      expect(result.modified).toBe(true);
+      expect(result.text).not.toContain('123-45-6789');
+      expect(result.text).toContain('***-**-6789');
+      expect(result.detections[0].ruleId).toBe('us_ssn');
+    });
+
+    test('应脱敏无分隔符 SSN', () => {
+      const result = dlp.scan('SSN: 123456789');
+      expect(result.modified).toBe(true);
+      expect(result.text).not.toContain('123456789');
+    });
+
+    test('应排除无效前缀 000', () => {
+      const result = dlp.scan('编号: 000-12-3456');
+      expect(result.text).toContain('000-12-3456');
+    });
+
+    test('应排除无效前缀 666', () => {
+      const result = dlp.scan('编号: 666-12-3456');
+      expect(result.text).toContain('666-12-3456');
+    });
+
+    test('应排除无效前缀 9xx', () => {
+      const result = dlp.scan('编号: 900-12-3456');
+      expect(result.text).toContain('900-12-3456');
+    });
+  });
+
   describe('边界情况', () => {
     beforeEach(() => dlp.setOptions({ enabled: true }));
 

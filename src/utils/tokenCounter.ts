@@ -16,9 +16,20 @@ let encoder: Tiktoken | null = null;
 let encoderFailed = false;
 let encodeFailCount = 0;
 const MAX_ENCODE_FAILS = 5;
+/** 降级后等待此时间再重试初始化，避免瞬态故障导致永久降级 */
+const DEGRADE_RETRY_MS = 5 * 60 * 1000;
+let degradedAt = 0;
 
 function getEncoder(): Tiktoken | null {
-  if (encoderFailed) return null;
+  // 降级冷却期过后允许重新尝试初始化，恢复瞬态故障导致的永久降级
+  if (encoderFailed) {
+    if (Date.now() - degradedAt > DEGRADE_RETRY_MS) {
+      encoderFailed = false;
+      encodeFailCount = 0;
+    } else {
+      return null;
+    }
+  }
   if (!encoder) {
     try {
       encoder = getEncoding('cl100k_base');
@@ -26,6 +37,7 @@ function getEncoder(): Tiktoken | null {
     } catch (err) {
       console.warn('tiktoken 初始化失败，后续将使用估算:', (err as Error).message);
       encoderFailed = true;
+      degradedAt = Date.now();
       return null;
     }
   }
@@ -44,6 +56,7 @@ function countTokensOpenAI(text: string): number {
     if (encodeFailCount >= MAX_ENCODE_FAILS) {
       encoder = null;
       encoderFailed = true;
+      degradedAt = Date.now();
       console.warn(`tiktoken 连续 ${MAX_ENCODE_FAILS} 次编码失败，永久降级为估算模式`);
     }
     return estimateTokensFallback(text);

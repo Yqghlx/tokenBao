@@ -149,13 +149,14 @@ function registerIpcHandlers(): void {
       proxyServer = new ProxyServer({ port: effectivePort, openaiKey, anthropicKey });
       await proxyServer.start();
 
-      // 应用当前配置到缓存模块
-      const cacheTTL = await configService.getConfig('cacheTTL');
+      // 并行获取配置，减少代理启动延迟
+      const [cacheTTL, optimConfig] = await Promise.all([
+        configService.getConfig('cacheTTL'),
+        getOptimizationConfig()
+      ]);
       if (cacheTTL) {
         cachingModule.setOptions({ ttl: cacheTTL as '5min' | '1hour' });
       }
-
-      const optimConfig = await getOptimizationConfig();
       proxyServer.updateOptimizationConfig(optimConfig);
       startHealthCheck();
       // 事件驱动的崩溃检测：server error/close 立即触发重启，不依赖 10s 轮询
