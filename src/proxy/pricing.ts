@@ -68,15 +68,16 @@ const MODEL_ALIASES: Record<string, string> = {
   'claude-haiku-4-5-20251001': 'claude-haiku-4.5',
 };
 
+// 缓存排序后的模型名列表，避免每次调用 normalizeModelName 都重新排序
+const sortedModelKeys = Object.keys(MODEL_PRICING).sort((a, b) => b.length - a.length);
+
 export function normalizeModelName(model: string): string {
   if (!model) return 'unknown';
   const lower = model.toLowerCase();
   if (MODEL_ALIASES[lower]) return MODEL_ALIASES[lower];
   if (MODEL_PRICING[lower]) return lower;
   // 前缀匹配：按长度降序排列，确保最长前缀优先匹配
-  // 例如 gpt-4o-mini 应优先于 gpt-4o 匹配，避免 mini 按 4o 费率计费
-  const sortedKeys = Object.keys(MODEL_PRICING).sort((a, b) => b.length - a.length);
-  for (const key of sortedKeys) {
+  for (const key of sortedModelKeys) {
     if (lower.startsWith(key)) return key;
   }
   return model;

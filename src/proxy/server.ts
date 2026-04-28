@@ -539,15 +539,15 @@ class ProxyServer {
             }
           });
 
-          proxyReq.on('error', (err) => {
+          proxyReq.on('error', (_err) => {
             this.activeUpstreamRequests.delete(proxyReq);
             passThrough.destroy();
             if (!clientRes.headersSent) {
               clientRes.writeHead(502, { 'Content-Type': 'application/json' });
-              clientRes.end(JSON.stringify({ error: err.message, requestId }));
+              clientRes.end(JSON.stringify({ error: '上游 API 请求失败', requestId }));
             } else if (!clientRes.writableEnded) {
-              // 响应头已发送，注入 SSE 错误事件
-              clientRes.write(`\ndata: {"error":"upstream_error","message":"${err.message}"}\n\n`);
+              // 响应头已发送，注入 SSE 错误事件（不暴露上游内部错误细节）
+              clientRes.write(`\ndata: {"error":"upstream_error","message":"上游 API 请求失败"}\n\n`);
               clientRes.end();
             }
           });
