@@ -385,7 +385,7 @@ function Optimization() {
               </div>
               <div className="form-actions">
                 <button className="btn-primary btn-sm" disabled={operatingRuleId !== null} onClick={async () => {
-                  if (!newRule.name || !newRule.pattern) {
+                  if (!newRule.name || !newRule.pattern || !newRule.pattern.trim()) {
                     showToast('请填写规则名称和正则表达式', 'error');
                     return;
                   }

@@ -214,11 +214,22 @@ function registerIpcHandlers(): void {
   ipcMain.handle('proxy:setKeys', async (_, openaiKey: string, anthropicKey: string) => {
     try {
       // 主进程二次校验，防御 preload 绕过
-      if (openaiKey && (!openaiKey.startsWith('sk-') || openaiKey.length < 10)) {
-        return { success: false, error: 'OpenAI Key 格式无效' };
+      const ctrlCharRe = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
+      if (openaiKey) {
+        if (!openaiKey.startsWith('sk-') || openaiKey.length < 10 || openaiKey.length > 500) {
+          return { success: false, error: 'OpenAI Key 格式无效' };
+        }
+        if (ctrlCharRe.test(openaiKey)) {
+          return { success: false, error: '密钥包含非法控制字符' };
+        }
       }
-      if (anthropicKey && (!anthropicKey.startsWith('sk-ant-') || anthropicKey.length < 10)) {
-        return { success: false, error: 'Anthropic Key 格式无效' };
+      if (anthropicKey) {
+        if (!anthropicKey.startsWith('sk-ant-') || anthropicKey.length < 10 || anthropicKey.length > 500) {
+          return { success: false, error: 'Anthropic Key 格式无效' };
+        }
+        if (ctrlCharRe.test(anthropicKey)) {
+          return { success: false, error: '密钥包含非法控制字符' };
+        }
       }
       if (proxyServer) {
         proxyServer.setKeys(openaiKey, anthropicKey);
