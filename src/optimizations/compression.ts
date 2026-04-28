@@ -57,8 +57,8 @@ function estimateTokens(text: string): number {
  */
 function protectCodeBlocks(text: string): { protected: string; restore: (t: string) => string } {
   const blocks: string[] = [];
-  // 匹配 ```...``` 围栏代码块（支持 ~~~ 和 ``` 围栏）
-  const fencedRegex = /(`{3}|~{3})[\s\S]*?\1/g;
+  // 匹配 ```...``` 围栏代码块（支持 ~~~ 和 ``` 围栏），未闭合时匹配到文本末尾以防代码被空白压缩破坏
+  const fencedRegex = /(`{3}|~{3})[\s\S]*?(?:\1|$)/g;
   const protectedText = text.replace(fencedRegex, (match) => {
     blocks.push(match);
     return `\x00CODE_BLOCK_${blocks.length - 1}\x00`;

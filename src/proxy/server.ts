@@ -233,17 +233,19 @@ class ProxyServer {
     const result: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(headers)) {
-      if (key.toLowerCase() === 'host') continue;
+      const lowerKey = key.toLowerCase();
+      // 不转发 host（已由目标 URL 决定）和 accept-encoding（代理自行处理压缩）
+      if (lowerKey === 'host' || lowerKey === 'accept-encoding') continue;
 
       const stringValue = Array.isArray(value) ? value[0] : value;
 
-      if (key.toLowerCase() === 'authorization') {
+      if (lowerKey === 'authorization') {
         if (apiType === 'anthropic' && this.anthropicKey) {
           result['x-api-key'] = this.anthropicKey;
         } else if (apiType === 'openai' && this.openaiKey) {
           result['authorization'] = `Bearer ${this.openaiKey}`;
         }
-      } else if (key.toLowerCase() === 'x-api-key') {
+      } else if (lowerKey === 'x-api-key') {
         if (apiType === 'anthropic' && this.anthropicKey) {
           result['x-api-key'] = this.anthropicKey;
         }
