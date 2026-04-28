@@ -144,6 +144,8 @@ function sendUpstream(
     const opts = { ...options, agent: httpsAgent };
     let settled = false;
     const req = https.request(opts, (res) => {
+      // 收到响应即取消超时计时器，避免已完成的请求被意外 destroy
+      req.setTimeout(0);
       const chunks: Buffer[] = [];
       res.on('data', (chunk) => chunks.push(chunk));
       res.on('end', () => {
@@ -531,11 +533,11 @@ class ProxyServer {
             this.activeUpstreamRequests.delete(proxyReq);
             proxyReq.destroy();
             passThrough.destroy();
+            if (clientDisconnected || clientRes.destroyed) return;
             if (!clientRes.headersSent) {
               clientRes.writeHead(504, { 'Content-Type': 'application/json' });
               clientRes.end(JSON.stringify({ error: 'Gateway Timeout', message: '上游 API 响应超时', requestId }));
             } else if (!clientRes.writableEnded) {
-              // 响应头已发送，注入 SSE 错误事件让客户端区分正常结束和异常中断
               clientRes.write('\ndata: {"error":"timeout","message":"上游 API 响应超时，流被截断"}\n\n');
               clientRes.end();
             }
@@ -544,11 +546,11 @@ class ProxyServer {
           proxyReq.on('error', (_err) => {
             this.activeUpstreamRequests.delete(proxyReq);
             passThrough.destroy();
+            if (clientDisconnected || clientRes.destroyed) return;
             if (!clientRes.headersSent) {
               clientRes.writeHead(502, { 'Content-Type': 'application/json' });
               clientRes.end(JSON.stringify({ error: '上游 API 请求失败', requestId }));
             } else if (!clientRes.writableEnded) {
-              // 响应头已发送，注入 SSE 错误事件（不暴露上游内部错误细节）
               clientRes.write(`\ndata: {"error":"upstream_error","message":"上游 API 请求失败"}\n\n`);
               clientRes.end();
             }
@@ -676,6 +678,8 @@ class ProxyServer {
 
           if (isJson && bodyBuffer.length > 1024 && acceptEncoding.includes('gzip')) {
             zlib.gzip(bodyBuffer, (gzipErr, compressed) => {
+              // 异步回调时客户端可能已断开，写入会触发 EPIPE/ERR_STREAM_DESTROYED
+              if (clientRes.destroyed) return;
               if (gzipErr) {
                 // 压缩失败时回退到未压缩响应
                 logProxy('warn', 'Gzip 压缩失败，回退到未压缩响应', { requestId, error: gzipErr.message });
