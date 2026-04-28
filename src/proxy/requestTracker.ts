@@ -202,30 +202,30 @@ function getStatsSummary(): {
   completedRequests: number;
   failedRequests: number;
   avgDuration: number;
-  avgSavedTokens: number;
+  avgInputTokens: number;
 } {
   const totalRequests = pendingRequests.size + completedRequests.size;
   const pending = pendingRequests.size;
   const completedCount = Array.from(completedRequests.values()).filter(r => r.status < 400).length;
   const failedCount = Array.from(completedRequests.values()).filter(r => r.status >= 400).length;
-  
+
   const durations = Array.from(completedRequests.values()).map(r => r.duration);
   const avgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
-  
-  // 统计成功请求的平均输入 token 数（avgInputTokens）
+
+  // 统计成功请求的平均输入 token 数
   const inputTokensList = Array.from(completedRequests.values())
     .filter(r => r.status < 400)
     .map(r => r.inputTokens);
   const avgInputTokens = inputTokensList.length > 0
     ? inputTokensList.reduce((a, b) => a + b, 0) / inputTokensList.length : 0;
-  
+
   return {
     totalRequests,
     pendingRequests: pending,
     completedRequests: completedCount,
     failedRequests: failedCount,
     avgDuration: Math.round(avgDuration),
-    avgSavedTokens: Math.round(avgInputTokens)
+    avgInputTokens: Math.round(avgInputTokens)
   };
 }
 

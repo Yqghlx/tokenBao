@@ -58,4 +58,20 @@ describe('crypto 模块', () => {
     const id = generateId();
     expect(id).toMatch(/^[0-9a-f]{32}$/);
   });
+
+  test('解密畸形 IV 应抛出格式错误', () => {
+    const encrypted = encrypt('test');
+    const parts = encrypted.split(':');
+    // IV 截断为奇数长度
+    parts[0] = '0123456789abcde';
+    expect(() => decrypt(parts.join(':'))).toThrow('IV 长度或格式错误');
+  });
+
+  test('解密畸形认证标签应抛出格式错误', () => {
+    const encrypted = encrypt('test');
+    const parts = encrypted.split(':');
+    // 认证标签替换为非 hex 字符
+    parts[1] = 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
+    expect(() => decrypt(parts.join(':'))).toThrow('认证标签长度或格式错误');
+  });
 });

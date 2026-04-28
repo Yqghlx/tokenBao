@@ -86,6 +86,15 @@ export function decrypt(ciphertext: string): string {
   }
   const [ivHex, authTagHex, encrypted] = parts;
 
+  // 校验 hex 字符串长度和格式，防止 Buffer.from 静默截断畸形输入
+  const HEX_32 = /^[0-9a-fA-F]{32}$/;
+  if (!HEX_32.test(ivHex)) {
+    throw new Error('密文格式无效：IV 长度或格式错误');
+  }
+  if (!HEX_32.test(authTagHex)) {
+    throw new Error('密文格式无效：认证标签长度或格式错误');
+  }
+
   const iv = Buffer.from(ivHex, 'hex');
   const authTag = Buffer.from(authTagHex, 'hex');
 
