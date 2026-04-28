@@ -87,6 +87,28 @@ describe('stats 服务', () => {
     expect(after.totalCachedTokens).toBe(before.totalCachedTokens + 20);
   });
 
+  test('recordOptimization 应拒绝 NaN 的 savedTokens', async () => {
+    const before = await statsService.getSummary();
+    await statsService.recordOptimization({
+      apiType: 'openai',
+      model: 'gpt-4',
+      savedTokens: NaN,
+    });
+    const after = await statsService.getSummary();
+    expect(after.totalCachedTokens).toBe(before.totalCachedTokens);
+  });
+
+  test('recordOptimization 应拒绝负数 savedTokens', async () => {
+    const before = await statsService.getSummary();
+    await statsService.recordOptimization({
+      apiType: 'openai',
+      model: 'gpt-4',
+      savedTokens: -10,
+    });
+    const after = await statsService.getSummary();
+    expect(after.totalCachedTokens).toBe(before.totalCachedTokens);
+  });
+
   test('addStats 应更新 byApi 和 byModel', async () => {
     await statsService.addStats({
       apiType: 'anthropic',

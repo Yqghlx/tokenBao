@@ -43,6 +43,12 @@ export async function recordOptimization(data: {
   model: string;
   savedTokens: number;
 }): Promise<void> {
+  // 输入校验：拒绝 NaN 和负数
+  if (isNaN(data.savedTokens) || data.savedTokens < 0) {
+    console.warn('stats.recordOptimization: savedTokens 无效，已跳过', data.savedTokens);
+    return;
+  }
+
   return mutex.runExclusive(async () => {
     const stats = getStats();
     stats.totalCachedTokens += data.savedTokens;
@@ -136,6 +142,15 @@ export async function addStats(data: {
     if (!isFinite(stats.totalCachedTokens)) {
       console.warn(`stats.totalCachedTokens 变为 ${stats.totalCachedTokens}，回退到 ${prevCached}`);
       stats.totalCachedTokens = prevCached;
+    }
+    // byApi/byModel 费用也需检查，防止 Infinity 污染前端显示
+    for (const entry of Object.values(stats.byApi)) {
+      if (!isFinite(entry.cost)) entry.cost = 0;
+      if (!isFinite(entry.tokens)) entry.tokens = 0;
+    }
+    for (const entry of Object.values(stats.byModel)) {
+      if (!isFinite(entry.cost)) entry.cost = 0;
+      if (!isFinite(entry.tokens)) entry.tokens = 0;
     }
 
     await saveStats(stats);

@@ -8,6 +8,12 @@ import { usePolling } from '../hooks/usePolling';
  */
 const CACHE_SAVINGS_RATIO = 0.9;
 
+/** 安全格式化费用，防止 Infinity/NaN 污染 UI 显示 */
+function formatCost(value: number): string {
+  if (!isFinite(value) || isNaN(value)) return '0.00';
+  return value.toFixed(4);
+}
+
 function Monitor() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,8 +108,8 @@ function Monitor() {
     );
   }
 
-  const savedCost = cacheSavings.toFixed(2);
-  const actualCost = stats.totalCost.toFixed(4);
+  const savedCost = (isFinite(cacheSavings) ? cacheSavings : 0).toFixed(2);
+  const actualCost = formatCost(stats.totalCost);
 
   return (
     <div className="page">
@@ -154,7 +160,7 @@ function Monitor() {
               </div>
               <div className="stat-card cache-card">
                 <h3>缓存节省费用</h3>
-                <p className="stat-value">${cacheSavings.toFixed(4)}</p>
+                <p className="stat-value">${formatCost(cacheSavings)}</p>
                 <p className="stat-detail">基于实际成本保守估算</p>
               </div>
             </div>
@@ -172,7 +178,7 @@ function Monitor() {
                     <div key={api} className="breakdown-item">
                       <span className="breakdown-item-label">{api.toUpperCase()}</span>
                       <div className="breakdown-item-detail">
-                        请求: {data.requests} | Tokens: {data.tokens.toLocaleString()} | 费用: ${data.cost.toFixed(4)}
+                        请求: {data.requests} | Tokens: {data.tokens.toLocaleString()} | 费用: ${formatCost(data.cost)}
                       </div>
                     </div>
                   ))
@@ -187,7 +193,7 @@ function Monitor() {
                     <div key={model} className="breakdown-item">
                       <span className="breakdown-item-label">{model}</span>
                       <div className="breakdown-item-detail">
-                        请求: {data.requests} | Tokens: {data.tokens.toLocaleString()} | 费用: ${data.cost.toFixed(4)}
+                        请求: {data.requests} | Tokens: {data.tokens.toLocaleString()} | 费用: ${formatCost(data.cost)}
                       </div>
                     </div>
                   ))
