@@ -120,10 +120,17 @@ export function saveJson<T>(filename: string, data: T): void {
   const fd = fs.openSync(tmpPath, 'w');
   try {
     fs.writeFileSync(fd, content, 'utf-8');
-    fs.fsyncSync(fd);
-  } finally {
+    try {
+      fs.fsyncSync(fd);
+    } catch (syncErr) {
+      console.warn(`fsync 失败 (${filename})，数据已写入但持久化不保证:`, (syncErr as Error).message);
+    }
+  } catch (writeErr) {
     fs.closeSync(fd);
+    try { fs.unlinkSync(tmpPath); } catch { /* 忽略清理失败 */ }
+    throw writeErr;
   }
+  fs.closeSync(fd);
   fs.renameSync(tmpPath, filePath);
 }
 

@@ -597,6 +597,8 @@ class ProxyServer {
             passThrough.on('error', (err) => {
               logProxy('error', 'PassThrough 流处理错误', { requestId, error: err.message });
               passThrough.destroy();
+              proxyReq.destroy();
+              this.activeUpstreamRequests.delete(proxyReq);
             });
 
             // 上游响应流出错时清理所有关联资源
