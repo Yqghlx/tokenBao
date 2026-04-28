@@ -158,4 +158,38 @@ describe('compression 模块', () => {
     // 不应将所有内容合并为单行
     expect(result.text.split('\n').length).toBeGreaterThanOrEqual(3);
   });
+
+  test('未闭合的代码块应被保护（回归测试）', () => {
+    const input = 'Please help:\n```python\ndef hello():\n    return 42\n未闭合文本';
+    const result = compression.compress(input);
+    // 未闭合代码块内的缩进和内容应被完整保留
+    expect(result.text).toContain('def hello():');
+    expect(result.text).toContain('    return 42');
+    expect(result.text).toContain('未闭合文本');
+  });
+
+  test('未闭合的波浪线围栏应被保护', () => {
+    const input = 'Could you analyze:\n~~~json\n{"key": "value"}\n没有结束标记';
+    const result = compression.compress(input);
+    expect(result.text).toContain('{"key": "value"}');
+    expect(result.text).toContain('没有结束标记');
+  });
+
+  test('空代码块不应导致异常', () => {
+    const input = 'Text before\n```\n\n```\nText after';
+    const result = compression.compress(input);
+    expect(result.text).toContain('Text before');
+    expect(result.text).toContain('Text after');
+  });
+
+  test('多个代码块混合未闭合应正确保护', () => {
+    const input = 'Please:\n```js\nvar  x  =  1;\n```\nIn order to test\n```python\n  indented()\n未闭合';
+    const result = compression.compress(input);
+    // 第一个闭合代码块内容保留
+    expect(result.text).toContain('var  x  =  1;');
+    // 第二个未闭合代码块内容保留
+    expect(result.text).toContain('  indented()');
+    // 非代码区域短语替换生效
+    expect(result.text).not.toContain('in order to');
+  });
 });
