@@ -14,7 +14,7 @@ let dataDir: string;
 function getDataDir(): string {
   if (!dataDir) {
     const isElectron = process.versions?.electron !== undefined;
-    
+
     if (isElectron) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -27,12 +27,35 @@ function getDataDir(): string {
     } else {
       dataDir = path.join(process.cwd(), 'test-data');
     }
-    
+
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
+
+    // 清理上次进程崩溃残留的临时文件
+    cleanupStaleTempFiles();
   }
   return dataDir;
+}
+
+/** 清理 .tmp 残留文件（原子写入中断后遗留），避免磁盘垃圾积累 */
+function cleanupStaleTempFiles(): void {
+  try {
+    const files = fs.readdirSync(dataDir);
+    for (const file of files) {
+      if (file.endsWith('.tmp')) {
+        const tmpPath = path.join(dataDir, file);
+        try {
+          fs.unlinkSync(tmpPath);
+          console.warn(`清理残留临时文件: ${file}`);
+        } catch {
+          // 清理失败不影响正常功能
+        }
+      }
+    }
+  } catch {
+    // 目录读取失败不影响正常功能
+  }
 }
 
 function getFilePath(filename: string): string {
