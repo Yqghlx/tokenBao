@@ -804,6 +804,8 @@ class ProxyServer {
         this.server.close(() => {
           clearTimeout(shutdownTimer);
           this.server = null;
+          // 销毁连接池中的空闲 socket，防止资源泄漏
+          httpsAgent.destroy();
           logProxy('info', '代理服务器已关闭');
           resolve();
         });

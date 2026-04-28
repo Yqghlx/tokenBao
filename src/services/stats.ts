@@ -64,13 +64,9 @@ export async function recordOptimization(data: {
     }
     stats.byModel[data.model].tokens += data.savedTokens;
 
-    // byApi/byModel 费用溢出保护
-    for (const entry of Object.values(stats.byApi)) {
-      if (!Number.isFinite(entry.tokens)) entry.tokens = 0;
-    }
-    for (const entry of Object.values(stats.byModel)) {
-      if (!Number.isFinite(entry.tokens)) entry.tokens = 0;
-    }
+    // 仅检查本次修改的条目，而非全量遍历
+    if (!Number.isFinite(stats.byApi[data.apiType].tokens)) stats.byApi[data.apiType].tokens = 0;
+    if (!Number.isFinite(stats.byModel[data.model].tokens)) stats.byModel[data.model].tokens = 0;
 
     await saveStats(stats);
   });
@@ -152,14 +148,16 @@ export async function addStats(data: {
       console.warn(`stats.totalCachedTokens 变为 ${stats.totalCachedTokens}，回退到 ${prevCached}`);
       stats.totalCachedTokens = prevCached;
     }
-    // byApi/byModel 费用也需检查，防止 Infinity 污染前端显示
-    for (const entry of Object.values(stats.byApi)) {
-      if (!Number.isFinite(entry.cost)) entry.cost = 0;
-      if (!Number.isFinite(entry.tokens)) entry.tokens = 0;
+    // 仅检查本次修改的 byApi/byModel 条目，防止 Infinity 污染前端显示
+    const apiEntry = stats.byApi[data.apiType];
+    if (apiEntry) {
+      if (!Number.isFinite(apiEntry.cost)) apiEntry.cost = 0;
+      if (!Number.isFinite(apiEntry.tokens)) apiEntry.tokens = 0;
     }
-    for (const entry of Object.values(stats.byModel)) {
-      if (!Number.isFinite(entry.cost)) entry.cost = 0;
-      if (!Number.isFinite(entry.tokens)) entry.tokens = 0;
+    const modelEntry = stats.byModel[data.model];
+    if (modelEntry) {
+      if (!Number.isFinite(modelEntry.cost)) modelEntry.cost = 0;
+      if (!Number.isFinite(modelEntry.tokens)) modelEntry.tokens = 0;
     }
 
     await saveStats(stats);

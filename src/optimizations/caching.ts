@@ -21,8 +21,8 @@ const defaultOptions: CachingOptions = {
 };
 
 const cachePatterns: Map<string, { content: string; timestamp: number }> = new Map();
-// 记录插入顺序用于 LRU 淘汰
-const cacheOrder: string[] = [];
+// 用 Set 维护 LRU 顺序：插入序即访问序，delete+add 实现 O(1) 移动
+const cacheOrder: Set<string> = new Set();
 // 缓存命中/未命中计数器，用于可观测性
 let hits = 0;
 let misses = 0;
@@ -36,7 +36,7 @@ function loadFromStorage(): void {
     store.patterns.forEach(p => {
       if (now - p.timestamp < ttlMs) {
         cachePatterns.set(p.key, { content: p.content, timestamp: p.timestamp });
-        cacheOrder.push(p.key);
+        cacheOrder.add(p.key);
       }
     });
 
@@ -51,11 +51,12 @@ function loadFromStorage(): void {
   }
 }
 
-/** 淘汰最早的条目直到缓存大小合规 */
+/** 淘汰最早的条目直到缓存大小合规（O(1) 每次淘汰） */
 function evictIfNeeded(): void {
-  while (cachePatterns.size > MAX_CACHE_SIZE && cacheOrder.length > 0) {
-    // while 条件保证 length > 0，shift 必有返回值
-    const oldest = cacheOrder.shift()!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+  while (cachePatterns.size > MAX_CACHE_SIZE && cacheOrder.size > 0) {
+    const oldest = cacheOrder.values().next().value;
+    if (oldest === undefined) break;
+    cacheOrder.delete(oldest);
     cachePatterns.delete(oldest);
   }
 }
@@ -92,7 +93,11 @@ function scheduleSave(): void {
 }
 
 /** 进程退出时同步刷盘，防止 debounce 导致数据丢失 */
+let flushCalled = false;
 function flushSave(): void {
+  // beforeExit 和 exit 可能都被触发，防止重复刷盘
+  if (flushCalled) return;
+  flushCalled = true;
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
@@ -127,9 +132,8 @@ export function addCache(apiType: string, content: string): void {
   if (!defaultOptions.enabled) return;
 
   const key = getCacheKey(apiType, content);
-  // 已存在则先从顺序中移除（会重新追加到末尾）
-  const existingIdx = cacheOrder.indexOf(key);
-  if (existingIdx !== -1) cacheOrder.splice(existingIdx, 1);
+  // 已存在则先移除再重新添加，实现 O(1) 的 LRU 移动
+  if (cacheOrder.has(key)) cacheOrder.delete(key);
 
   cachePatterns.set(key, {
     content: content.slice(0, 1000),
@@ -139,7 +143,7 @@ export function addCache(apiType: string, content: string): void {
   if (content.length > 1000) {
     console.warn(`caching: 内容超过 1000 字符被截断（原始 ${content.length} 字符），缓存键 ${key.slice(0, 20)}...`);
   }
-  cacheOrder.push(key);
+  cacheOrder.add(key);
   evictIfNeeded();
   scheduleSave();
 }
@@ -156,11 +160,10 @@ export function checkCache(apiType: string, content: string): boolean {
   if (Date.now() - cached.timestamp >= ttlMs) { misses++; return false; }
 
   hits++;
-  // 命中时更新 LRU 顺序，防止频繁访问的条目被误淘汰
-  const idx = cacheOrder.indexOf(key);
-  if (idx !== -1) {
-    cacheOrder.splice(idx, 1);
-    cacheOrder.push(key);
+  // 命中时更新 LRU 顺序：O(1) 移动到末尾
+  if (cacheOrder.has(key)) {
+    cacheOrder.delete(key);
+    cacheOrder.add(key);
   }
 
   return true;

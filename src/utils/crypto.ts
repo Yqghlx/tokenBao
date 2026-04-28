@@ -50,10 +50,9 @@ function getEncryptionKey(): Buffer {
   cachedKey = newKey;
 
   try {
+    // recursive 选项自动处理已存在的目录，无需先 existsSync 检查
     const dir = path.dirname(keyPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    }
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     // 原子写入：先写临时文件再重命名，防止写入中断导致密钥损坏
     const tmpPath = keyPath + '.tmp';
     fs.writeFileSync(tmpPath, newKey.toString('hex'), { encoding: 'utf8', mode: 0o600 });
