@@ -83,6 +83,9 @@ export async function getBudget(type: 'daily' | 'monthly'): Promise<{ type: stri
 }
 
 export async function setBudgetLimit(type: 'daily' | 'monthly', limit: number): Promise<{ type: string; limit: number; spent: number }> {
+  if (typeof limit !== 'number' || !isFinite(limit) || limit <= 0) {
+    throw new Error('预算限额必须为正数');
+  }
   return mutex.runExclusive(async () => {
     const store = getStore();
     checkAutoReset(store);

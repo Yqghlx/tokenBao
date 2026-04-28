@@ -243,13 +243,12 @@ describe('budget 服务', () => {
     expect(status.daily.spent).toBe(0);
   });
 
-  test('limit=0 时 percentage 应为 0 而非 Infinity', async () => {
-    await budgetService.setBudgetLimit('daily', 0);
-    await budgetService.resetSpent('daily');
-    const status = await budgetService.getBudgetStatus();
-    expect(status.daily.percentage).toBe(0);
-    // 清理
-    await budgetService.setBudgetLimit('daily', 10);
+  test('limit=0 应被拒绝', async () => {
+    await expect(budgetService.setBudgetLimit('daily', 0)).rejects.toThrow('预算限额必须为正数');
+  });
+
+  test('limit 为负数应被拒绝', async () => {
+    await expect(budgetService.setBudgetLimit('daily', -10)).rejects.toThrow('预算限额必须为正数');
   });
 
   test('remaining 不应为负数', async () => {

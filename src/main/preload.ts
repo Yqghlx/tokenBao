@@ -150,7 +150,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       if (!VALID_BUDGET_TYPES.includes(type as typeof VALID_BUDGET_TYPES[number])) {
         return Promise.resolve({ success: false, error: '无效的预算类型' });
       }
-      if (typeof limit !== 'number' || limit < 0 || limit > 1000000) {
+      if (typeof limit !== 'number' || limit <= 0 || limit > 1000000) {
         return Promise.resolve({ success: false, error: '预算限额无效' });
       }
       return ipcRenderer.invoke('budget:set', type, limit);

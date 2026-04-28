@@ -28,6 +28,9 @@ const CONFIG_VALIDATORS: Record<string, (val: string) => boolean> = {
   theme: (v) => ['light', 'dark', 'auto'].includes(v)
 };
 
+/** 优化配置允许的键白名单 */
+const VALID_OPTIM_KEYS = new Set(['caching', 'compression', 'routing', 'batching']);
+
 /** 默认配置（单一来源，消除 DRY 违规） */
 const DEFAULT_CONFIG: ConfigStore = {
   config: {
@@ -93,6 +96,15 @@ export async function getOptimizationConfig(): Promise<Record<string, boolean>> 
 }
 
 export async function setOptimizationConfig(config: Record<string, boolean>): Promise<void> {
+  // 白名单校验：拒绝未知的优化键
+  for (const key of Object.keys(config)) {
+    if (!VALID_OPTIM_KEYS.has(key)) {
+      throw new Error(`未知的优化配置项: ${key}`);
+    }
+    if (typeof config[key] !== 'boolean') {
+      throw new Error(`配置项 ${key} 必须为布尔值`);
+    }
+  }
   return mutex.runExclusive(async () => {
     const store = getStore();
     Object.assign(store.optimization, config);
