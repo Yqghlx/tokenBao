@@ -119,6 +119,7 @@ function countMessages(messages: Message[], apiType?: string): number {
 }
 
 function cleanup(): void {
+  // js-tiktoken 使用纯 JS 实现，无 WASM 内存需释放，置空即可让 GC 回收
   encoder = null;
 }
 

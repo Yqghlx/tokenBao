@@ -103,6 +103,19 @@ describe('优化管线 pipeline', () => {
     expect(result.modifiedBody.messages[0].content).toBe('Please help me with this task');
   });
 
+  test('无策略应用时 optimizedTokens 应等于 originalTokens 且 savedTokens 为 0', () => {
+    setOptimizationConfig({ caching: false, compression: false, routing: false, batching: false, rules: false });
+    const body = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Hello world' }]
+    };
+    const result = applyOptimizations('openai', body);
+    // 无策略应用时跳过昂贵的 token 重计数，直接复用 originalTokens
+    expect(result.appliedStrategies).toEqual([]);
+    expect(result.optimizedTokens).toBe(result.originalTokens);
+    expect(result.savedTokens).toBe(0);
+  });
+
   test('getOptimizationConfig 应返回当前配置副本', () => {
     setOptimizationConfig({ compression: false });
     const config = getOptimizationConfig();

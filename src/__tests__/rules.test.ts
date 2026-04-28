@@ -238,4 +238,26 @@ describe('rules 优化模块', () => {
     });
     expect(rule.replacement.length).toBe(1000);
   });
+
+  test('排序缓存应在增删改后正确失效', () => {
+    // 添加规则 A（低优先级）
+    const ruleA = rulesModule.addRule({ name: 'A', type: 'replace', pattern: 'x', replacement: 'LOW', enabled: true, priority: 1 });
+    // 添加规则 B（高优先级）
+    const ruleB = rulesModule.addRule({ name: 'B', type: 'replace', pattern: 'x', replacement: 'HIGH', enabled: true, priority: 10 });
+    // 高优先级先生效：x → HIGH，低优先级后生效但 x 已被替换
+    expect(rulesModule.applyRules('x')).toBe('HIGH');
+
+    // 更新 A 的优先级为最高
+    rulesModule.updateRule(ruleA.id, { priority: 20 });
+    // 现在 A 优先级最高：x → LOW（A 先执行），B 后执行但 x 已被替换
+    expect(rulesModule.applyRules('x')).toBe('LOW');
+
+    // 禁用 A，B 应生效
+    rulesModule.updateRule(ruleA.id, { enabled: false });
+    expect(rulesModule.applyRules('x')).toBe('HIGH');
+
+    // 删除 B，A 被禁用，应返回原文
+    rulesModule.deleteRule(ruleB.id);
+    expect(rulesModule.applyRules('x')).toBe('x');
+  });
 });

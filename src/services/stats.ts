@@ -105,11 +105,11 @@ export async function addStats(data: {
   return mutex.runExclusive(async () => {
     const stats = getStats();
 
-    // 记录累加前快照，Infinity/NaN 时回退到上次有效值而非 0
-    const prevCost = stats.totalCost;
-    const prevInput = stats.totalInputTokens;
-    const prevOutput = stats.totalOutputTokens;
-    const prevCached = stats.totalCachedTokens;
+    // 记录累加前快照，磁盘数据损坏时 NaN/Infinity 不可作为回退值，归零处理
+    const prevCost = Number.isFinite(stats.totalCost) ? stats.totalCost : 0;
+    const prevInput = Number.isFinite(stats.totalInputTokens) ? stats.totalInputTokens : 0;
+    const prevOutput = Number.isFinite(stats.totalOutputTokens) ? stats.totalOutputTokens : 0;
+    const prevCached = Number.isFinite(stats.totalCachedTokens) ? stats.totalCachedTokens : 0;
 
     stats.totalRequests++;
     stats.totalInputTokens += data.inputTokens;
