@@ -95,4 +95,19 @@ describe('routing 模块', () => {
     // 但如果没有 classification 规则，应尝试 simple
     expect(routing.routeModel('claude-3-opus', 'Translate this text')).toBe('claude-3-haiku');
   });
+
+  test('simple+complex 关键词平局时应偏向 complex（不降级）', () => {
+    // 同时包含 classify（simple）和 analyze（complex），应检测为 complex
+    expect(routing.detectComplexity('Classify and analyze this data')).toBe('complex');
+  });
+
+  test('simple+extraction 关键词平局时应偏向 extraction', () => {
+    // 同时包含 classify（simple）和 extract（extraction），应检测为 extraction
+    expect(routing.detectComplexity('Classify and extract key entities')).toBe('extraction');
+  });
+
+  test('simple+complex 平局时路由不应降级', () => {
+    // 同时含 simple 和 complex 关键词 → complex → 无 complex 路由规则 → 保持原模型
+    expect(routing.routeModel('gpt-4', 'Classify and analyze this data')).toBe('gpt-4');
+  });
 });

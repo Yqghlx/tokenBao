@@ -23,6 +23,7 @@ interface HistoryStore {
 
 const STORAGE_FILE = 'history.json';
 const MAX_HISTORY = 1000;
+const MAX_BODY_SIZE = 50000; // requestBody/responseBody 最大 50KB
 const DEFAULT_RETENTION_DAYS = 30;
 const mutex = getMutex(STORAGE_FILE);
 
@@ -64,8 +65,12 @@ async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
   const before = store.requests.length;
   store.requests = store.requests.filter(r => {
     const ts = new Date(r.timestamp).getTime();
-    // 无效 timestamp（NaN）保留，避免误删数据
-    return isNaN(ts) || ts >= cutoff;
+    // 无效 timestamp（NaN）视为损坏数据，清理掉
+    if (isNaN(ts)) {
+      console.warn(`历史记录 ID=${r.id} 时间戳无效，已清理: "${r.timestamp}"`);
+      return false;
+    }
+    return ts >= cutoff;
   });
 
   if (store.requests.length < before) {
@@ -99,6 +104,12 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
   }
   if (typeof log.cachedTokens !== 'number' || isNaN(log.cachedTokens) || log.cachedTokens < 0) {
     throw new Error('cachedTokens 无效');
+  }
+  if (log.requestBody && log.requestBody.length > MAX_BODY_SIZE) {
+    log = { ...log, requestBody: log.requestBody.slice(0, MAX_BODY_SIZE) + '...[truncated]' };
+  }
+  if (log.responseBody && log.responseBody.length > MAX_BODY_SIZE) {
+    log = { ...log, responseBody: log.responseBody.slice(0, MAX_BODY_SIZE) + '...[truncated]' };
   }
 
   return mutex.runExclusive(async () => {

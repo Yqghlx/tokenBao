@@ -315,6 +315,28 @@ describe('history 输入验证', () => {
     expect(result.id).toBeGreaterThan(0);
     expect(result.apiType).toBe('openai');
   });
+
+  test('addRequest 应截断过大的 requestBody', async () => {
+    const hugeBody = 'x'.repeat(60000);
+    const result = await historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString(),
+      requestBody: hugeBody
+    });
+    expect(result.requestBody).toContain('[truncated]');
+    expect(result.requestBody!.length).toBeLessThan(hugeBody.length);
+  });
+
+  test('addRequest 应截断过大的 responseBody', async () => {
+    const hugeBody = 'y'.repeat(60000);
+    const result = await historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString(),
+      responseBody: hugeBody
+    });
+    expect(result.responseBody).toContain('[truncated]');
+    expect(result.responseBody!.length).toBeLessThan(hugeBody.length);
+  });
 });
 
 describe('apiKey 输入验证', () => {

@@ -203,11 +203,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
       if (typeof rule.pattern !== 'string' || rule.pattern.length > 500) {
         return Promise.resolve({ success: false, error: '正则表达式过长' });
       }
+      // 正则语法预校验，避免无效正则发送到主进程
+      try {
+        new RegExp(rule.pattern);
+      } catch {
+        return Promise.resolve({ success: false, error: '正则表达式语法无效' });
+      }
       return ipcRenderer.invoke('rules:add', rule);
     },
     update: (id: number, updates: Record<string, unknown>) => {
       if (typeof id !== 'number' || id < 1) {
         return Promise.resolve({ success: false, error: '无效的规则 ID' });
+      }
+      // 字段白名单验证，防止注入未知属性
+      const allowedFields = new Set(['name', 'type', 'pattern', 'replacement', 'enabled', 'priority']);
+      for (const key of Object.keys(updates)) {
+        if (!allowedFields.has(key)) {
+          return Promise.resolve({ success: false, error: `不允许更新的字段: ${key}` });
+        }
+      }
+      // 更新 pattern 时校验语法
+      if (updates.pattern !== undefined) {
+        if (typeof updates.pattern !== 'string' || updates.pattern.length > 500) {
+          return Promise.resolve({ success: false, error: '正则表达式过长' });
+        }
+        try {
+          new RegExp(updates.pattern as string);
+        } catch {
+          return Promise.resolve({ success: false, error: '正则表达式语法无效' });
+        }
       }
       return ipcRenderer.invoke('rules:update', id, updates);
     },
