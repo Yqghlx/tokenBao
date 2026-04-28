@@ -132,6 +132,10 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
 
   try {
     result.originalTokens = tokenCounterModule.countMessages(body.messages, apiType);
+    // Anthropic system prompt 作为顶级字段独立于 messages，需额外计算
+    if (typeof body.system === 'string' && body.system.length > 0) {
+      result.originalTokens += tokenCounterModule.countTokens(body.system, apiType);
+    }
   } catch (err) {
     console.warn('原始 token 计数失败，使用默认值 0:', (err as Error).message);
     result.originalTokens = 0;
@@ -218,6 +222,12 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
   if (result.appliedStrategies.length > 0) {
     try {
       result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages, apiType);
+      // Anthropic system prompt 作为顶级字段独立于 messages，需额外计算
+      if (typeof (modifiedBody as Record<string, unknown>).system === 'string') {
+        result.optimizedTokens += tokenCounterModule.countTokens(
+          (modifiedBody as Record<string, unknown>).system as string, apiType
+        );
+      }
     } catch (err) {
       console.warn('优化后 token 计数失败，使用原始值:', (err as Error).message);
       result.optimizedTokens = result.originalTokens;

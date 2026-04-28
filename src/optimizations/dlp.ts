@@ -121,11 +121,11 @@ const BUILTIN_RULES: DLPRule[] = [
     severity: 'high',
     maskMode: 'redact'
   },
-  // 银行卡号（16-19位连续数字）
+  // 银行卡号（15-19位连续数字，覆盖 Amex 15位、Visa/Mastercard 16位、UnionPay 16-19位）
   {
     id: 'bank_card',
     name: '银行卡号',
-    pattern: /\b((?:\d{4}[\s-]?){3}\d{1,4})\b/g,
+    pattern: /\b((?:\d{4}[\s-]?){3}\d{3,7}|\d{4}[\s-]?\d{6}[\s-]?\d{5})\b/g,
     replacement: '',
     enabled: false,
     severity: 'normal',
