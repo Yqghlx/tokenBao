@@ -45,7 +45,7 @@ function Settings() {
   const handlePortChange = (value: string) => {
     setProxyPort(value);
     const port = parseInt(value, 10);
-    if (value && (isNaN(port) || port < 1024 || port > 65535)) {
+    if (value && (!Number.isFinite(port) || port < 1024 || port > 65535)) {
       setPortError('端口范围应为 1024-65535');
     } else {
       setPortError('');
@@ -56,7 +56,7 @@ function Settings() {
   const handleDaysChange = (value: string) => {
     setDataRetentionDays(value);
     const days = parseInt(value, 10);
-    if (value && (isNaN(days) || days < 1 || days > 365)) {
+    if (value && (!Number.isFinite(days) || days < 1 || days > 365)) {
       setDaysError('天数范围应为 1-365');
     } else if (value && days < 7) {
       setDaysError('低于 7 天可能导致历史记录不足');
@@ -82,13 +82,13 @@ function Settings() {
 
   const saveSettings = async () => {
     const port = parseInt(proxyPort, 10);
-    if (isNaN(port) || port < 1024 || port > 65535) {
+    if (!Number.isFinite(port) || port < 1024 || port > 65535) {
       setPortError('端口范围应为 1024-65535');
       return;
     }
 
     const days = parseInt(dataRetentionDays, 10);
-    if (isNaN(days) || days < 1 || days > 365) {
+    if (!Number.isFinite(days) || days < 1 || days > 365) {
       setDaysError('天数范围应为 1-365');
       return;
     }

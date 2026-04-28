@@ -293,7 +293,7 @@ function Optimization() {
                 <input id="rule-priority" type="number" value={newRule.priority} min={0} max={1000} onChange={(e) => {
                   const val = parseInt(e.target.value);
                   // HTML min 属性不阻止 JS 解析负数，需手动 clamp
-                  setNewRule(p => ({ ...p, priority: isNaN(val) ? 0 : Math.max(0, Math.min(1000, val)) }));
+                  setNewRule(p => ({ ...p, priority: !Number.isFinite(val) ? 0 : Math.max(0, Math.min(1000, val)) }));
                 }} />
               </div>
               <div className="form-actions">

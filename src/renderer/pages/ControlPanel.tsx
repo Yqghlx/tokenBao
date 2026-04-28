@@ -5,7 +5,7 @@ import { formatMoney } from '../utils/format';
 
 /** 将秒数格式化为可读时长 */
 function formatUptime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return '0秒';
+  if (!Number.isFinite(seconds) || seconds < 0) return '0秒';
   if (seconds < 60) return `${Math.floor(seconds)}秒`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}分${Math.floor(seconds % 60)}秒`;
   const h = Math.floor(seconds / 3600);

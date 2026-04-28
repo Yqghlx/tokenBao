@@ -46,7 +46,7 @@ function Budget() {
 
   const saveBudget = async (type: 'daily' | 'monthly', value: string) => {
     const limit = parseFloat(value);
-    if (isNaN(limit) || limit <= 0) {
+    if (!Number.isFinite(limit) || limit <= 0) {
       showToast('预算限额必须为正数', 'error');
       return;
     }

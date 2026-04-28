@@ -62,7 +62,7 @@ function Monitor() {
     const cacheRatio = stats.totalCachedTokens / stats.totalInputTokens;
     const savings = inputCost * cacheRatio * CACHE_SAVINGS_RATIO;
     // 防止 stats 数据被污染时产生 NaN/Infinity
-    return isFinite(savings) ? savings : 0;
+    return Number.isFinite(savings) ? savings : 0;
   }, [stats.totalCachedTokens, stats.totalInputTokens, stats.totalCost, totalTokens]);
 
   /** 导出统计数据为 JSON 文件 */
@@ -110,7 +110,7 @@ function Monitor() {
     );
   }
 
-  const savedCost = (isFinite(cacheSavings) ? cacheSavings : 0).toFixed(2);
+  const savedCost = (Number.isFinite(cacheSavings) ? cacheSavings : 0).toFixed(2);
   const actualCost = formatCost(stats.totalCost);
 
   return (
