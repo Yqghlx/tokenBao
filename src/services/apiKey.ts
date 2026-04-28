@@ -119,7 +119,7 @@ async function decryptWithMigration(store: ApiKeyStore, key: ApiKey): Promise<st
         key.encryptedKey = encrypt(decrypted);
         key.updatedAt = new Date().toISOString();
         await saveStore(store);
-        console.log(`apiKey: ID=${key.id} 已自动迁移到系统安全存储`);
+        console.info(`apiKey: ID=${key.id} 已自动迁移到系统安全存储`);
       } catch (migrateErr) {
         console.warn(`apiKey: ID=${key.id} 迁移失败，继续使用 AES:`, (migrateErr as Error).message);
       }

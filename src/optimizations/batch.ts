@@ -129,7 +129,7 @@ export function flushBatch(): BatchStats | null {
     batchHistory.splice(0, batchHistory.length - MAX_BATCH_HISTORY);
   }
   
-  console.log(`批次完成: ${batchId}, 请求=${requestCount}, 总 Tokens=${totalTokens}, 平均=${avgTokens}`);
+  console.info(`批次完成: ${batchId}, 请求=${requestCount}, 总 Tokens=${totalTokens}, 平均=${avgTokens}`);
   
   clearBatch();
   

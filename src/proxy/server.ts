@@ -795,10 +795,15 @@ class ProxyServer {
           reject(err);
         }
       });
-      this.server.listen(this.port, async () => {
-        console.log(`TokenBao proxy running on port ${this.port}`);
-        console.log(`OpenAI: http://localhost:${this.port}/v1/chat/completions`);
-        console.log(`Anthropic: http://localhost:${this.port}/v1/messages`);
+      // Slowloris 防护：限制 HTTP 头解析时间和整体请求超时
+      this.server.headersTimeout = 15000;
+      this.server.requestTimeout = 30000;
+
+      // 绑定 localhost：代理仅限本机访问，不暴露到局域网
+      this.server.listen(this.port, '127.0.0.1', async () => {
+        logProxy('info', `TokenBao proxy running on port ${this.port}`);
+        logProxy('info', `OpenAI: http://localhost:${this.port}/v1/chat/completions`);
+        logProxy('info', `Anthropic: http://localhost:${this.port}/v1/messages`);
         try {
           await this.loadBudgetSnapshot();
         } catch (err) {

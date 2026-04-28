@@ -80,7 +80,7 @@ async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
   });
 
   if (store.requests.length < before) {
-    console.log(`历史记录清理: 删除 ${before - store.requests.length} 条过期记录（保留 ${retentionDays} 天）`);
+    console.info(`历史记录清理: 删除 ${before - store.requests.length} 条过期记录（保留 ${retentionDays} 天）`);
   }
 }
 

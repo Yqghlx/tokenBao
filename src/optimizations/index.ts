@@ -254,7 +254,7 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
 
   const duration = Date.now() - startTime;
   if (duration > 10) {
-    console.log(`优化管线耗时: ${duration}ms, 策略: [${result.appliedStrategies.join(', ')}]`);
+    console.info(`优化管线耗时: ${duration}ms, 策略: [${result.appliedStrategies.join(', ')}]`);
   }
 
   return result;

@@ -149,7 +149,7 @@ export async function sync(remoteUrl?: string): Promise<number> {
     const updated = updateRemotePricing(data.pricing, url, Date.now());
     if (updated > 0) {
       saveCache(data, url);
-      console.log(`定价远程同步成功: ${updated} 个模型已更新 (version: ${data.version})`);
+      console.info(`定价远程同步成功: ${updated} 个模型已更新 (version: ${data.version})`);
     }
     return updated;
   } catch (err) {
@@ -170,7 +170,7 @@ export function initSync(remoteUrl?: string): void {
   if (cached?.data?.pricing && (Date.now() - cached.fetchedAt < CACHE_MAX_AGE_MS)) {
     const updated = updateRemotePricing(cached.data.pricing, cached.source, cached.fetchedAt);
     if (updated > 0) {
-      console.log(`从缓存加载远程定价: ${updated} 个模型 (fetched: ${new Date(cached.fetchedAt).toISOString()})`);
+      console.info(`从缓存加载远程定价: ${updated} 个模型 (fetched: ${new Date(cached.fetchedAt).toISOString()})`);
     }
   }
 

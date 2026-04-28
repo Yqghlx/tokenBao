@@ -100,7 +100,7 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
         }
         // 恢复成功，用备份数据覆盖损坏的主文件
         fs.writeFileSync(filePath, backupContent, 'utf-8');
-        console.log(`从备份恢复 ${filename} 成功`);
+        console.info(`从备份恢复 ${filename} 成功`);
         return restored;
       }
     } catch (backupErr) {

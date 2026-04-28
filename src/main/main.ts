@@ -35,7 +35,7 @@ async function restartProxy(): Promise<void> {
     await proxyServer.start();
     const optimConfig = await getOptimizationConfig();
     proxyServer.updateOptimizationConfig(optimConfig);
-    console.log(`代理服务器自动重启成功 (端口: ${port})`);
+    console.info(`代理服务器自动重启成功 (端口: ${port})`);
 
     // 通知渲染进程状态变更
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -572,7 +572,7 @@ app.whenReady().then(() => {
   // 初始化系统级安全存储（macOS Keychain / Windows DPAPI）
   if (safeStorage.isEncryptionAvailable()) {
     initSafeStorage(safeStorage);
-    console.log('系统安全存储已启用:', isSafeStorageAvailable() ? 'active' : 'unavailable');
+    console.info('系统安全存储已启用:', isSafeStorageAvailable() ? 'active' : 'unavailable');
   }
   registerIpcHandlers();
   createWindow();
