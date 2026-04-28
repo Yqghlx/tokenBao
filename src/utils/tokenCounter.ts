@@ -6,6 +6,7 @@ const IMAGE_TOKEN_ESTIMATE = 85;
 interface ContentBlock {
   type: string;
   text?: string;
+  image_url?: { url: string };
 }
 
 interface Message {
@@ -148,6 +149,10 @@ function countMessages(messages: Message[], apiType?: string): number {
           return msgTotal + countTokens(block.text, apiType);
         }
         if (block.type === 'image') {
+          return msgTotal + IMAGE_TOKEN_ESTIMATE;
+        }
+        // OpenAI 图片通过 image_url 类型传递
+        if (block.type === 'image_url') {
           return msgTotal + IMAGE_TOKEN_ESTIMATE;
         }
         return msgTotal;

@@ -98,6 +98,43 @@ describe('tokenCounter', () => {
     });
   });
 
+  describe('image token 估算', () => {
+    test('Anthropic image 类型应估算为 85 tokens', () => {
+      const messages = [{
+        content: [{ type: 'image' }, { type: 'text', text: '描述这张图' }]
+      }];
+      const count = tokenCounter.countMessages(messages, 'anthropic');
+      // 85 (image) + 描述这张图 tokens + 格式开销 > 85
+      expect(count).toBeGreaterThan(85);
+    });
+
+    test('OpenAI image_url 类型应估算为 85 tokens', () => {
+      const messages = [{
+        content: [
+          { type: 'image_url', image_url: { url: 'https://example.com/img.png' } },
+          { type: 'text', text: 'What is in this image?' }
+        ]
+      }];
+      const count = tokenCounter.countMessages(messages, 'openai');
+      // 85 (image) + 文本 tokens + 格式开销 > 85
+      expect(count).toBeGreaterThan(85);
+    });
+
+    test('混合 text 和 image_url 应分别计算', () => {
+      const textOnly = [{ content: 'Hello world' }];
+      const withImage = [{
+        content: [
+          { type: 'text', text: 'Hello world' },
+          { type: 'image_url', image_url: { url: 'https://example.com/img.png' } }
+        ]
+      }];
+      const textOnlyCount = tokenCounter.countMessages(textOnly, 'openai');
+      const withImageCount = tokenCounter.countMessages(withImage, 'openai');
+      // 图片消息应比纯文本多约 85 tokens
+      expect(withImageCount - textOnlyCount).toBeGreaterThanOrEqual(80);
+    });
+  });
+
   describe('countTokensAnthropic', () => {
     test('应使用字符估算', () => {
       const count = tokenCounter.countTokensAnthropic('Hello, world!');

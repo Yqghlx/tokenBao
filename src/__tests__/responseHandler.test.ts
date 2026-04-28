@@ -371,5 +371,34 @@ describe('responseHandler', () => {
       expect(result.stats).not.toBeNull();
       expect(result.stats!.inputTokens).toBe(99);
     });
+
+    test('流式模型名含控制字符应被剥离', () => {
+      // JSON 中控制字符必须用 \uXXXX 转义，JSON.parse 才能正确解析
+      const body = 'data: {"type":"message_start","message":{"model":"gpt-4\\u0000\\u001Fevil"}}\n' +
+        'data: {"type":"message_delta","usage":{"input_tokens":10,"output_tokens":5}}\n';
+      const result = handleResponse(body, { 'content-type': 'text/event-stream' }, 'anthropic');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.model).toBe('gpt-4evil');
+    });
+
+    test('非流式模型名含控制字符应被剥离', () => {
+      const body = JSON.stringify({
+        model: 'gpt-4\x00\x1Fevil',
+        usage: { prompt_tokens: 10, completion_tokens: 5 }
+      });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.model).toBe('gpt-4evil');
+    });
+
+    test('非流式模型名剥离后为空应返回 unknown', () => {
+      const body = JSON.stringify({
+        model: '\x00\x01\x1F',
+        usage: { prompt_tokens: 10, completion_tokens: 5 }
+      });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.model).toBe('unknown');
+    });
   });
 });

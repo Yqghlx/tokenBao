@@ -26,10 +26,12 @@ const MAX_MODEL_NAME_LEN = 100;
 export function extractStreamUsage(sseData: string): UsageStats | null {
   if (!sseData || !sseData.includes('data: ')) return null;
 
-  /** 清理模型名：截断过长值，防止畸形数据传播到统计/计费系统 */
+  /** 清理模型名：截断过长值并剥离控制字符，防止畸形数据传播到统计/计费系统 */
   const sanitizeModel = (name: unknown): string => {
     if (typeof name !== 'string' || !name) return 'unknown';
-    return name.length > MAX_MODEL_NAME_LEN ? name.slice(0, MAX_MODEL_NAME_LEN) : name;
+    // 剥离控制字符（保留常见空白 0x09/0x0A/0x0D/0x20），防止日志注入
+    const cleaned = name.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    return cleaned.length > MAX_MODEL_NAME_LEN ? cleaned.slice(0, MAX_MODEL_NAME_LEN) : cleaned;
   };
 
   // 截断超长数据防止内存耗尽，usage 信息通常在流末尾，截掉头部不影响结果
@@ -123,7 +125,9 @@ function parseNonStreamUsage(body: string): UsageStats | null {
         // OpenAI: prompt_tokens_details.cached_tokens
         cacheReadTokens: safeToken(parsed.usage.cache_read_input_tokens ?? parsed.usage.prompt_tokens_details?.cached_tokens),
         cacheCreationTokens: safeToken(parsed.usage.cache_creation_input_tokens),
-        model: typeof parsed.model === 'string' && parsed.model.length <= MAX_MODEL_NAME_LEN ? parsed.model : 'unknown'
+        model: typeof parsed.model === 'string' && parsed.model.length <= MAX_MODEL_NAME_LEN
+          ? parsed.model.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') || 'unknown'
+          : 'unknown'
       };
     }
   } catch (e) {

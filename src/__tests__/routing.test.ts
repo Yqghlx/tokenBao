@@ -151,6 +151,22 @@ describe('routing 模块', () => {
     expect(routing.routeModel('claude-3-sonnet', 'Classify this sentiment')).toBe('claude-3-haiku');
   });
 
+  test('claude-3.5-sonnet 简单应降级为 claude-haiku-4.5', () => {
+    expect(routing.routeModel('claude-3.5-sonnet', 'Summarize this article')).toBe('claude-haiku-4.5');
+  });
+
+  test('claude-3.5-sonnet 分类应降级为 claude-haiku-4.5', () => {
+    expect(routing.routeModel('claude-3.5-sonnet', 'Classify this sentiment')).toBe('claude-haiku-4.5');
+  });
+
+  test('claude-3.7-sonnet 简单应降级为 claude-haiku-4.5', () => {
+    expect(routing.routeModel('claude-3.7-sonnet', 'Summarize this article')).toBe('claude-haiku-4.5');
+  });
+
+  test('claude-3.7-sonnet 分类应降级为 claude-haiku-4.5', () => {
+    expect(routing.routeModel('claude-3.7-sonnet', 'Classify this sentiment')).toBe('claude-haiku-4.5');
+  });
+
   test('o1-preview 简单任务应降级为 o4-mini', () => {
     expect(routing.routeModel('o1-preview', 'Summarize this article')).toBe('o4-mini');
   });
