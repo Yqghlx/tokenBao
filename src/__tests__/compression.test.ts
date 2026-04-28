@@ -186,4 +186,24 @@ describe('compression 模块', () => {
     // 膨胀安全检查确保 tokenSaved >= 0
     expect(result.tokensSaved).toBeGreaterThanOrEqual(0);
   });
+
+  test('空字符串应安全处理', () => {
+    const result = compression.compress('');
+    expect(result.text).toBe('');
+    expect(result.tokensSaved).toBe(0);
+  });
+
+  test('Unicode 字符应完整保留', () => {
+    const input = 'Please help with 你好世界 🚀';
+    const result = compression.compress(input);
+    expect(result.text).toContain('你好');
+    expect(result.text).toContain('🚀');
+  });
+
+  test('连续多个代码块应全部保护', () => {
+    const input = 'Text\n```js\nconst a = 1;\n```\nMiddle\n```py\nb = 2\n```';
+    const result = compression.compress(input);
+    expect(result.text).toContain('const a = 1;');
+    expect(result.text).toContain('b = 2');
+  });
 });

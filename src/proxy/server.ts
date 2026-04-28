@@ -589,10 +589,12 @@ class ProxyServer {
               passThrough.destroy();
             });
 
-            // 上游响应流出错时清理资源
+            // 上游响应流出错时清理所有关联资源
             proxyRes.on('error', (err) => {
               logProxy('error', '上游响应流错误', { requestId, error: err.message });
               passThrough.destroy();
+              proxyReq.destroy();
+              this.activeUpstreamRequests.delete(proxyReq);
             });
 
             proxyRes.pipe(passThrough).pipe(clientRes);

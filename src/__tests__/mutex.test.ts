@@ -119,4 +119,20 @@ describe('Mutex 写入串行化', () => {
     const result = await mutex.runExclusive(() => 'clean');
     expect(result).toBe('clean');
   });
+
+  it('并发异常不应阻塞后续正常操作', async () => {
+    const mutex = new Mutex();
+    const results: string[] = [];
+
+    const promises = [
+      mutex.runExclusive(() => { throw new Error('e1'); }).catch(() => results.push('caught1')),
+      mutex.runExclusive(() => { throw new Error('e2'); }).catch(() => results.push('caught2')),
+      mutex.runExclusive(() => 'ok').then(r => results.push(r))
+    ];
+
+    await Promise.all(promises);
+    expect(results).toContain('caught1');
+    expect(results).toContain('caught2');
+    expect(results).toContain('ok');
+  });
 });

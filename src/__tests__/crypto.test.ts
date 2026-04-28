@@ -93,4 +93,29 @@ describe('crypto 模块', () => {
     parts[0] = 'abcd';
     expect(() => decrypt(parts.join(':'))).toThrow('IV 长度或格式错误');
   });
+
+  test('加密空字符串应成功', () => {
+    const encrypted = encrypt('');
+    const decrypted = decrypt(encrypted);
+    expect(decrypted).toBe('');
+  });
+
+  test('篡改认证标签后解密应失败', () => {
+    const encrypted = encrypt('sensitive data');
+    const parts = encrypted.split(':');
+    // 翻转认证标签的第一个字节
+    const bytes = Buffer.from(parts[1], 'hex');
+    bytes[0] ^= 0xff;
+    parts[1] = bytes.toString('hex');
+    expect(() => decrypt(parts.join(':'))).toThrow();
+  });
+
+  test('篡改密文内容后解密应失败', () => {
+    const encrypted = encrypt('secret');
+    const parts = encrypted.split(':');
+    const bytes = Buffer.from(parts[2], 'hex');
+    bytes[0] ^= 0xff;
+    parts[2] = bytes.toString('hex');
+    expect(() => decrypt(parts.join(':'))).toThrow();
+  });
 });

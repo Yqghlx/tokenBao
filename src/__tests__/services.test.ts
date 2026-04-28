@@ -226,6 +226,34 @@ describe('stats 服务', () => {
     expect(summary.totalRequests).toBe(0);
   });
 
+  test('addStats 应拒绝非法 apiType（含特殊字符）', async () => {
+    await statsService.resetStats();
+    await statsService.addStats({
+      apiType: '../etc/passwd',
+      model: 'gpt-4',
+      inputTokens: 10,
+      outputTokens: 10,
+      cachedTokens: 0,
+      cost: 0.01
+    });
+    const summary = await statsService.getSummary();
+    expect(summary.byApi['../etc/passwd']).toBeUndefined();
+  });
+
+  test('addStats 应拒绝超长 model 名称', async () => {
+    await statsService.resetStats();
+    await statsService.addStats({
+      apiType: 'openai',
+      model: 'x'.repeat(200),
+      inputTokens: 10,
+      outputTokens: 10,
+      cachedTokens: 0,
+      cost: 0.01
+    });
+    const summary = await statsService.getSummary();
+    expect(summary.byModel['x'.repeat(200)]).toBeUndefined();
+  });
+
   test('addStats 应拒绝负数的 cachedTokens', async () => {
     await statsService.resetStats();
     await statsService.addStats({
