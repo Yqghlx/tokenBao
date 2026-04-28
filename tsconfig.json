@@ -10,7 +10,9 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true
   },
   "include": ["src/main/**/*", "src/utils/**/*", "src/services/**/*", "src/proxy/**/*", "src/optimizations/**/*", "src/types/**/*"],
   "exclude": ["node_modules", "src/renderer", "src/__tests__"]

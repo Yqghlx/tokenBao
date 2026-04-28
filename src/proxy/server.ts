@@ -805,6 +805,11 @@ class ProxyServer {
       // 运行时 server 错误/关闭事件：立即触发回调通知主进程重启
       this.server.on('error', (err) => {
         logProxy('error', '代理服务器运行时错误', { error: (err as Error).message });
+        // 服务器错误时清理预算同步定时器，防止资源泄漏
+        if (this.budgetSyncTimer) {
+          clearInterval(this.budgetSyncTimer);
+          this.budgetSyncTimer = null;
+        }
         if (this.errorCallback) this.errorCallback();
       });
       this.server.on('close', () => {
@@ -928,8 +933,11 @@ class ProxyServer {
   private updateBudgetSnapshot(cost: number): void {
     // 防止 NaN/Infinity 污染内存快照
     if (!Number.isFinite(cost) || cost < 0) return;
-    this.budgetState.monthlySpent += cost;
-    this.budgetState.dailySpent += cost;
+    // 防止极端累加溢出 MAX_SAFE_INTEGER
+    const newMonthly = this.budgetState.monthlySpent + cost;
+    const newDaily = this.budgetState.dailySpent + cost;
+    this.budgetState.monthlySpent = Math.min(newMonthly, Number.MAX_SAFE_INTEGER);
+    this.budgetState.dailySpent = Math.min(newDaily, Number.MAX_SAFE_INTEGER);
   }
 
   /** 检查月预算是否超限，返回 true 表示允许请求 */

@@ -109,4 +109,18 @@ describe('caching 模块', () => {
     expect(caching.checkCache('anthropic', 'lru-b')).toBe(true);
     expect(caching.checkCache('anthropic', 'lru-c')).toBe(true);
   });
+
+  test('getCacheMetrics 应正确统计命中率和计数', () => {
+    caching.addCache('openai', 'metrics-test-content');
+    // 产生命中和未命中
+    caching.checkCache('openai', 'metrics-test-content');
+    caching.checkCache('openai', 'metrics-test-content');
+    caching.checkCache('openai', 'nonexistent');
+
+    const metrics = caching.getCacheMetrics();
+    expect(metrics.hits).toBeGreaterThanOrEqual(2);
+    expect(metrics.misses).toBeGreaterThanOrEqual(1);
+    expect(metrics.size).toBeGreaterThanOrEqual(1);
+    expect(metrics.hitRate).toBeGreaterThan(0);
+  });
 });

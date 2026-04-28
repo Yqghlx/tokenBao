@@ -115,4 +115,21 @@ describe('tokenCounter', () => {
       expect(chinese).toBeGreaterThan(english);
     });
   });
+
+  describe('cleanup', () => {
+    test('cleanup 后重新计数应得到一致结果', () => {
+      const before = tokenCounter.countTokens('cleanup test', 'openai');
+      tokenCounter.cleanup();
+      const after = tokenCounter.countTokens('cleanup test', 'openai');
+      expect(after).toBe(before);
+      expect(after).toBeGreaterThan(0);
+    });
+
+    test('多次 cleanup 不应报错', () => {
+      tokenCounter.cleanup();
+      tokenCounter.cleanup();
+      const count = tokenCounter.countTokens('test', 'openai');
+      expect(count).toBeGreaterThan(0);
+    });
+  });
 });

@@ -286,4 +286,47 @@ describe('responseHandler', () => {
       expect(result.stats!.outputTokens).toBe(20);
     });
   });
+
+  describe('safeToken 边界情况', () => {
+    test('负数 token 应归零', () => {
+      const body = JSON.stringify({
+        model: 'gpt-4',
+        usage: { prompt_tokens: -10, completion_tokens: -5 }
+      });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(0);
+      expect(result.stats!.outputTokens).toBe(0);
+    });
+
+    test('小数 token 应向下取整', () => {
+      const body = JSON.stringify({
+        model: 'gpt-4',
+        usage: { prompt_tokens: 100.7, completion_tokens: 50.3 }
+      });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(100);
+      expect(result.stats!.outputTokens).toBe(50);
+    });
+
+    test('NaN token 应归零', () => {
+      const body = JSON.stringify({
+        model: 'gpt-4',
+        usage: { prompt_tokens: NaN, completion_tokens: Infinity }
+      });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(0);
+    });
+
+    test('缺失 usage 的非流式响应应返回 null', () => {
+      const body = JSON.stringify({
+        model: 'gpt-4',
+        choices: [{ message: { content: 'hello' } }]
+      });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).toBeNull();
+    });
+  });
 });
