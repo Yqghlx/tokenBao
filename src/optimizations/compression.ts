@@ -42,12 +42,14 @@ function setOptions(options: Partial<CompressionOptions>): void {
   Object.assign(defaultOptions, options);
 }
 
-/** 判断字符是否为 CJK 统一汉字、假名或韩文 */
+/** 判断字符是否为 CJK 统一汉字、假名、韩文或全角字符 */
 function isCJK(code: number): boolean {
   return (code >= 0x4E00 && code <= 0x9FFF)   // CJK 统一汉字
+    || (code >= 0x3400 && code <= 0x4DBF)       // CJK 扩展 A 区
     || (code >= 0x3040 && code <= 0x309F)       // 平假名
     || (code >= 0x30A0 && code <= 0x30FF)       // 片假名
-    || (code >= 0xAC00 && code <= 0xD7AF);      // 韩文音节
+    || (code >= 0xAC00 && code <= 0xD7AF)       // 韩文音节
+    || (code >= 0xFF01 && code <= 0xFF60);      // 全角字符（标点/字母/数字）
 }
 
 function estimateTokens(text: string): number {

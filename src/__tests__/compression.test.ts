@@ -206,4 +206,18 @@ describe('compression 模块', () => {
     expect(result.text).toContain('const a = 1;');
     expect(result.text).toContain('b = 2');
   });
+
+  test('CJK 扩展 A 区字符应正确估算 token', () => {
+    // U+3447 是 CJK Extension A 区字符
+    const input = '扩展字符：㑇㒉㓚，以及常见汉字：你好世界';
+    const result = compression.compress(input);
+    expect(result.text).toContain('你好');
+  });
+
+  test('全角字符应正确估算 token', () => {
+    // U+FF01=！ U+FF21=Ａ U+FF10=０
+    const input = '全角字符：！Ａ０ 混合文本';
+    const result = compression.compress(input);
+    expect(result.text).toContain('混合文本');
+  });
 });

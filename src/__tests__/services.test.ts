@@ -161,6 +161,25 @@ describe('stats 服务', () => {
     expect(after.totalCachedTokens).toBe(before.totalCachedTokens);
   });
 
+  test('recordOptimization 应拒绝无效 apiType', async () => {
+    const before = await statsService.getSummary();
+    await statsService.recordOptimization({ apiType: '', model: 'gpt-4', savedTokens: 100 });
+    await statsService.recordOptimization({ apiType: 'a'.repeat(51), model: 'gpt-4', savedTokens: 100 });
+    await statsService.recordOptimization({ apiType: 'api.with.dots', model: 'gpt-4', savedTokens: 100 });
+    await statsService.recordOptimization({ apiType: 'api with spaces', model: 'gpt-4', savedTokens: 100 });
+    const after = await statsService.getSummary();
+    expect(after.totalCachedTokens).toBe(before.totalCachedTokens);
+  });
+
+  test('recordOptimization 应拒绝无效 model', async () => {
+    const before = await statsService.getSummary();
+    await statsService.recordOptimization({ apiType: 'openai', model: '', savedTokens: 100 });
+    await statsService.recordOptimization({ apiType: 'openai', model: 'a'.repeat(101), savedTokens: 100 });
+    await statsService.recordOptimization({ apiType: 'openai', model: 'model with spaces', savedTokens: 100 });
+    const after = await statsService.getSummary();
+    expect(after.totalCachedTokens).toBe(before.totalCachedTokens);
+  });
+
   test('addStats 应更新 byApi 和 byModel', async () => {
     await statsService.addStats({
       apiType: 'anthropic',

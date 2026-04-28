@@ -44,6 +44,15 @@ export async function recordOptimization(data: {
   model: string;
   savedTokens: number;
 }): Promise<void> {
+  // 输入校验：拒绝无效字符串（与 addStats 一致的防原型污染键注入校验）
+  if (typeof data.apiType !== 'string' || data.apiType.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(data.apiType)) {
+    console.warn('stats.recordOptimization: apiType 无效，已跳过', data.apiType);
+    return;
+  }
+  if (typeof data.model !== 'string' || data.model.length > 100 || !/^[a-zA-Z0-9._:-]+$/.test(data.model)) {
+    console.warn('stats.recordOptimization: model 无效，已跳过', data.model);
+    return;
+  }
   // 输入校验：拒绝非有限数和负数（Number.isFinite 同时拦截 null/NaN/Infinity）
   if (!Number.isFinite(data.savedTokens) || data.savedTokens < 0) {
     console.warn('stats.recordOptimization: savedTokens 无效，已跳过', data.savedTokens);

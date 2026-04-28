@@ -366,6 +366,15 @@ function registerIpcHandlers(): void {
           console.warn('history:list: offset 参数无效');
           return [];
         }
+        // search/apiType 校验与 history:count 保持一致
+        if (options.search !== undefined && (typeof options.search !== 'string' || options.search.length > 200)) {
+          console.warn('history:list: search 参数无效');
+          return [];
+        }
+        if (options.apiType !== undefined && !['openai', 'anthropic'].includes(options.apiType)) {
+          console.warn('history:list: apiType 参数无效');
+          return [];
+        }
       }
       return await historyService.listRequests(options);
     } catch (err) {
