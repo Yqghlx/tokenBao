@@ -620,9 +620,9 @@ class ProxyServer {
         const maxAttempts = requestId ? requestTracker.MAX_RETRIES + 1 : 1;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          // 客户端已断连时放弃重试，避免浪费上游 API 资源
-          if (clientRes.destroyed) {
-            logProxy('info', '客户端已断开，终止重试', { requestId, attempt });
+          // 客户端已断连或响应已结束时放弃重试，避免浪费上游 API 资源
+          if (clientRes.destroyed || clientRes.writableEnded) {
+            logProxy('info', '客户端连接不可用，终止重试', { requestId, attempt });
             break;
           }
           try {

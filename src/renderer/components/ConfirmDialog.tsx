@@ -18,6 +18,8 @@ interface ConfirmDialogProps {
 function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLabel = '取消', danger, onConfirm, onCancel }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  // 记录对话框打开前的焦点元素，关闭后恢复
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   // 用 ref 保存最新回调，避免 keydown handler 因 props 变化而重建
   const onCancelRef = useRef(onCancel);
   const onConfirmRef = useRef(onConfirm);
@@ -44,10 +46,17 @@ function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLa
     }
   }, []);
 
-  // 打开时自动聚焦确认按钮
+  // 打开时保存当前焦点并聚焦确认按钮，关闭时恢复焦点
   useEffect(() => {
     if (!open) return;
+    previousFocusRef.current = document.activeElement as HTMLElement;
     confirmRef.current?.focus();
+    return () => {
+      // 对话框关闭后将焦点恢复到触发元素，符合 WAI-ARIA 对话框模式
+      if (previousFocusRef.current && 'focus' in previousFocusRef.current) {
+        previousFocusRef.current.focus();
+      }
+    };
   }, [open]);
 
   useEffect(() => {
