@@ -43,8 +43,8 @@ export async function recordOptimization(data: {
   model: string;
   savedTokens: number;
 }): Promise<void> {
-  // 输入校验：拒绝 NaN 和负数
-  if (isNaN(data.savedTokens) || data.savedTokens < 0) {
+  // 输入校验：拒绝非有限数和负数（Number.isFinite 同时拦截 null/NaN/Infinity）
+  if (!Number.isFinite(data.savedTokens) || data.savedTokens < 0) {
     console.warn('stats.recordOptimization: savedTokens 无效，已跳过', data.savedTokens);
     return;
   }
@@ -65,10 +65,10 @@ export async function recordOptimization(data: {
 
     // byApi/byModel 费用溢出保护
     for (const entry of Object.values(stats.byApi)) {
-      if (!isFinite(entry.tokens)) entry.tokens = 0;
+      if (!Number.isFinite(entry.tokens)) entry.tokens = 0;
     }
     for (const entry of Object.values(stats.byModel)) {
-      if (!isFinite(entry.tokens)) entry.tokens = 0;
+      if (!Number.isFinite(entry.tokens)) entry.tokens = 0;
     }
 
     await saveStats(stats);
@@ -87,20 +87,20 @@ export async function addStats(data: {
   cachedTokens: number;
   cost: number;
 }): Promise<void> {
-  // 输入校验：拒绝 NaN 和负数
-  if (isNaN(data.inputTokens) || data.inputTokens < 0) {
+  // 输入校验：拒绝非有限数和负数（Number.isFinite 同时拦截 null/NaN/Infinity）
+  if (!Number.isFinite(data.inputTokens) || data.inputTokens < 0) {
     console.warn('stats.addStats: inputTokens 无效，已跳过', data.inputTokens);
     return;
   }
-  if (isNaN(data.outputTokens) || data.outputTokens < 0) {
+  if (!Number.isFinite(data.outputTokens) || data.outputTokens < 0) {
     console.warn('stats.addStats: outputTokens 无效，已跳过', data.outputTokens);
     return;
   }
-  if (isNaN(data.cachedTokens) || data.cachedTokens < 0) {
+  if (!Number.isFinite(data.cachedTokens) || data.cachedTokens < 0) {
     console.warn('stats.addStats: cachedTokens 无效，已跳过', data.cachedTokens);
     return;
   }
-  if (isNaN(data.cost) || data.cost < 0) {
+  if (!Number.isFinite(data.cost) || data.cost < 0) {
     console.warn('stats.addStats: cost 无效，已跳过', data.cost);
     return;
   }
@@ -135,30 +135,30 @@ export async function addStats(data: {
     stats.byModel[data.model].cost += data.cost;
 
     // 后置完整性检查：Infinity/NaN 回退到累加前有效值，避免丢失历史累积
-    if (!isFinite(stats.totalCost)) {
+    if (!Number.isFinite(stats.totalCost)) {
       console.warn(`stats.totalCost 变为 ${stats.totalCost}，回退到 ${prevCost}`);
       stats.totalCost = prevCost;
     }
-    if (!isFinite(stats.totalInputTokens)) {
+    if (!Number.isFinite(stats.totalInputTokens)) {
       console.warn(`stats.totalInputTokens 变为 ${stats.totalInputTokens}，回退到 ${prevInput}`);
       stats.totalInputTokens = prevInput;
     }
-    if (!isFinite(stats.totalOutputTokens)) {
+    if (!Number.isFinite(stats.totalOutputTokens)) {
       console.warn(`stats.totalOutputTokens 变为 ${stats.totalOutputTokens}，回退到 ${prevOutput}`);
       stats.totalOutputTokens = prevOutput;
     }
-    if (!isFinite(stats.totalCachedTokens)) {
+    if (!Number.isFinite(stats.totalCachedTokens)) {
       console.warn(`stats.totalCachedTokens 变为 ${stats.totalCachedTokens}，回退到 ${prevCached}`);
       stats.totalCachedTokens = prevCached;
     }
     // byApi/byModel 费用也需检查，防止 Infinity 污染前端显示
     for (const entry of Object.values(stats.byApi)) {
-      if (!isFinite(entry.cost)) entry.cost = 0;
-      if (!isFinite(entry.tokens)) entry.tokens = 0;
+      if (!Number.isFinite(entry.cost)) entry.cost = 0;
+      if (!Number.isFinite(entry.tokens)) entry.tokens = 0;
     }
     for (const entry of Object.values(stats.byModel)) {
-      if (!isFinite(entry.cost)) entry.cost = 0;
-      if (!isFinite(entry.tokens)) entry.tokens = 0;
+      if (!Number.isFinite(entry.cost)) entry.cost = 0;
+      if (!Number.isFinite(entry.tokens)) entry.tokens = 0;
     }
 
     await saveStats(stats);

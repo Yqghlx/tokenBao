@@ -47,7 +47,7 @@ async function getRetentionDays(): Promise<number> {
   try {
     const daysStr = await getConfig('dataRetentionDays');
     const days = daysStr ? parseInt(daysStr, 10) : DEFAULT_RETENTION_DAYS;
-    cachedRetentionDays = (isNaN(days) || days < 1) ? DEFAULT_RETENTION_DAYS : days;
+    cachedRetentionDays = (Number.isNaN(days) || days < 1) ? DEFAULT_RETENTION_DAYS : days;
   } catch {
     cachedRetentionDays = DEFAULT_RETENTION_DAYS;
   }
@@ -66,7 +66,7 @@ async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
   store.requests = store.requests.filter(r => {
     const ts = new Date(r.timestamp).getTime();
     // 无效 timestamp（NaN）视为损坏数据，清理掉
-    if (isNaN(ts)) {
+    if (Number.isNaN(ts)) {
       console.warn(`历史记录 ID=${r.id} 时间戳无效，已清理: "${r.timestamp}"`);
       return false;
     }
@@ -93,16 +93,16 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
   if (!log.model || typeof log.model !== 'string') {
     throw new Error('model 无效');
   }
-  if (typeof log.inputTokens !== 'number' || isNaN(log.inputTokens) || log.inputTokens < 0) {
+  if (typeof log.inputTokens !== 'number' || Number.isNaN(log.inputTokens) || log.inputTokens < 0) {
     throw new Error('inputTokens 无效');
   }
-  if (typeof log.outputTokens !== 'number' || isNaN(log.outputTokens) || log.outputTokens < 0) {
+  if (typeof log.outputTokens !== 'number' || Number.isNaN(log.outputTokens) || log.outputTokens < 0) {
     throw new Error('outputTokens 无效');
   }
-  if (typeof log.cost !== 'number' || isNaN(log.cost) || log.cost < 0) {
+  if (typeof log.cost !== 'number' || Number.isNaN(log.cost) || log.cost < 0) {
     throw new Error('cost 无效');
   }
-  if (typeof log.cachedTokens !== 'number' || isNaN(log.cachedTokens) || log.cachedTokens < 0) {
+  if (typeof log.cachedTokens !== 'number' || Number.isNaN(log.cachedTokens) || log.cachedTokens < 0) {
     throw new Error('cachedTokens 无效');
   }
   if (log.requestBody && log.requestBody.length > MAX_BODY_SIZE) {

@@ -83,7 +83,7 @@ export async function getBudget(type: 'daily' | 'monthly'): Promise<{ type: stri
 }
 
 export async function setBudgetLimit(type: 'daily' | 'monthly', limit: number): Promise<{ type: string; limit: number; spent: number }> {
-  if (typeof limit !== 'number' || !isFinite(limit) || limit <= 0) {
+  if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0) {
     throw new Error('预算限额必须为正数');
   }
   return mutex.runExclusive(async () => {
@@ -97,7 +97,7 @@ export async function setBudgetLimit(type: 'daily' | 'monthly', limit: number): 
 
 export async function updateSpent(type: 'daily' | 'monthly', amount: number): Promise<void> {
   return mutex.runExclusive(async () => {
-    if (!isFinite(amount)) {
+    if (!Number.isFinite(amount)) {
       console.warn(`budget.updateSpent: 无效金额 (${amount})，已跳过`);
       return;
     }

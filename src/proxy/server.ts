@@ -842,7 +842,7 @@ class ProxyServer {
   /** 更新内存中的预算快照（请求记录后调用） */
   private updateBudgetSnapshot(cost: number): void {
     // 防止 NaN/Infinity 污染内存快照
-    if (!isFinite(cost) || cost < 0) return;
+    if (!Number.isFinite(cost) || cost < 0) return;
     this.budgetState.monthlySpent += cost;
     this.budgetState.dailySpent += cost;
   }
@@ -852,8 +852,8 @@ class ProxyServer {
     let { monthlyLimit, monthlySpent, dailyLimit, dailySpent } = this.budgetState;
 
     // 防止浮点累加导致 NaN/Infinity 异常
-    if (!isFinite(monthlySpent)) monthlySpent = 0;
-    if (!isFinite(dailySpent)) dailySpent = 0;
+    if (!Number.isFinite(monthlySpent)) monthlySpent = 0;
+    if (!Number.isFinite(dailySpent)) dailySpent = 0;
 
     // 日预算检查
     if (dailyLimit > 0 && dailySpent >= dailyLimit) {
@@ -880,10 +880,10 @@ class ProxyServer {
       const { limit: mLimit, spent: mSpent } = status.monthly;
       const { limit: dLimit, spent: dSpent } = status.daily;
       // 防止持久化数据被污染时将 NaN/Infinity 写入内存快照
-      this.budgetState.monthlyLimit = isFinite(mLimit) ? mLimit : this.budgetState.monthlyLimit;
-      this.budgetState.monthlySpent = isFinite(mSpent) ? mSpent : this.budgetState.monthlySpent;
-      this.budgetState.dailyLimit = isFinite(dLimit) ? dLimit : this.budgetState.dailyLimit;
-      this.budgetState.dailySpent = isFinite(dSpent) ? dSpent : this.budgetState.dailySpent;
+      this.budgetState.monthlyLimit = Number.isFinite(mLimit) ? mLimit : this.budgetState.monthlyLimit;
+      this.budgetState.monthlySpent = Number.isFinite(mSpent) ? mSpent : this.budgetState.monthlySpent;
+      this.budgetState.dailyLimit = Number.isFinite(dLimit) ? dLimit : this.budgetState.dailyLimit;
+      this.budgetState.dailySpent = Number.isFinite(dSpent) ? dSpent : this.budgetState.dailySpent;
     } catch (err) {
       logProxy('warn', '预算快照加载失败，使用当前内存值', { error: (err instanceof Error ? err.message : String(err)) });
     }
