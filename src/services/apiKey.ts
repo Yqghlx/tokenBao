@@ -91,10 +91,13 @@ export async function listApiKeys(): Promise<Omit<ApiKey, 'encryptedKey'>[]> {
   });
 }
 
-export async function getApiKey(id: number): Promise<ApiKey | undefined> {
+export async function getApiKey(id: number): Promise<Omit<ApiKey, 'encryptedKey'> | undefined> {
   return mutex.runExclusive(() => {
     const store = getStore();
-    return store.keys.find(k => k.id === id);
+    const key = store.keys.find(k => k.id === id);
+    if (!key) return undefined;
+    const { encryptedKey: _, ...rest } = key;
+    return rest;
   });
 }
 

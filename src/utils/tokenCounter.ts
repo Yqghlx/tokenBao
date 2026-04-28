@@ -32,14 +32,14 @@ function countTokensOpenAI(text: string): number {
   }
 }
 /**
- * Anthropic token \u4f30\u7b97\uff1a\u6309\u5b57\u7b26\u7c7b\u578b\u5206\u522b\u8ba1\u7b97
- * CJK \u5b57\u7b26\u7ea6 1.5 chars/token\uff0c\u62c9\u4e01\u5b57\u6bcd\u7ea6 3.5 chars/token\uff0c\u4ee3\u7801/\u7b26\u53f7\u7ea6 4 chars/token
+ * Anthropic token 估算：按字符类型分别计算
+ * CJK 字符约 1.5 chars/token，拉丁字母约 3.5 chars/token，代码/符号约 4 chars/token
  */
 function countTokensAnthropic(text: string): number {
   if (!text) return 0;
 
   const cjkChars = (text.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length;
-  // emoji \u548c\u5bbd\u5b57\u7b26\uff1a\u4ee3\u7406\u5bf9\u5f62\u5f0f\u7684\u8865\u5145\u5e73\u9762\u5b57\u7b26
+  // emoji 和宽字符：代理对形式的补充平面字符
   const emojiChars = (text.match(/[\ud800-\udbff][\udc00-\udfff]/g) || []).length;
   const codeAndSymbols = (text.match(/[`{}[\]()<>|/\\@#$%^&*~+=_-]/g) || []).length;
   const whitespace = (text.match(/\s/g) || []).length;
@@ -49,7 +49,7 @@ function countTokensAnthropic(text: string): number {
 }
 
 /**
- * Token \u4f30\u7b97 fallback\uff1atiktoken \u4e0d\u53ef\u7528\u65f6\u4f7f\u7528\uff0c\u91c7\u7528\u4e0e Anthropic \u76f8\u540c\u7684\u591a\u7c7b\u578b\u5b57\u7b26\u4f30\u7b97
+ * Token 估算 fallback：tiktoken 不可用时使用，采用与 Anthropic 相同的多类型字符估算
  */
 function estimateTokensFallback(text: string): number {
   return countTokensAnthropic(text);
