@@ -161,7 +161,7 @@ function ControlPanel() {
     }
   }, [loadProxyStatus, loadStats]);
 
-  usePolling(pollStats, 3000);
+  usePolling(pollStats, 10000);
 
   const startProxy = useCallback(async () => {
     setTogglingProxy(true);

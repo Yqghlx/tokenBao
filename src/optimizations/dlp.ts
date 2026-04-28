@@ -189,7 +189,12 @@ export function scan(text: string): DLPScanResult {
 
       result = result.replace(regex, (match) => {
         count++;
-        if (count > MAX_REPLACE_PER_RULE) return match;
+        if (count > MAX_REPLACE_PER_RULE) {
+          if (count === MAX_REPLACE_PER_RULE + 1) {
+            console.warn(`DLP: 规则 [${rule.id}] 替换次数超过 ${MAX_REPLACE_PER_RULE} 上限，后续匹配将被跳过`);
+          }
+          return match;
+        }
         modified = true;
         return rule.maskMode === 'redact' ? rule.replacement : maskContent(match, rule);
       });

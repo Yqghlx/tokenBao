@@ -24,6 +24,7 @@ const ANTHROPIC_BASE = 'https://api.anthropic.com';
 
 const DEFAULT_PROXY_TIMEOUT = 60000;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 请求体最大 10MB
+const BODY_COLLECT_TIMEOUT = 30000; // 请求体收集超时 30s，防 slowloris
 const MAX_CONNECTIONS = 100; // 最大并发连接数
 const SHUTDOWN_TIMEOUT = 5000; // 优雅关闭等待超时 5s
 
@@ -191,6 +192,29 @@ function sendUpstream(
 const CIRCUIT_BREAKER_THRESHOLD = 5;  // 连续失败 5 次触发熔断
 const CIRCUIT_BREAKER_COOLDOWN = 60000; // 熔断冷却 60 秒
 
+/** 不应转发给客户端的 hop-by-hop 头 */
+const HOP_BY_HOP_HEADERS = new Set([
+  'connection', 'keep-alive', 'transfer-encoding', 'te',
+  'upgrade', 'proxy-connection'
+]);
+
+/** 过滤响应头：移除 hop-by-hop 头 + CRLF 注入防护 */
+function sanitizeResponseHeaders(headers: http.IncomingHttpHeaders): http.OutgoingHttpHeaders {
+  const result: http.OutgoingHttpHeaders = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (HOP_BY_HOP_HEADERS.has(key.toLowerCase())) continue;
+    // CRLF 注入防护：移除头值中的换行符
+    if (typeof value === 'string') {
+      result[key] = value.replace(/[\r\n]/g, ' ');
+    } else if (Array.isArray(value)) {
+      result[key] = value.map(v => typeof v === 'string' ? v.replace(/[\r\n]/g, ' ') : v);
+    } else if (value !== undefined) {
+      result[key] = String(value).replace(/[\r\n]/g, ' ');
+    }
+  }
+  return result;
+}
+
 class ProxyServer {
   private server: http.Server | null = null;
   private port: number;
@@ -278,10 +302,18 @@ class ProxyServer {
       let settled = false;
       const cleanup = () => {
         settled = true;
+        clearTimeout(collectTimer);
         req.removeListener('data', onData);
         req.removeListener('end', onEnd);
         req.removeListener('error', onError);
       };
+      // 请求体收集超时，防止 slowloris 攻击
+      const collectTimer = setTimeout(() => {
+        if (settled) return;
+        cleanup();
+        req.destroy();
+        reject(new Error('请求体接收超时'));
+      }, BODY_COLLECT_TIMEOUT);
       const onData = (chunk: Buffer) => {
         if (settled) return;
         totalSize += chunk.length;
@@ -477,7 +509,7 @@ class ProxyServer {
             } else {
               this.recordUpstreamSuccess(apiType);
             }
-            const streamHeaders: http.OutgoingHttpHeaders = { ...proxyRes.headers };
+            const streamHeaders = sanitizeResponseHeaders(proxyRes.headers);
             if (budgetCheck.warning) {
               streamHeaders['X-Budget-Warning'] = budgetCheck.warning;
             }
@@ -683,7 +715,7 @@ class ProxyServer {
         }
 
         if (!clientRes.headersSent) {
-          const respHeaders: http.OutgoingHttpHeaders = { ...upstreamResult.headers };
+          const respHeaders = sanitizeResponseHeaders(upstreamResult.headers);
           if (budgetCheck.warning) {
             respHeaders['X-Budget-Warning'] = budgetCheck.warning;
           }
@@ -909,7 +941,7 @@ class ProxyServer {
     return typeof addr === 'object' && addr ? addr.port : this.port;
   }
 
-  updateOptimizationConfig(config: { caching?: boolean; compression?: boolean; routing?: boolean; batching?: boolean; rules?: boolean }): void {
+  updateOptimizationConfig(config: { caching?: boolean; compression?: boolean; routing?: boolean; batching?: boolean; rules?: boolean; dlp?: boolean }): void {
     setOptimizationConfig(config);
   }
 
