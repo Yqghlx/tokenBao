@@ -101,8 +101,8 @@ function ControlPanel() {
         });
         if (stats.byApi) {
           const savedTokens = Object.values(stats.byApi)
-            .reduce((sum: number, api) => sum + (api.tokens || 0), 0);
-          setProxyStatus(prev => ({ ...prev, savedTokens }));
+            .reduce((sum: number, api) => sum + (Number.isFinite(api.tokens) ? api.tokens : 0), 0);
+          setProxyStatus(prev => ({ ...prev, savedTokens: Number.isFinite(savedTokens) ? savedTokens : 0 }));
         }
       } catch (err) {
         console.error('获取统计数据失败:', err);
@@ -158,7 +158,10 @@ function ControlPanel() {
       tasks.push(
         window.electronAPI.proxy.health().then(h => {
           if (h.status === 'healthy') {
-            setHealth({ uptime: h.uptime, activeConnections: h.activeConnections });
+            setHealth({
+              uptime: Number.isFinite(h.uptime) && h.uptime >= 0 ? h.uptime : 0,
+              activeConnections: Number.isFinite(h.activeConnections) && h.activeConnections >= 0 ? h.activeConnections : 0
+            });
           }
         }).catch(err => {
           console.warn('健康检查轮询失败:', err);

@@ -55,12 +55,18 @@ function estimateTokens(text: string): number {
  * 提取 fenced code blocks 占位保护，避免空白压缩破坏代码内容
  * 返回 { protected: 替换后的文本, restore: 恢复函数 }
  */
+/** 单个代码块最大长度，超长代码块截断保护防止内存膨胀 */
+const MAX_CODE_BLOCK_SIZE = 200000;
+
 function protectCodeBlocks(text: string): { protected: string; restore: (t: string) => string } {
   const blocks: string[] = [];
   // 匹配 ```...``` 围栏代码块（支持 ~~~ 和 ``` 围栏），未闭合时匹配到文本末尾以防代码被空白压缩破坏
   const fencedRegex = /(`{3}|~{3})[\s\S]*?(?:\1|$)/g;
   const protectedText = text.replace(fencedRegex, (match) => {
-    blocks.push(match);
+    const truncated = match.length > MAX_CODE_BLOCK_SIZE
+      ? match.slice(0, MAX_CODE_BLOCK_SIZE) + '\n...[代码块过大，已截断]'
+      : match;
+    blocks.push(truncated);
     return `\x00CODE_BLOCK_${blocks.length - 1}\x00`;
   });
   return {

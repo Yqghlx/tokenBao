@@ -150,4 +150,17 @@ describe('routing 模块', () => {
   test('claude-3-sonnet 分类应降级为 claude-3-haiku', () => {
     expect(routing.routeModel('claude-3-sonnet', 'Classify this sentiment')).toBe('claude-3-haiku');
   });
+
+  test('模型名大小写不敏感匹配', () => {
+    expect(routing.routeModel('GPT-4', 'Summarize this article')).not.toBe('GPT-4');
+    expect(routing.routeModel('Claude-3-Sonnet', 'Classify this text')).not.toBe('Claude-3-Sonnet');
+  });
+
+  test('极端长 prompt 不应导致性能问题', () => {
+    const longPrompt = 'analyze this complex system '.repeat(5000);
+    const start = Date.now();
+    routing.routeModel('gpt-4', longPrompt);
+    const duration = Date.now() - start;
+    expect(duration).toBeLessThan(100);
+  });
 });

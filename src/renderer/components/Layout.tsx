@@ -16,8 +16,11 @@ const navItems = [
 const Layout = memo(function Layout() {
   return (
     <div className="layout">
-      {/* 跳过导航链接，键盘用户可快速访问主内容 */}
-      <a href="#main-content" className="skip-nav">跳到主要内容</a>
+      {/* 跳过导航链接，键盘用户可快速访问主内容并接收焦点 */}
+      <a href="#main-content" className="skip-nav" onClick={(e) => {
+        e.preventDefault();
+        document.getElementById('main-content')?.focus();
+      }}>跳到主要内容</a>
       <aside className="sidebar" role="navigation" aria-label="主导航">
         <div className="sidebar-header">
           <h1>TokenBao</h1>

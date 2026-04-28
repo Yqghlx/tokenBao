@@ -58,6 +58,11 @@ function ApiKeys() {
       return;
     }
 
+    if (trimmedKey.length < 20) {
+      showToast('API Key 长度不足', 'error');
+      return;
+    }
+
     if (window.electronAPI?.apiKeys?.add) {
       setSaving(true);
       try {
