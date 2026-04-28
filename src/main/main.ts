@@ -66,13 +66,28 @@ function stopHealthCheck(): void {
   }
 }
 
+/**
+ * 对错误消息进行脱敏，防止内部路径/凭证等泄露到渲染进程
+ * 仅保留错误类型和简短描述，移除文件路径和堆栈信息
+ */
+function sanitizeErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    // 移除常见路径模式（绝对路径、相对路径）
+    const msg = err.message
+      .replace(/\/[\w./-]+/g, '[path]')
+      .replace(/\\[\w.\\-]+/g, '[path]')
+      .slice(0, 200);
+    return msg;
+  }
+  return '未知错误';
+}
+
 // 全局错误处理：防止单个请求错误导致进程崩溃
 process.on('uncaughtException', (err) => {
   console.error('未捕获异常:', err);
-  // 通知渲染进程显示错误提示
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('proxy:error', {
-      message: `应用异常: ${err instanceof Error ? err.message : String(err)}`
+      message: `应用异常: ${sanitizeErrorMessage(err)}`
     });
   }
 });
@@ -81,7 +96,7 @@ process.on('unhandledRejection', (reason) => {
   console.error('未处理的 Promise 拒绝:', reason);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('proxy:error', {
-      message: `异步操作异常: ${reason instanceof Error ? reason.message : String(reason)}`
+      message: `异步操作异常: ${sanitizeErrorMessage(reason)}`
     });
   }
 });
@@ -191,10 +206,10 @@ function registerIpcHandlers(): void {
   ipcMain.handle('proxy:setKeys', async (_, openaiKey: string, anthropicKey: string) => {
     try {
       // 主进程二次校验，防御 preload 绕过
-      if (openaiKey && (!openaiKey.startsWith('sk-') || openaiKey.length < 20)) {
+      if (openaiKey && (!openaiKey.startsWith('sk-') || openaiKey.length < 10)) {
         return { success: false, error: 'OpenAI Key 格式无效' };
       }
-      if (anthropicKey && (!anthropicKey.startsWith('sk-ant-') || anthropicKey.length < 20)) {
+      if (anthropicKey && (!anthropicKey.startsWith('sk-ant-') || anthropicKey.length < 10)) {
         return { success: false, error: 'Anthropic Key 格式无效' };
       }
       if (proxyServer) {
@@ -306,7 +321,7 @@ function registerIpcHandlers(): void {
       return await historyService.listRequests(options);
     } catch (err) {
       console.error('history:list 错误:', err);
-      return { requests: [], total: 0 };
+      return [];
     }
   });
 

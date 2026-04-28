@@ -60,7 +60,9 @@ function Monitor() {
     // 用 token 比例估算缓存部分对应的输入费用，乘以节省比例
     const inputCost = stats.totalCost * (stats.totalInputTokens / totalTokens);
     const cacheRatio = stats.totalCachedTokens / stats.totalInputTokens;
-    return inputCost * cacheRatio * CACHE_SAVINGS_RATIO;
+    const savings = inputCost * cacheRatio * CACHE_SAVINGS_RATIO;
+    // 防止 stats 数据被污染时产生 NaN/Infinity
+    return isFinite(savings) ? savings : 0;
   }, [stats.totalCachedTokens, stats.totalInputTokens, stats.totalCost, totalTokens]);
 
   /** 导出统计数据为 JSON 文件 */
