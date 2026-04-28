@@ -40,7 +40,7 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
 
   // 反向遍历：先遇到末尾的 usage，再向前寻找 message_start 的模型名
   for (let i = effectiveLines.length - 1; i >= 0; i--) {
-    const line = lines[i];
+    const line = effectiveLines[i];
     if (!line.startsWith('data: ')) continue;
     const data = line.slice(6);
     if (data === '[DONE]') continue;

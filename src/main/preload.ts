@@ -65,7 +65,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       if (!VALID_CONFIG_KEYS.includes(key as typeof VALID_CONFIG_KEYS[number])) {
         return Promise.resolve({ success: false, error: '无效的配置键' });
       }
-      if (typeof value !== 'string' || value.length > 1000) {
+      if (typeof value !== 'string' || value.length > 1000 || value.trim().length === 0) {
         return Promise.resolve({ success: false, error: '配置值无效' });
       }
       return ipcRenderer.invoke('config:set', key, value);

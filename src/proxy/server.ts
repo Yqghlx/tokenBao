@@ -150,6 +150,9 @@ async function recordRequestResult(
 /**
  * 向上游 API 发送请求，返回完整响应（非流式）
  */
+/** 非流式上游响应体最大缓冲 10MB，超出时截断防止内存耗尽 */
+const MAX_UPSTREAM_RESPONSE_SIZE = 10 * 1024 * 1024;
+
 function sendUpstream(
   options: https.RequestOptions,
   body: string,
@@ -162,7 +165,13 @@ function sendUpstream(
       // 收到响应即取消超时计时器，避免已完成的请求被意外 destroy
       req.setTimeout(0);
       const chunks: Buffer[] = [];
-      res.on('data', (chunk) => chunks.push(chunk));
+      let totalSize = 0;
+      res.on('data', (chunk) => {
+        totalSize += chunk.length;
+        if (totalSize <= MAX_UPSTREAM_RESPONSE_SIZE) {
+          chunks.push(chunk);
+        }
+      });
       res.on('end', () => {
         if (settled) return;
         settled = true;
