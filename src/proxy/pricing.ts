@@ -46,6 +46,9 @@ let remotePricingSource = '';
  * 用远程定价数据覆盖内置定价表
  * 仅更新已验证的合法条目，未知模型或非法数据会被跳过
  */
+// 远程定价单价的合理上限（$/1K tokens），防止恶意数据注入
+const MAX_REMOTE_PRICE = 1;
+
 export function updateRemotePricing(
   pricing: Record<string, { input: number; output: number }>,
   source: string,
@@ -57,6 +60,10 @@ export function updateRemotePricing(
     if (typeof price?.input !== 'number' || typeof price?.output !== 'number') continue;
     if (!Number.isFinite(price.input) || !Number.isFinite(price.output)) continue;
     if (price.input < 0 || price.output < 0) continue;
+    if (price.input > MAX_REMOTE_PRICE || price.output > MAX_REMOTE_PRICE) {
+      console.warn(`远程定价跳过异常高价: ${model} input=${price.input} output=${price.output}`);
+      continue;
+    }
     MODEL_PRICING[model] = { input: price.input, output: price.output };
     updated++;
   }

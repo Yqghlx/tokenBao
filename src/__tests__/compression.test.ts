@@ -21,6 +21,12 @@ describe('compression 模块', () => {
     expect(result.text).toContain('resp: JSON');
   });
 
+  test('"please provide" 应整体替换为 "provide"，不被 "please" 先截断', () => {
+    const result = compression.compress('Please provide the data');
+    expect(result.text).toContain('provide');
+    expect(result.text).not.toMatch(/\bplease\b/i);
+  });
+
   test('压缩应处理空字符串', () => {
     const result = compression.compress('');
     expect(result.text).toBe('');

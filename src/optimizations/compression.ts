@@ -9,12 +9,12 @@ const defaultOptions: CompressionOptions = {
 };
 
 const replacements = [
-  // 冗余礼貌用语
-  { pattern: /please/gi, replacement: '' },
+  // 冗余礼貌用语（具体模式在前，避免被通用模式先截断）
+  { pattern: /please provide/gi, replacement: 'provide' },
   { pattern: /I would like you to/gi, replacement: '' },
   { pattern: /Could you/gi, replacement: '' },
   { pattern: /I need you to/gi, replacement: '' },
-  { pattern: /please provide/gi, replacement: 'provide' },
+  { pattern: /please/gi, replacement: '' },
   // 冗余短语缩写
   { pattern: /in order to/gi, replacement: 'to' },
   { pattern: /make sure to/gi, replacement: 'ensure' },
@@ -26,9 +26,9 @@ const replacements = [
   { pattern: /and so on/gi, replacement: 'etc' },
   { pattern: /for example/gi, replacement: 'e.g.' },
   { pattern: /that is to say/gi, replacement: 'i.e.' },
-  // 格式描述缩写
-  { pattern: /in JSON format/gi, replacement: 'resp: JSON' },
+  // 格式描述缩写（具体模式在前）
   { pattern: /response in JSON format/gi, replacement: 'resp: JSON' },
+  { pattern: /in JSON format/gi, replacement: 'resp: JSON' },
   { pattern: /field name is string type/gi, replacement: 'name: str' },
   { pattern: /field name is number type/gi, replacement: 'name: num' },
   { pattern: /field name is boolean type/gi, replacement: 'name: bool' }

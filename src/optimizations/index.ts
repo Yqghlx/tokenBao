@@ -85,28 +85,34 @@ export function getOptimizationConfig(): OptimizationConfig {
 
 /**
  * 对消息列表中的文本内容统一应用变换函数
- * 同时处理 string 和 array 两种 content 格式，消除策略间的重复代码
+ * 逐条处理，单条失败不影响其他消息的数据完整性
  */
 function processMessageTexts(
   messages: ChatMessage[],
   transform: (text: string) => string
 ): ChatMessage[] {
   return messages.map((msg: ChatMessage) => {
-    if (typeof msg.content === 'string') {
-      return { ...msg, content: transform(msg.content) };
+    try {
+      if (typeof msg.content === 'string') {
+        return { ...msg, content: transform(msg.content) };
+      }
+      if (Array.isArray(msg.content)) {
+        return {
+          ...msg,
+          content: msg.content.map((block) => {
+            if (block.type === 'text' && (block as TextContentBlock).text) {
+              return { ...block, text: transform((block as TextContentBlock).text) };
+            }
+            return block;
+          })
+        };
+      }
+      return msg;
+    } catch (err) {
+      // 单条消息处理失败时保留原文，不影响其他消息
+      console.warn('单条消息处理失败，保留原文:', (err as Error).message);
+      return msg;
     }
-    if (Array.isArray(msg.content)) {
-      return {
-        ...msg,
-        content: msg.content.map((block) => {
-          if (block.type === 'text' && (block as TextContentBlock).text) {
-            return { ...block, text: transform((block as TextContentBlock).text) };
-          }
-          return block;
-        })
-      };
-    }
-    return msg;
   });
 }
 
@@ -195,10 +201,10 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
     }
   }
 
-  // 管线完整性验证：优化后 body 结构异常则回退原始数据
-  if (!modifiedBody.messages || !Array.isArray(modifiedBody.messages)) {
+  // 管线完整性验证：优化后 body 关键字段异常则回退原始数据
+  if (!modifiedBody.messages || !Array.isArray(modifiedBody.messages) || !modifiedBody.model) {
     console.warn('优化管线输出异常，回退原始请求体');
-    modifiedBody = { ...body };
+    modifiedBody = structuredClone(body) as ApiRequestBody;
     result.savedTokens = 0;
     result.appliedStrategies = [];
   }
