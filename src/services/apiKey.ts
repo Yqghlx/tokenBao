@@ -64,7 +64,7 @@ export async function addApiKey(name: string, type: string, key: string): Promis
     const now = new Date().toISOString();
     const apiKey: ApiKey = {
       id: store.nextId++,
-      name,
+      name: name.trim(),
       type,
       encryptedKey,
       createdAt: now,

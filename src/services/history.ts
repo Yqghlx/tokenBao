@@ -64,7 +64,13 @@ async function cleanupExpiredRequests(store: HistoryStore): Promise<void> {
   const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
   const before = store.requests.length;
   store.requests = store.requests.filter(r => {
-    const ts = new Date(r.timestamp).getTime();
+    let ts: number;
+    try {
+      ts = new Date(r.timestamp).getTime();
+    } catch {
+      console.warn(`历史记录 ID=${r.id} 时间戳解析异常，已清理: "${r.timestamp}"`);
+      return false;
+    }
     // 无效 timestamp（NaN）视为损坏数据，清理掉
     if (Number.isNaN(ts)) {
       console.warn(`历史记录 ID=${r.id} 时间戳无效，已清理: "${r.timestamp}"`);
@@ -87,10 +93,10 @@ async function saveStore(store: HistoryStore): Promise<void> {
 
 export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLog> {
   // 输入校验：拒绝无效数据
-  if (!log.apiType || typeof log.apiType !== 'string') {
+  if (!log.apiType || typeof log.apiType !== 'string' || log.apiType.length > 50) {
     throw new Error('apiType 无效');
   }
-  if (!log.model || typeof log.model !== 'string') {
+  if (!log.model || typeof log.model !== 'string' || log.model.length > 100) {
     throw new Error('model 无效');
   }
   if (typeof log.inputTokens !== 'number' || Number.isNaN(log.inputTokens) || log.inputTokens < 0) {

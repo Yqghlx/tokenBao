@@ -254,6 +254,22 @@ function clearOldRequests(maxAgeMs = 3600000): void {
   let staleCount = 0;
   for (const [requestId, metadata] of pendingRequests.entries()) {
     if (now - metadata.startTime > STALE_PENDING_MS) {
+      // 将僵尸请求记录为失败，保留遥测数据
+      if (!completedRequests.has(requestId)) {
+        completedRequests.set(requestId, {
+          requestId,
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+          cost: 0,
+          model: (metadata.originalBody?.model as string) || 'unknown',
+          duration: now - metadata.startTime,
+          status: 500,
+          completedAt: now,
+          errorMessage: '请求超时未完成（僵尸清理）',
+        });
+      }
       pendingRequests.delete(requestId);
       staleCount++;
     }
