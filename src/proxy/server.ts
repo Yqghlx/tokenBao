@@ -521,6 +521,10 @@ class ProxyServer {
             proxyRes.pipe(passThrough).pipe(clientRes);
           });
 
+          // 先注册所有事件处理器，防止竞态条件下事件丢失
+          this.activeUpstreamRequests.add(proxyReq);
+          proxyReq.on('close', () => this.activeUpstreamRequests.delete(proxyReq));
+
           proxyReq.setTimeout(this.proxyTimeout, () => {
             this.activeUpstreamRequests.delete(proxyReq);
             proxyReq.destroy();
@@ -551,8 +555,6 @@ class ProxyServer {
           if (optimizedBody) {
             proxyReq.write(optimizedBody);
           }
-          this.activeUpstreamRequests.add(proxyReq);
-          proxyReq.on('close', () => this.activeUpstreamRequests.delete(proxyReq));
           proxyReq.end();
           return;
         }

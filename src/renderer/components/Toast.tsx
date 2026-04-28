@@ -90,7 +90,7 @@ export function ToastContainer({ toasts, removeToast }: { toasts: ToastItem[]; r
 
   return (
     <div role="region" aria-label="通知" aria-live="polite" style={{
-      position: 'fixed', top: '16px', right: '16px', zIndex: 9999,
+      position: 'fixed', top: '16px', right: '16px', zIndex: 1050,
       display: 'flex', flexDirection: 'column', gap: '8px'
     }}>
       {toasts.map(t => (
