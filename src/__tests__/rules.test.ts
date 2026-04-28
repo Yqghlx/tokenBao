@@ -75,6 +75,21 @@ describe('rules 优化模块', () => {
     expect(result).toBeUndefined();
   });
 
+  test('updateRule 应拒绝超出范围的 priority', () => {
+    const rule = rulesModule.addRule({ name: '优先级测试', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1 });
+    expect(() => rulesModule.updateRule(rule.id, { priority: -1 })).toThrow('优先级范围');
+    expect(() => rulesModule.updateRule(rule.id, { priority: 1001 })).toThrow('优先级范围');
+    // 合法范围不应报错
+    expect(() => rulesModule.updateRule(rule.id, { priority: 500 })).not.toThrow();
+  });
+
+  test('updateRule 应拒绝超长的 pattern', () => {
+    const rule = rulesModule.addRule({ name: '模式测试', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1 });
+    expect(() => rulesModule.updateRule(rule.id, { pattern: 'x'.repeat(501) })).toThrow('正则表达式过长');
+    // 500 字符以内不应报错
+    expect(() => rulesModule.updateRule(rule.id, { pattern: 'x'.repeat(500) })).not.toThrow();
+  });
+
   test('deleteRule 应删除规则', () => {
     const rule = rulesModule.addRule({ name: '删除测试', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1 });
     const result = rulesModule.deleteRule(rule.id);
