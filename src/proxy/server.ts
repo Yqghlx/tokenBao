@@ -728,6 +728,7 @@ class ProxyServer {
 
         // 停止接收新连接
         this.server.close(() => {
+          clearTimeout(shutdownTimer);
           this.server = null;
           logProxy('info', '代理服务器已关闭');
           resolve();

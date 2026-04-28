@@ -1,7 +1,7 @@
 appId: com.tokenbao.app
 productName: TokenBao
 directories:
-  output: dist
+  output: release
 asar: true
 compression: maximum
 files:
@@ -26,7 +26,7 @@ extraResources:
 mac:
   target:
     - dmg
-  category: "public.app-category.utilities"
+  category: "public.app-category.developer-tools"
   hardenedRuntime: true
   artifactName: "${productName}-${version}-mac-${arch}.${ext}"
 win:

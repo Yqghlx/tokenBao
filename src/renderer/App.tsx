@@ -33,7 +33,8 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, ChunkErrorSt
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false });
+    // webpack 缓存了失败的 chunk，仅清除 state 无法重新加载，必须刷新页面
+    window.location.reload();
   };
 
   render() {
