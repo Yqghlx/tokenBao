@@ -92,9 +92,15 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
 export function saveJson<T>(filename: string, data: T): void {
   const filePath = getFilePath(filename);
   const content = JSON.stringify(data, null, 2);
-  // 原子写入：先写临时文件再重命名，防止写入中断导致数据损坏
+  // 原子写入：先写临时文件再 fsync 再重命名，防止写入中断导致数据损坏
   const tmpPath = filePath + '.tmp';
-  fs.writeFileSync(tmpPath, content, 'utf-8');
+  const fd = fs.openSync(tmpPath, 'w');
+  try {
+    fs.writeFileSync(fd, content, 'utf-8');
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
   fs.renameSync(tmpPath, filePath);
 }
 

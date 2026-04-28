@@ -123,40 +123,35 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
   });
 }
 
+/** 共享过滤逻辑：apiType + search 关键词 */
+function filterRequests(requests: RequestLog[], options?: { apiType?: string; search?: string }): RequestLog[] {
+  let filtered = requests;
+  if (options?.apiType) {
+    filtered = filtered.filter(r => r.apiType === options.apiType);
+  }
+  if (options?.search) {
+    const keyword = options.search.toLowerCase();
+    filtered = filtered.filter(r =>
+      r.model.toLowerCase().includes(keyword) ||
+      r.apiType.toLowerCase().includes(keyword)
+    );
+  }
+  return filtered;
+}
+
 export async function listRequests(options?: { limit?: number; offset?: number; apiType?: string; search?: string }): Promise<RequestLog[]> {
   return mutex.runExclusive(() => {
     const store = getStore();
-    // 最新请求在前
-    let filtered = [...store.requests].reverse();
-
-    if (options?.apiType) {
-      filtered = filtered.filter(r => r.apiType === options.apiType);
-    }
-
-    if (options?.search) {
-      const keyword = options.search.toLowerCase();
-      filtered = filtered.filter(r =>
-        r.model.toLowerCase().includes(keyword) ||
-        r.apiType.toLowerCase().includes(keyword)
-      );
-    }
+    let filtered = filterRequests([...store.requests].reverse(), options);
 
     if (options?.offset) {
       filtered = filtered.slice(options.offset);
     }
-
     if (options?.limit) {
       filtered = filtered.slice(0, options.limit);
     }
 
     return filtered;
-  });
-}
-
-export async function getRequest(id: number): Promise<RequestLog | undefined> {
-  return mutex.runExclusive(() => {
-    const store = getStore();
-    return store.requests.find(r => r.id === id);
   });
 }
 
@@ -166,39 +161,16 @@ export async function clearRequests(): Promise<void> {
   });
 }
 
-export async function getRecentRequests(limit = 10): Promise<RequestLog[]> {
-  return mutex.runExclusive(() => {
-    const store = getStore();
-    return store.requests.slice(-limit);
-  });
-}
-
 /** 获取过滤后的记录总数（用于分页计算） */
 export async function getRequestCount(options?: { apiType?: string; search?: string }): Promise<number> {
   return mutex.runExclusive(() => {
-    let requests = getStore().requests;
-
-    if (options?.apiType) {
-      requests = requests.filter(r => r.apiType === options.apiType);
-    }
-
-    if (options?.search) {
-      const keyword = options.search.toLowerCase();
-      requests = requests.filter(r =>
-        r.model.toLowerCase().includes(keyword) ||
-        r.apiType.toLowerCase().includes(keyword)
-      );
-    }
-
-    return requests.length;
+    return filterRequests(getStore().requests, options).length;
   });
 }
 
 export default {
   addRequest,
   listRequests,
-  getRequest,
   clearRequests,
-  getRecentRequests,
   getRequestCount
 };

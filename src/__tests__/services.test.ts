@@ -47,9 +47,9 @@ describe('history 服务', () => {
       cached: false,
       timestamp: new Date().toISOString()
     });
-    const recent = await historyService.getRecentRequests(1);
-    expect(recent.length).toBeGreaterThanOrEqual(1);
-    expect(recent[recent.length - 1].model).toBe('gpt-4');
+    const list = await historyService.listRequests({ limit: 1 });
+    expect(list.length).toBeGreaterThanOrEqual(1);
+    expect(list[0].model).toBe('gpt-4');
   });
 
   test('按 apiType 过滤应正确', async () => {
@@ -461,23 +461,8 @@ describe('history 输入验证', () => {
       cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
     });
     await historyService.clearRequests();
-    const recent = await historyService.getRecentRequests();
-    expect(recent.length).toBe(0);
-  });
-
-  test('getRequest 应按 ID 查询单条记录', async () => {
-    const added = await historyService.addRequest({
-      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
-      cachedTokens: 0, cost: 0.01, cached: false, timestamp: new Date().toISOString()
-    });
-    const found = await historyService.getRequest(added.id);
-    expect(found).toBeDefined();
-    expect(found!.model).toBe('gpt-4');
-  });
-
-  test('getRequest 不存在的 ID 应返回 undefined', async () => {
-    const found = await historyService.getRequest(999999);
-    expect(found).toBeUndefined();
+    const list = await historyService.listRequests();
+    expect(list.length).toBe(0);
   });
 
   test('getRequestCount 应返回匹配条件的总数', async () => {
