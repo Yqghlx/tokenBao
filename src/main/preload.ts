@@ -209,6 +209,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       } catch {
         return Promise.resolve({ success: false, error: '正则表达式语法无效' });
       }
+      // 替换文本长度限制，防止超长替换影响性能
+      if (typeof rule.replacement !== 'string' || rule.replacement.length > 1000) {
+        return Promise.resolve({ success: false, error: '替换文本过长' });
+      }
       return ipcRenderer.invoke('rules:add', rule);
     },
     update: (id: number, updates: Record<string, unknown>) => {

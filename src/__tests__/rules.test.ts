@@ -213,4 +213,29 @@ describe('rules 优化模块', () => {
     });
     expect(() => rulesModule.updateRule(rule.id, { type: 'invalid' as any })).toThrow('不支持的规则类型');
   });
+
+  test('addRule replacement 超长应被拒绝', () => {
+    expect(() => {
+      rulesModule.addRule({
+        name: '超长替换',
+        type: 'replace',
+        pattern: 'a',
+        replacement: 'b'.repeat(1001),
+        enabled: true,
+        priority: 1
+      });
+    }).toThrow('替换文本不能超过 1000 字符');
+  });
+
+  test('addRule replacement 1000 字符应被接受', () => {
+    const rule = rulesModule.addRule({
+      name: '边界测试',
+      type: 'replace',
+      pattern: 'a',
+      replacement: 'b'.repeat(1000),
+      enabled: true,
+      priority: 1
+    });
+    expect(rule.replacement.length).toBe(1000);
+  });
 });

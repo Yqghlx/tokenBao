@@ -7,6 +7,14 @@ interface UsageStats {
 }
 
 /**
+ * 将 API 返回的 usage 数值安全化：非正整数或 NaN 归零
+ */
+function safeToken(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return 0;
+  return Math.floor(value);
+}
+
+/**
  * 从 SSE 流数据中提取 usage 统计（流式路径共用）
  * OpenAI: 最后一个包含 usage 的 data 事件
  * Anthropic: message_delta 事件中的 usage
@@ -46,10 +54,10 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
       // Anthropic 格式优先检测：message_delta 事件也有 usage 字段，需先排除
       if (parsed.type === 'message_delta' && parsed.usage) {
         return {
-          inputTokens: parsed.usage.input_tokens || 0,
-          outputTokens: parsed.usage.output_tokens || 0,
-          cacheReadTokens: parsed.usage.cache_read_input_tokens || 0,
-          cacheCreationTokens: parsed.usage.cache_creation_input_tokens || 0,
+          inputTokens: safeToken(parsed.usage.input_tokens),
+          outputTokens: safeToken(parsed.usage.output_tokens),
+          cacheReadTokens: safeToken(parsed.usage.cache_read_input_tokens),
+          cacheCreationTokens: safeToken(parsed.usage.cache_creation_input_tokens),
           model: fallbackModel
         };
       }
@@ -57,9 +65,9 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
       // OpenAI 格式
       if (parsed.usage) {
         return {
-          inputTokens: parsed.usage.prompt_tokens || 0,
-          outputTokens: parsed.usage.completion_tokens || 0,
-          cacheReadTokens: parsed.usage.prompt_tokens_details?.cached_tokens || 0,
+          inputTokens: safeToken(parsed.usage.prompt_tokens),
+          outputTokens: safeToken(parsed.usage.completion_tokens),
+          cacheReadTokens: safeToken(parsed.usage.prompt_tokens_details?.cached_tokens),
           cacheCreationTokens: 0,
           model: parsed.model || fallbackModel
         };
@@ -82,14 +90,12 @@ function parseNonStreamUsage(body: string): UsageStats | null {
     const parsed = JSON.parse(body);
     if (parsed.usage) {
       return {
-        inputTokens: parsed.usage.prompt_tokens || parsed.usage.input_tokens || 0,
-        outputTokens: parsed.usage.completion_tokens || parsed.usage.output_tokens || 0,
+        inputTokens: safeToken(parsed.usage.prompt_tokens ?? parsed.usage.input_tokens),
+        outputTokens: safeToken(parsed.usage.completion_tokens ?? parsed.usage.output_tokens),
         // Anthropic: cache_read_input_tokens / cache_creation_input_tokens
         // OpenAI: prompt_tokens_details.cached_tokens
-        cacheReadTokens: parsed.usage.cache_read_input_tokens
-          || parsed.usage.prompt_tokens_details?.cached_tokens
-          || 0,
-        cacheCreationTokens: parsed.usage.cache_creation_input_tokens || 0,
+        cacheReadTokens: safeToken(parsed.usage.cache_read_input_tokens ?? parsed.usage.prompt_tokens_details?.cached_tokens),
+        cacheCreationTokens: safeToken(parsed.usage.cache_creation_input_tokens),
         model: parsed.model || 'unknown'
       };
     }

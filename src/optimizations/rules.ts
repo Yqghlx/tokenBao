@@ -80,6 +80,10 @@ export function addRule(rule: Omit<Rule, 'id'>): Rule {
     const err = validatePattern(rule.pattern);
     if (err) throw new Error(err);
   }
+  // 验证 replacement 长度
+  if (typeof rule.replacement !== 'string' || rule.replacement.length > 1000) {
+    throw new Error('替换文本不能超过 1000 字符');
+  }
   // 验证 priority 范围
   if (!Number.isInteger(rule.priority) || rule.priority < 0 || rule.priority > 1000) {
     throw new Error('priority 必须是 0-1000 之间的整数');

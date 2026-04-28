@@ -438,6 +438,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('rules:add', async (_, rule: { name: string; type: 'replace' | 'filter' | 'route'; pattern: string; replacement: string; enabled: boolean; priority: number }) => {
     try {
+      // 主进程二次校验 replacement 长度
+      if (typeof rule.replacement !== 'string' || rule.replacement.length > 1000) {
+        return { success: false, error: '替换文本过长' };
+      }
       const result = rulesModule.addRule(rule);
       return { success: true, rule: result };
     } catch (err) {

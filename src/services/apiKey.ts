@@ -106,7 +106,17 @@ export async function getDecryptedKey(id: number): Promise<string | undefined> {
     const store = getStore();
     const key = store.keys.find(k => k.id === id);
     if (!key) return undefined;
-    return decrypt(key.encryptedKey);
+    try {
+      const decrypted = decrypt(key.encryptedKey);
+      if (!decrypted || decrypted.length < 10) {
+        console.warn(`apiKey: ID=${id} 解密结果异常，已跳过`);
+        return undefined;
+      }
+      return decrypted;
+    } catch (err) {
+      console.error(`apiKey: ID=${id} 解密失败:`, (err instanceof Error ? err.message : String(err)));
+      return undefined;
+    }
   });
 }
 
@@ -115,7 +125,17 @@ export async function getDecryptedKeyByType(apiType: string): Promise<string | u
     const store = getStore();
     const key = store.keys.find(k => k.type === apiType);
     if (!key) return undefined;
-    return decrypt(key.encryptedKey);
+    try {
+      const decrypted = decrypt(key.encryptedKey);
+      if (!decrypted || decrypted.length < 10) {
+        console.warn(`apiKey: type=${apiType} 解密结果异常，已跳过`);
+        return undefined;
+      }
+      return decrypted;
+    } catch (err) {
+      console.error(`apiKey: type=${apiType} 解密失败:`, (err instanceof Error ? err.message : String(err)));
+      return undefined;
+    }
   });
 }
 

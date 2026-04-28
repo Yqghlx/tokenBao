@@ -232,4 +232,58 @@ describe('responseHandler', () => {
       expect(extractStreamUsage('just some text\nno data here')).toBeNull();
     });
   });
+
+  describe('usage 数值安全化', () => {
+    test('null/undefined usage 值应归零', () => {
+      const body = JSON.stringify({
+        model: 'gpt-4o',
+        usage: {
+          prompt_tokens: null,
+          completion_tokens: undefined
+        }
+      });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(0);
+      expect(result.stats!.outputTokens).toBe(0);
+    });
+
+    test('负数 token 值应归零', () => {
+      const body = JSON.stringify({
+        model: 'gpt-4o',
+        usage: {
+          prompt_tokens: -10,
+          completion_tokens: 50
+        }
+      });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(0);
+      expect(result.stats!.outputTokens).toBe(50);
+    });
+
+    test('小数 token 值应取整', () => {
+      const body = JSON.stringify({
+        model: 'gpt-4o',
+        usage: {
+          prompt_tokens: 100.7,
+          completion_tokens: 50.3
+        }
+      });
+      const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(100);
+      expect(result.stats!.outputTokens).toBe(50);
+    });
+
+    test('SSE 流中 null usage 值应归零', () => {
+      const body = [
+        'data: {"type":"message_delta","usage":{"input_tokens":null,"output_tokens":20}}',
+      ].join('\n');
+      const result = handleResponse(body, { 'content-type': 'text/event-stream' }, 'anthropic');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(0);
+      expect(result.stats!.outputTokens).toBe(20);
+    });
+  });
 });
