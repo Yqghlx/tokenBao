@@ -1,4 +1,4 @@
-import { useEffect, useRef, ReactNode } from 'react';
+import { useEffect, useRef, useCallback, ReactNode } from 'react';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -18,34 +18,43 @@ interface ConfirmDialogProps {
 function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLabel = '取消', danger, onConfirm, onCancel }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  // 用 ref 保存最新回调，避免 keydown handler 因 props 变化而重建
+  const onCancelRef = useRef(onCancel);
+  const onConfirmRef = useRef(onConfirm);
+  onCancelRef.current = onCancel;
+  onConfirmRef.current = onConfirm;
 
-  // 打开时自动聚焦确认按钮，Escape 取消，Tab 焦点陷阱
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') { onCancelRef.current(); return; }
+    // Enter 仅在确认按钮聚焦时触发，避免用户在取消按钮上按 Enter 误确认
+    if (e.key === 'Enter' && document.activeElement === confirmRef.current) { onConfirmRef.current(); return; }
+    // 焦点陷阱：Tab / Shift+Tab 只在对话框内循环
+    if (e.key === 'Tab' && dialogRef.current) {
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+  }, []);
+
+  // 打开时自动聚焦确认按钮
   useEffect(() => {
     if (!open) return;
-
     confirmRef.current?.focus();
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onCancel(); return; }
-      // Enter 仅在确认按钮聚焦时触发，避免用户在取消按钮上按 Enter 误确认
-      if (e.key === 'Enter' && document.activeElement === confirmRef.current) { onConfirm(); return; }
-      // 焦点陷阱：Tab / Shift+Tab 只在对话框内循环
-      if (e.key === 'Tab' && dialogRef.current) {
-        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey) {
-          if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-        } else {
-          if (document.activeElement === last) { e.preventDefault(); first.focus(); }
-        }
-      }
-    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onCancel, onConfirm]);
+  }, [open, handleKeyDown]);
 
   if (!open) return null;
 

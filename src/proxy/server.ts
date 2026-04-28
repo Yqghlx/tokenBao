@@ -275,22 +275,29 @@ class ProxyServer {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       let totalSize = 0;
-      let exceeded = false;
+      let settled = false;
+      const cleanup = () => {
+        settled = true;
+        req.removeListener('data', onData);
+        req.removeListener('end', onEnd);
+        req.removeListener('error', onError);
+      };
       const onData = (chunk: Buffer) => {
-        if (exceeded) return;
+        if (settled) return;
         totalSize += chunk.length;
         if (totalSize > MAX_BODY_SIZE) {
-          exceeded = true;
-          req.removeListener('data', onData);
+          cleanup();
           req.destroy();
           reject(new Error(`请求体超过最大限制 (${MAX_BODY_SIZE / 1024 / 1024}MB)`));
           return;
         }
         chunks.push(chunk);
       };
+      const onEnd = () => { if (!settled) { cleanup(); resolve(Buffer.concat(chunks).toString()); } };
+      const onError = (err: Error) => { if (!settled) { cleanup(); reject(err); } };
       req.on('data', onData);
-      req.on('end', () => { if (!exceeded) resolve(Buffer.concat(chunks).toString()); });
-      req.on('error', (err) => { if (!exceeded) reject(err); });
+      req.on('end', onEnd);
+      req.on('error', onError);
     });
   }
 

@@ -101,6 +101,8 @@ function flushSave(): void {
 }
 
 process.on('beforeExit', flushSave);
+// process.exit() 不触发 beforeExit，需额外监听 exit 事件；saveJson 全部使用同步 I/O，可在 exit 中安全调用
+process.on('exit', flushSave);
 
 loadFromStorage();
 
