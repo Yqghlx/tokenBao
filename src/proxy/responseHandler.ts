@@ -14,6 +14,9 @@ function safeToken(value: unknown): number {
   return Math.floor(value);
 }
 
+/** SSE 解析最大行数，防止畸形数据消耗过多内存 */
+const MAX_SSE_LINES = 100000;
+
 /**
  * 从 SSE 流数据中提取 usage 统计（流式路径共用）
  * 单次反向遍历：先收集末尾的 usage，再继续向前扫描 message_start 模型名
@@ -21,13 +24,22 @@ function safeToken(value: unknown): number {
 export function extractStreamUsage(sseData: string): UsageStats | null {
   if (!sseData || !sseData.includes('data: ')) return null;
 
-  const lines = sseData.split('\n');
+  // 截断超长数据防止内存耗尽，usage 信息通常在流末尾，截掉头部不影响结果
+  let dataToProcess = sseData;
+  if (dataToProcess.length > 10 * 1024 * 1024) {
+    // 保留末尾 5MB，usage 和 message_start 通常在流末尾
+    dataToProcess = dataToProcess.slice(-5 * 1024 * 1024);
+  }
+
+  const lines = dataToProcess.split('\n');
+  // 防御畸形数据产生过多行
+  const effectiveLines = lines.length > MAX_SSE_LINES ? lines.slice(-MAX_SSE_LINES) : lines;
   let fallbackModel = 'unknown';
   let foundUsage: UsageStats | null = null;
   let foundModel = false;
 
   // 反向遍历：先遇到末尾的 usage，再向前寻找 message_start 的模型名
-  for (let i = lines.length - 1; i >= 0; i--) {
+  for (let i = effectiveLines.length - 1; i >= 0; i--) {
     const line = lines[i];
     if (!line.startsWith('data: ')) continue;
     const data = line.slice(6);

@@ -317,6 +317,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('apiKeys:get', async (_, id: number) => {
     try {
+      if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+        console.warn('apiKeys:get: id 参数无效');
+        return null;
+      }
       return await apiKeyService.getApiKey(id);
     } catch (err) {
       console.error('apiKeys:get 错误:', err);
@@ -326,6 +330,21 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('history:list', async (_, options?) => {
     try {
+      // 校验 options 结构，防止恶意输入
+      if (options !== undefined && options !== null && typeof options !== 'object') {
+        console.warn('history:list: options 参数类型无效');
+        return [];
+      }
+      if (options) {
+        if (options.limit !== undefined && (typeof options.limit !== 'number' || !Number.isFinite(options.limit))) {
+          console.warn('history:list: limit 参数无效');
+          return [];
+        }
+        if (options.offset !== undefined && (typeof options.offset !== 'number' || !Number.isFinite(options.offset))) {
+          console.warn('history:list: offset 参数无效');
+          return [];
+        }
+      }
       return await historyService.listRequests(options);
     } catch (err) {
       console.error('history:list 错误:', err);

@@ -105,6 +105,9 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
   if (typeof log.cachedTokens !== 'number' || Number.isNaN(log.cachedTokens) || log.cachedTokens < 0) {
     throw new Error('cachedTokens 无效');
   }
+  if (log.cached !== undefined && typeof log.cached !== 'boolean') {
+    throw new Error('cached 必须为布尔值');
+  }
   if (log.requestBody && log.requestBody.length > MAX_BODY_SIZE) {
     log = { ...log, requestBody: log.requestBody.slice(0, MAX_BODY_SIZE) + '...[truncated]' };
   }

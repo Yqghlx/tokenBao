@@ -129,7 +129,10 @@ function History() {
           if (/^[=+\-\t\r@]/.test(str)) {
             str = "'" + str;
           }
-          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          // RFC 4180：含逗号、双引号、换行符的字段须用双引号包裹
+          if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+            // 先将 \r\n 和 \r 统一为 \n，再转义双引号
+            str = str.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             return `"${str.replace(/"/g, '""')}"`;
           }
           return str;

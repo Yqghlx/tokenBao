@@ -26,6 +26,7 @@ const DEFAULT_PROXY_TIMEOUT = 60000;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 请求体最大 10MB
 const BODY_COLLECT_TIMEOUT = 30000; // 请求体收集超时 30s，防 slowloris
 const MAX_CONNECTIONS = 100; // 最大并发连接数
+const MIN_GZIP_SIZE = 1024; // 响应体低于此字节数不压缩，开销大于收益
 const SHUTDOWN_TIMEOUT = 5000; // 优雅关闭等待超时 5s
 const SSE_BUFFER_SOFT_LIMIT = 10240; // SSE 缓冲区软限制，保留最近 10KB
 const SSE_BUFFER_HARD_LIMIT = 1024 * 1024; // SSE 缓冲区绝对上限 1MB
@@ -750,7 +751,7 @@ class ProxyServer {
           const isJson = (upstreamResult.headers['content-type'] || '').includes('application/json');
           const bodyBuffer = Buffer.from(upstreamResult.body);
 
-          if (isJson && bodyBuffer.length > 1024 && acceptEncoding.includes('gzip')) {
+          if (isJson && bodyBuffer.length > MIN_GZIP_SIZE && acceptEncoding.includes('gzip')) {
             zlib.gzip(bodyBuffer, (gzipErr, compressed) => {
               // 异步回调时客户端可能已断开或响应已发送，防止重复写入
               if (clientRes.destroyed || clientRes.headersSent) return;
