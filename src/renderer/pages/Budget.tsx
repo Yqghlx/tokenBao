@@ -6,7 +6,7 @@ import { formatMoney } from '../utils/format';
 
 function Budget() {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<Set<string>>(new Set());
   const [confirmReset, setConfirmReset] = useState<{ type: 'daily' | 'monthly'; label: string } | null>(null);
   // 用 ref 追踪正在编辑的字段，避免作为依赖导致 loadBudget 重建和轮询重注册
   const editingFieldRef = useRef<'daily' | 'monthly' | null>(null);
@@ -52,7 +52,7 @@ function Budget() {
     }
 
     if (window.electronAPI?.budget?.set) {
-      setSaving(true);
+      setSaving(prev => new Set(prev).add(type));
       try {
         await window.electronAPI.budget.set(type, limit);
         await loadBudget();
@@ -61,7 +61,7 @@ function Budget() {
         console.error('保存预算失败:', err);
         showToast('保存失败', 'error');
       } finally {
-        setSaving(false);
+        setSaving(prev => { const next = new Set(prev); next.delete(type); return next; });
       }
     }
   };
@@ -138,10 +138,10 @@ function Budget() {
           step={1}
         />
         <span className="budget-input-suffix">$</span>
-        <button className="btn-primary btn-sm" onClick={() => saveBudget(type, limit)} disabled={saving}>
+        <button className="btn-primary btn-sm" onClick={() => saveBudget(type, limit)} disabled={saving.has(type)}>
           保存
         </button>
-        <button className="btn-secondary btn-sm" onClick={() => setConfirmReset({ type, label: type === 'daily' ? '日' : '月' })} disabled={saving}>
+        <button className="btn-secondary btn-sm" onClick={() => setConfirmReset({ type, label: type === 'daily' ? '日' : '月' })} disabled={saving.has(type)}>
           重置支出
         </button>
       </div>
@@ -152,7 +152,7 @@ function Budget() {
     <div className="page">
       <div className="page-header">
         <h2>预算管理</h2>
-        <button className="btn-secondary" onClick={loadBudget} disabled={saving}>刷新</button>
+        <button className="btn-secondary" onClick={loadBudget} disabled={saving.size > 0}>刷新</button>
       </div>
 
       <div className="stats-grid">

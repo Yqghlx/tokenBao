@@ -23,6 +23,23 @@ export default defineConfig({
   build: {
     outDir: '../../dist/renderer',
     emptyOutDir: true,
+    // 使用 esbuild 压缩（Vite 内置，无需额外依赖）
+    minify: 'esbuild',
+    // 单 chunk 超过 500KB 时告警
+    chunkSizeWarningLimit: 500,
+    rollupOptions: {
+      output: {
+        // 将 react/react-dom 拆分为独立 vendor chunk，利用浏览器缓存
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-router': ['react-router-dom'],
+        },
+      },
+    },
+    // CSS 代码分割
+    cssCodeSplit: true,
+    // 生成 sourcemap 用于生产调试
+    sourcemap: false,
   },
   server: {
     port: 5173,

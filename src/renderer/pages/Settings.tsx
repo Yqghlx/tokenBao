@@ -150,6 +150,16 @@ function Settings() {
     [proxyPort, dataRetentionDays, cacheTTL, savedValues]
   );
 
+  // 有未保存变更时阻止页面关闭/刷新
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
   return (
     <div className="page">
       <h2>设置</h2>
