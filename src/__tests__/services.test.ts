@@ -9,8 +9,8 @@ describe('apiKey 服务', () => {
     const keys = await apiKeyService.listApiKeys();
     expect(keys.length).toBeGreaterThanOrEqual(1);
     expect(keys[keys.length - 1].name).toBe('测试 Key');
-    // 列表中 encryptedKey 应被遮罩（运行时仍存在但值为 '***'）
-    expect((keys[keys.length - 1] as any).encryptedKey).toBe('***');
+    // 列表中不应包含 encryptedKey 字段（Omit 类型）
+    expect((keys[keys.length - 1] as any).encryptedKey).toBeUndefined();
   });
 
   test('加密解密应一致', async () => {

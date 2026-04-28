@@ -12,7 +12,7 @@ describe('requestTracker', () => {
       1000, 800, 200, ['routing']
     );
 
-    expect(meta.requestId).toMatch(/^req_\d+_[a-z0-9]+$/);
+    expect(meta.requestId).toMatch(/^req_[a-z0-9]+$/);
     expect(meta.apiType).toBe('openai');
     expect(meta.originalTokens).toBe(1000);
     expect(meta.optimizedTokens).toBe(800);

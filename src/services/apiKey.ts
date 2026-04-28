@@ -86,14 +86,8 @@ export async function deleteApiKey(id: number): Promise<boolean> {
 export async function listApiKeys(): Promise<Omit<ApiKey, 'encryptedKey'>[]> {
   return mutex.runExclusive(() => {
     const store = getStore();
-    return store.keys.map(k => ({
-      id: k.id,
-      name: k.name,
-      type: k.type,
-      encryptedKey: '***',
-      createdAt: k.createdAt,
-      updatedAt: k.updatedAt
-    }));
+    // 解构排除 encryptedKey，不返回占位符，类型与返回声明一致
+    return store.keys.map(({ encryptedKey: _, ...rest }) => rest);
   });
 }
 

@@ -94,6 +94,12 @@ export async function addStats(data: {
   return mutex.runExclusive(async () => {
     const stats = getStats();
 
+    // 记录累加前快照，Infinity/NaN 时回退到上次有效值而非 0
+    const prevCost = stats.totalCost;
+    const prevInput = stats.totalInputTokens;
+    const prevOutput = stats.totalOutputTokens;
+    const prevCached = stats.totalCachedTokens;
+
     stats.totalRequests++;
     stats.totalInputTokens += data.inputTokens;
     stats.totalOutputTokens += data.outputTokens;
@@ -114,11 +120,23 @@ export async function addStats(data: {
     stats.byModel[data.model].tokens += data.inputTokens + data.outputTokens;
     stats.byModel[data.model].cost += data.cost;
 
-    // 后置完整性检查：防止累加后出现 Infinity/NaN
-    if (!isFinite(stats.totalCost)) stats.totalCost = 0;
-    if (!isFinite(stats.totalInputTokens)) stats.totalInputTokens = 0;
-    if (!isFinite(stats.totalOutputTokens)) stats.totalOutputTokens = 0;
-    if (!isFinite(stats.totalCachedTokens)) stats.totalCachedTokens = 0;
+    // 后置完整性检查：Infinity/NaN 回退到累加前有效值，避免丢失历史累积
+    if (!isFinite(stats.totalCost)) {
+      console.warn(`stats.totalCost 变为 ${stats.totalCost}，回退到 ${prevCost}`);
+      stats.totalCost = prevCost;
+    }
+    if (!isFinite(stats.totalInputTokens)) {
+      console.warn(`stats.totalInputTokens 变为 ${stats.totalInputTokens}，回退到 ${prevInput}`);
+      stats.totalInputTokens = prevInput;
+    }
+    if (!isFinite(stats.totalOutputTokens)) {
+      console.warn(`stats.totalOutputTokens 变为 ${stats.totalOutputTokens}，回退到 ${prevOutput}`);
+      stats.totalOutputTokens = prevOutput;
+    }
+    if (!isFinite(stats.totalCachedTokens)) {
+      console.warn(`stats.totalCachedTokens 变为 ${stats.totalCachedTokens}，回退到 ${prevCached}`);
+      stats.totalCachedTokens = prevCached;
+    }
 
     await saveStats(stats);
   });

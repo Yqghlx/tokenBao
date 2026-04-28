@@ -92,7 +92,11 @@ function getRetryDelay(attempt: number): number {
 }
 
 function generateRequestId(): string {
-  return `req_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  // 使用 crypto.randomUUID 保证唯一性，避免 Math.random 碰撞
+  const uuid = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+    : Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  return `req_${uuid}`;
 }
 
 function createRequestMetadata(
@@ -208,8 +212,12 @@ function getStatsSummary(): {
   const durations = Array.from(completedRequests.values()).map(r => r.duration);
   const avgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
   
-  const savedTokensList = Array.from(completedRequests.values()).map(r => r.inputTokens > 0 ? r.inputTokens : 0);
-  const avgSavedTokens = savedTokensList.length > 0 ? savedTokensList.reduce((a, b) => a + b, 0) / savedTokensList.length : 0;
+  // 统计成功请求的平均输入 token 数（avgInputTokens）
+  const inputTokensList = Array.from(completedRequests.values())
+    .filter(r => r.status < 400)
+    .map(r => r.inputTokens);
+  const avgInputTokens = inputTokensList.length > 0
+    ? inputTokensList.reduce((a, b) => a + b, 0) / inputTokensList.length : 0;
   
   return {
     totalRequests,
@@ -217,7 +225,7 @@ function getStatsSummary(): {
     completedRequests: completedCount,
     failedRequests: failedCount,
     avgDuration: Math.round(avgDuration),
-    avgSavedTokens: Math.round(avgSavedTokens)
+    avgSavedTokens: Math.round(avgInputTokens)
   };
 }
 
@@ -232,10 +240,15 @@ function clearOldRequests(maxAgeMs = 3600000): void {
   }
 
   // 清理僵尸 pending 请求（超时未完成的请求）
+  let staleCount = 0;
   for (const [requestId, metadata] of pendingRequests.entries()) {
     if (now - metadata.startTime > STALE_PENDING_MS) {
       pendingRequests.delete(requestId);
+      staleCount++;
     }
+  }
+  if (staleCount > 0) {
+    console.warn(`requestTracker: 清理 ${staleCount} 个僵尸 pending 请求（>${STALE_PENDING_MS / 1000}s）`);
   }
 }
 

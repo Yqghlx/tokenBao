@@ -608,7 +608,7 @@ class ProxyServer {
           }
           if (!clientRes.headersSent) {
             clientRes.writeHead(502, { 'Content-Type': 'application/json' });
-            clientRes.end(JSON.stringify({ error: errMsg, requestId }));
+            clientRes.end(JSON.stringify({ error: '上游 API 请求失败', requestId }));
           }
           return;
         }
