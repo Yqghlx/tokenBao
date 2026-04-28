@@ -826,24 +826,26 @@ class ProxyServer {
         if (this.budgetSyncTimer && typeof this.budgetSyncTimer === 'object' && 'unref' in this.budgetSyncTimer) {
           this.budgetSyncTimer.unref();
         }
-        resolve();
-      });
 
-      // 运行时 server 错误/关闭事件：立即触发回调通知主进程重启
-      this.server.on('error', (err) => {
-        logProxy('error', '代理服务器运行时错误', { error: (err as Error).message });
-        // 服务器错误时清理预算同步定时器，防止资源泄漏
-        if (this.budgetSyncTimer) {
-          clearInterval(this.budgetSyncTimer);
-          this.budgetSyncTimer = null;
-        }
-        if (this.errorCallback) this.errorCallback();
-      });
-      this.server.on('close', () => {
-        if (!this.shuttingDown && this.errorCallback) {
-          logProxy('warn', '代理服务器意外关闭');
-          this.errorCallback();
-        }
+        // 运行时错误/关闭处理器：仅在 listen 成功后注册，
+        // 防止启动失败（如 EADDRINUSE）时误触发 errorCallback → restartProxy
+        const srv = this.server!;
+        srv.on('error', (err) => {
+          logProxy('error', '代理服务器运行时错误', { error: (err as Error).message });
+          if (this.budgetSyncTimer) {
+            clearInterval(this.budgetSyncTimer);
+            this.budgetSyncTimer = null;
+          }
+          if (this.errorCallback) this.errorCallback();
+        });
+        srv.on('close', () => {
+          if (!this.shuttingDown && this.errorCallback) {
+            logProxy('warn', '代理服务器意外关闭');
+            this.errorCallback();
+          }
+        });
+
+        resolve();
       });
     });
   }

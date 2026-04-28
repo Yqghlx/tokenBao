@@ -175,7 +175,11 @@ function registerIpcHandlers(): void {
     try {
       stopHealthCheck();
       if (proxyServer) {
-        await proxyServer.stop();
+        try {
+          await proxyServer.stop();
+        } catch (err) {
+          console.warn('代理服务器停止异常:', (err as Error).message);
+        }
         proxyServer = null;
       }
       return { success: true };
@@ -567,6 +571,19 @@ function registerIpcHandlers(): void {
     } catch (err) {
       console.error('dlp:setEnabled 错误:', err);
       return { success: false, error: (err as Error).message };
+    }
+  });
+}
+
+// 单实例锁：防止多窗口并发写入同一组 JSON 文件导致数据损坏
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // 用户再次启动时聚焦已有窗口，而非创建新实例
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
     }
   });
 }
