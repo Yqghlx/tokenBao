@@ -799,6 +799,8 @@ class ProxyServer {
 
   /** 检查指定提供商的熔断器是否开启 */
   private isCircuitOpen(apiType: ApiType): boolean {
+    // 未知 API 类型不触发熔断（没有确定的上游目标）
+    if (apiType === 'unknown') return false;
     const cb = this.getCircuitBreaker(apiType);
     if (cb.openUntil === 0) return false;
     if (Date.now() >= cb.openUntil) return false;
@@ -830,7 +832,11 @@ class ProxyServer {
 
   /** 检查月预算是否超限，返回 true 表示允许请求 */
   private checkBudget(): { allowed: boolean; warning?: string; reason?: string } {
-    const { monthlyLimit, monthlySpent, dailyLimit, dailySpent } = this.budgetState;
+    let { monthlyLimit, monthlySpent, dailyLimit, dailySpent } = this.budgetState;
+
+    // 防止浮点累加导致 NaN/Infinity 异常
+    if (!isFinite(monthlySpent)) monthlySpent = 0;
+    if (!isFinite(dailySpent)) dailySpent = 0;
 
     // 日预算检查
     if (dailyLimit > 0 && dailySpent >= dailyLimit) {

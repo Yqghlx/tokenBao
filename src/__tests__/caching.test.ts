@@ -93,4 +93,20 @@ describe('caching 模块', () => {
     // 缓存键基于完整内容的哈希，截断不影响缓存查询
     expect(caching.checkCache('anthropic', longContent)).toBe(true);
   });
+
+  test('checkCache 命中应更新 LRU 顺序（间接验证）', () => {
+    caching.setOptions({ enabled: true, ttl: '5min', scope: 'both' });
+    // 添加条目 a, b, c
+    caching.addCache('anthropic', 'lru-a');
+    caching.addCache('anthropic', 'lru-b');
+    caching.addCache('anthropic', 'lru-c');
+    // 访问最早条目 a，将其移到 LRU 末尾
+    expect(caching.checkCache('anthropic', 'lru-a')).toBe(true);
+    // 再次添加 a（重复 addCache 也会更新顺序）
+    caching.addCache('anthropic', 'lru-a');
+    // 所有条目应仍然存在
+    expect(caching.checkCache('anthropic', 'lru-a')).toBe(true);
+    expect(caching.checkCache('anthropic', 'lru-b')).toBe(true);
+    expect(caching.checkCache('anthropic', 'lru-c')).toBe(true);
+  });
 });

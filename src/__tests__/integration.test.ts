@@ -137,4 +137,50 @@ describe('集成测试', () => {
     // 请求体超限时服务端会 destroy 连接，客户端收到 413 或连接错误（statusCode=0）
     expect([0, 413]).toContain(response);
   });
+
+  test('预算 NaN/Infinity 时应仍允许请求', async () => {
+    // 模拟预算状态为 NaN
+    (server as any).budgetState.monthlyLimit = 100;
+    (server as any).budgetState.monthlySpent = NaN;
+    (server as any).budgetState.dailyLimit = 10;
+    (server as any).budgetState.dailySpent = Infinity;
+
+    const response = await new Promise<{ statusCode: number; body: string }>((resolve) => {
+      const req = http.request({
+        hostname: 'localhost',
+        port: 18091,
+        path: '/v1/chat/completions',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 5000
+      }, (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => { resolve({ statusCode: res.statusCode ?? 0, body }); });
+      });
+      req.on('error', () => resolve({ statusCode: 0, body: '' }));
+      req.write(JSON.stringify({ model: 'gpt-4', messages: [{ role: 'user', content: 'test' }] }));
+      req.end();
+    });
+
+    // NaN/Infinity 被 isFinite 重置为 0，不应触发预算拦截
+    expect(response.statusCode).not.toBe(429);
+
+    // 恢复
+    (server as any).budgetState.monthlyLimit = 100;
+    (server as any).budgetState.monthlySpent = 0;
+    (server as any).budgetState.dailyLimit = 10;
+    (server as any).budgetState.dailySpent = 0;
+  });
+
+  test('熔断器对 unknown 类型不应触发', () => {
+    // 先让 unknown 类型的熔断器进入 open 状态
+    for (let i = 0; i < 10; i++) {
+      (server as any).recordUpstreamFailure('unknown');
+    }
+    // unknown 类型不应被熔断
+    expect((server as any).isCircuitOpen('unknown')).toBe(false);
+    // 清理
+    (server as any).recordUpstreamSuccess('unknown');
+  });
 });

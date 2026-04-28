@@ -50,7 +50,7 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
       if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
         if (typeof data !== 'object' || data === null || Array.isArray(data)) {
           console.warn(`加载 ${filename} 结构异常（期望对象，实际为 ${Array.isArray(data) ? '数组' : typeof data}），使用默认值`);
-          return JSON.parse(JSON.stringify(defaultValue)) as T;
+          return structuredClone(defaultValue) as T;
         }
       }
       // 加载成功后创建备份，供未来损坏时恢复
@@ -73,7 +73,7 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
         if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
           if (typeof restored !== 'object' || restored === null || Array.isArray(restored)) {
             console.warn(`备份 ${filename} 结构也异常，使用默认值`);
-            return JSON.parse(JSON.stringify(defaultValue)) as T;
+            return structuredClone(defaultValue) as T;
           }
         }
         // 恢复成功，用备份数据覆盖损坏的主文件
@@ -86,7 +86,7 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
     }
   }
   // 深拷贝默认值，防止调用方修改污染原始默认对象
-  return JSON.parse(JSON.stringify(defaultValue)) as T;
+  return structuredClone(defaultValue) as T;
 }
 
 export function saveJson<T>(filename: string, data: T): void {

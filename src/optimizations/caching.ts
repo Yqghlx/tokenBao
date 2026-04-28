@@ -137,14 +137,23 @@ export function addCache(apiType: string, content: string): void {
 
 export function checkCache(apiType: string, content: string): boolean {
   if (!defaultOptions.enabled) return false;
-  
+
   const key = getCacheKey(apiType, content);
   const cached = cachePatterns.get(key);
-  
+
   if (!cached) return false;
-  
+
   const ttlMs = defaultOptions.ttl === '5min' ? 5 * 60 * 1000 : 60 * 60 * 1000;
-  return Date.now() - cached.timestamp < ttlMs;
+  if (Date.now() - cached.timestamp >= ttlMs) return false;
+
+  // 命中时更新 LRU 顺序，防止频繁访问的条目被误淘汰
+  const idx = cacheOrder.indexOf(key);
+  if (idx !== -1) {
+    cacheOrder.splice(idx, 1);
+    cacheOrder.push(key);
+  }
+
+  return true;
 }
 
 export function addCacheControl<T extends Record<string, unknown>>(content: T, scope?: string): T {
