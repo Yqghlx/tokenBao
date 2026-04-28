@@ -252,4 +252,30 @@ describe('优化管线 pipeline', () => {
     expect(result.modifiedBody.messages).toBeDefined();
     expect(Array.isArray(result.modifiedBody.messages)).toBe(true);
   });
+
+  test('DLP 策略应在管线中生效', () => {
+    setOptimizationConfig({ caching: false, compression: false, routing: false, batching: false, rules: false, dlp: true });
+    const body = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: '手机号 13812345678 联系我' }]
+    };
+    const result = applyOptimizations('openai', body);
+
+    expect(result.appliedStrategies.some(s => s.startsWith('dlp'))).toBe(true);
+    expect(result.modifiedBody.messages[0].content).not.toContain('13812345678');
+    // 原始请求体不受影响
+    expect(body.messages[0].content).toContain('13812345678');
+  });
+
+  test('DLP 禁用时不应对消息做任何修改', () => {
+    setOptimizationConfig({ caching: false, compression: false, routing: false, batching: false, rules: false, dlp: false });
+    const body = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: '手机号 13812345678 联系我' }]
+    };
+    const result = applyOptimizations('openai', body);
+
+    expect(result.appliedStrategies.some(s => s.startsWith('dlp'))).toBe(false);
+    expect(result.modifiedBody.messages[0].content).toContain('13812345678');
+  });
 });

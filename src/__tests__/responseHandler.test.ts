@@ -329,4 +329,27 @@ describe('responseHandler', () => {
       expect(result.stats).toBeNull();
     });
   });
+
+  describe('SSE 大数据截断', () => {
+    test('超过 10 万行的 SSE 应正确提取末尾 usage', () => {
+      // 回归测试：effectiveLines 切片后索引必须用 effectiveLines[i] 而非 lines[i]
+      const paddingLines = 'data: {}\n'.repeat(100001);
+      const usageLine = 'data: {"usage":{"prompt_tokens":42,"completion_tokens":7}}\n';
+      const body = paddingLines + usageLine;
+      const result = handleResponse(body, { 'content-type': 'text/event-stream' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(42);
+      expect(result.stats!.outputTokens).toBe(7);
+    });
+
+    test('超过 10MB 的 SSE 应截断后仍提取 usage', () => {
+      const paddingData = 'data: ' + 'x'.repeat(500) + '\n';
+      const bigPadding = paddingData.repeat(25000); // ~12.5MB
+      const usageLine = 'data: {"usage":{"prompt_tokens":99}}\n';
+      const body = bigPadding + usageLine;
+      const result = handleResponse(body, { 'content-type': 'text/event-stream' }, 'openai');
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(99);
+    });
+  });
 });
