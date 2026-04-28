@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { showToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { usePolling } from '../hooks/usePolling';
@@ -7,8 +7,8 @@ function Budget() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmReset, setConfirmReset] = useState<{ type: 'daily' | 'monthly'; label: string } | null>(null);
-  // 记录正在编辑的字段，轮询时不覆盖
-  const [editingField, setEditingField] = useState<'daily' | 'monthly' | null>(null);
+  // 用 ref 追踪正在编辑的字段，避免作为依赖导致 loadBudget 重建和轮询重注册
+  const editingFieldRef = useRef<'daily' | 'monthly' | null>(null);
   const [status, setStatus] = useState<{
     daily: { limit: number; spent: number; remaining: number; percentage: number };
     monthly: { limit: number; spent: number; remaining: number; percentage: number };
@@ -25,8 +25,8 @@ function Budget() {
         const data = await window.electronAPI.budget.status();
         setStatus(data);
         // 轮询时只更新未在编辑的字段，避免覆盖用户输入
-        if (editingField !== 'daily') setDailyLimit(String(data.daily.limit));
-        if (editingField !== 'monthly') setMonthlyLimit(String(data.monthly.limit));
+        if (editingFieldRef.current !== 'daily') setDailyLimit(String(data.daily.limit));
+        if (editingFieldRef.current !== 'monthly') setMonthlyLimit(String(data.monthly.limit));
       } catch (err) {
         console.error('加载预算状态失败:', err);
       } finally {
@@ -35,7 +35,7 @@ function Budget() {
     } else {
       setLoading(false);
     }
-  }, [editingField]);
+  }, []);
 
   useEffect(() => {
     loadBudget();
@@ -131,8 +131,8 @@ function Budget() {
           className="budget-input"
           value={limit}
           onChange={(e) => setLimit(e.target.value)}
-          onFocus={() => setEditingField(type)}
-          onBlur={() => setEditingField(null)}
+          onFocus={() => { editingFieldRef.current = type; }}
+          onBlur={() => { editingFieldRef.current = null; }}
           min={0}
           step={1}
         />

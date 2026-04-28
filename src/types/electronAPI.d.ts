@@ -3,6 +3,12 @@
  * 与 src/main/preload.ts 中 exposeInMainWorld 的 API 保持同步
  */
 
+/** preload 验证失败时的通用错误返回 */
+interface PreloadError {
+  success: false;
+  error: string;
+}
+
 interface ProxyStatus {
   running: boolean;
   port: number;
@@ -64,21 +70,21 @@ interface ElectronAPI {
     stop: () => Promise<{ success: boolean; error?: string }>;
     status: () => Promise<ProxyStatus>;
     health: () => Promise<ProxyHealth>;
-    setKeys: (openaiKey: string, anthropicKey: string) => Promise<{ success: boolean }>;
+    setKeys: (openaiKey: string, anthropicKey: string) => Promise<{ success: boolean; error?: string }>;
   };
 
   config: {
     get: (key: string) => Promise<string | undefined>;
-    set: (key: string, value: string) => Promise<{ success: boolean }>;
+    set: (key: string, value: string) => Promise<{ success: boolean; error?: string }>;
     getAll: () => Promise<Record<string, string>>;
-    reset: () => Promise<{ success: boolean }>;
+    reset: () => Promise<{ success: boolean; error?: string }>;
   };
 
   apiKeys: {
     list: () => Promise<Omit<ApiKeyItem, 'encryptedKey'>[]>;
-    add: (name: string, type: string, key: string) => Promise<ApiKeyItem>;
-    delete: (id: number) => Promise<boolean>;
-    get: (id: number) => Promise<ApiKeyItem | undefined>;
+    add: (name: string, type: string, key: string) => Promise<ApiKeyItem | PreloadError>;
+    delete: (id: number) => Promise<boolean | PreloadError>;
+    get: (id: number) => Promise<ApiKeyItem | null>;
   };
 
   history: {
@@ -89,9 +95,9 @@ interface ElectronAPI {
 
   budget: {
     get: () => Promise<BudgetInfo>;
-    set: (type: string, limit: number) => Promise<BudgetInfo>;
+    set: (type: string, limit: number) => Promise<BudgetInfo | PreloadError>;
     status: () => Promise<BudgetStatus>;
-    resetSpent: (type: 'daily' | 'monthly') => Promise<{ success: boolean }>;
+    resetSpent: (type: 'daily' | 'monthly') => Promise<{ success: boolean; error?: string }>;
   };
 
   stats: {
@@ -101,7 +107,7 @@ interface ElectronAPI {
 
   optimization: {
     getConfig: () => Promise<Record<string, boolean>>;
-    setConfig: (config: Record<string, unknown>) => Promise<{ success: boolean; config: Record<string, unknown> }>;
+    setConfig: (config: Record<string, unknown>) => Promise<{ success: boolean; config: Record<string, unknown>; error?: string }>;
   };
 
   rules: {
@@ -116,7 +122,7 @@ interface ElectronAPI {
     }>>;
     add: (rule: { name: string; type: string; pattern: string; replacement: string; enabled: boolean; priority: number }) => Promise<{ success: boolean; rule?: unknown; error?: string }>;
     update: (id: number, updates: Record<string, unknown>) => Promise<{ success: boolean; rule?: unknown; error?: string }>;
-    delete: (id: number) => Promise<{ success: boolean }>;
+    delete: (id: number) => Promise<{ success: boolean; error?: string }>;
     validate: (pattern: string) => Promise<{ error: string | null }>;
   };
 
