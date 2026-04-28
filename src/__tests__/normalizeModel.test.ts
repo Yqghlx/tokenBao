@@ -17,6 +17,10 @@ describe('normalizeModelName 模型名称归一化', () => {
     test('claude-3-5-sonnet-20241022 应归一化为 claude-3.5-sonnet', () => {
       expect(normalizeModelName('claude-3-5-sonnet-20241022')).toBe('claude-3.5-sonnet');
     });
+
+    test('claude-3-7-sonnet-20250219 应归一化为 claude-3.7-sonnet', () => {
+      expect(normalizeModelName('claude-3-7-sonnet-20250219')).toBe('claude-3.7-sonnet');
+    });
   });
 
   describe('定价表直接命中', () => {
@@ -86,7 +90,7 @@ describe('calculateCost 费用计算', () => {
       'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
       'gpt-3.5-turbo', 'o3', 'o4-mini',
       'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
-      'claude-3.5-sonnet', 'claude-3.5-haiku',
+      'claude-3.5-sonnet', 'claude-3.5-haiku', 'claude-3.7-sonnet',
       'claude-sonnet-4', 'claude-opus-4',
       'claude-opus-4.1', 'claude-sonnet-4.6', 'claude-opus-4.6',
       'claude-haiku-4.5'

@@ -33,6 +33,8 @@ const defaultOptions: RoutingOptions = {
     { sourceModel: 'claude-3-opus', targetModel: 'claude-3-haiku', condition: 'classification' },
     { sourceModel: 'claude-3.5-sonnet', targetModel: 'claude-3.5-haiku', condition: 'simple' },
     { sourceModel: 'claude-3.5-sonnet', targetModel: 'claude-3.5-haiku', condition: 'classification' },
+    { sourceModel: 'claude-3.7-sonnet', targetModel: 'claude-3.5-haiku', condition: 'simple' },
+    { sourceModel: 'claude-3.7-sonnet', targetModel: 'claude-3.5-haiku', condition: 'classification' },
     { sourceModel: 'claude-sonnet-4', targetModel: 'claude-3.5-haiku', condition: 'simple' },
     { sourceModel: 'claude-sonnet-4', targetModel: 'claude-3.5-haiku', condition: 'classification' },
     { sourceModel: 'claude-opus-4', targetModel: 'claude-3.5-haiku', condition: 'simple' },

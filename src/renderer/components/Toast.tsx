@@ -12,16 +12,18 @@ const MAX_TOASTS = 5;
 const DEFAULT_DURATION = 3000;
 const ERROR_DURATION = 5000;
 
-let addToastFn: ((message: string, type?: ToastType) => void) | null = null;
+let addToastFn: ((message: string, type?: ToastType) => number) | null = null;
 
 /**
  * 全局 Toast 通知工具，可在任何地方调用
+ * 返回 toast ID，可用于 removeToast 手动关闭
  * loading 类型不会自动关闭，需手动调用 removeToast
  */
 export function showToast(message: string, type: ToastType = 'info'): number {
-  const id = Date.now();
-  addToastFn?.(message, type);
-  return id;
+  if (addToastFn) {
+    return addToastFn(message, type);
+  }
+  return -1;
 }
 
 export function useToast() {
@@ -38,7 +40,7 @@ export function useToast() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const addToast = useCallback((message: string, type: ToastType = 'info') => {
+  const addToast = useCallback((message: string, type: ToastType = 'info'): number => {
     const id = ++nextIdRef.current;
     setToasts(prev => {
       const updated = [...prev, { id, message, type }];
@@ -63,6 +65,7 @@ export function useToast() {
       const timer = setTimeout(() => removeToast(id), duration);
       timersRef.current.set(id, timer);
     }
+    return id;
   }, [removeToast]);
 
   useEffect(() => {

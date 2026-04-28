@@ -31,8 +31,8 @@ describe('pricing 定价模块', () => {
       }
     });
 
-    test('模型总数应为 23', () => {
-      expect(Object.keys(MODEL_PRICING).length).toBe(23);
+    test('模型总数应为 24', () => {
+      expect(Object.keys(MODEL_PRICING).length).toBe(24);
     });
   });
 
