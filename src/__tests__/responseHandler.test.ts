@@ -163,6 +163,34 @@ describe('responseHandler', () => {
       expect(result.stats).not.toBeNull();
       expect(result.stats!.inputTokens).toBe(50);
     });
+
+    test('Anthropic SSE 应从 message_start 提取模型名作为 fallback', () => {
+      const body = [
+        'data: {"type":"message_start","message":{"model":"claude-opus-4.6"}}',
+        'data: {"type":"content_block_delta","delta":{"text":"response"}}',
+        'data: {"type":"message_delta","usage":{"input_tokens":100,"output_tokens":50}}',
+      ].join('\n');
+
+      const result = handleResponse(body, { 'content-type': 'text/event-stream' }, 'anthropic');
+
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.inputTokens).toBe(100);
+      expect(result.stats!.outputTokens).toBe(50);
+      // message_delta 没有 model 字段，应使用 message_start 中的 fallback
+      expect(result.stats!.model).toBe('claude-opus-4.6');
+    });
+
+    test('SSE 无 message_start 且 usage 无模型时应返回 unknown', () => {
+      const body = [
+        'data: {"type":"content_block_delta","delta":{"text":"test"}}',
+        'data: {"type":"message_delta","usage":{"input_tokens":50,"output_tokens":20}}',
+      ].join('\n');
+
+      const result = handleResponse(body, { 'content-type': 'text/event-stream' }, 'anthropic');
+
+      expect(result.stats).not.toBeNull();
+      expect(result.stats!.model).toBe('unknown');
+    });
   });
 
   describe('handleResponse - 流检测', () => {
