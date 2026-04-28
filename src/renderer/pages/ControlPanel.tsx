@@ -145,6 +145,11 @@ function ControlPanel() {
       setLoading(false);
     };
     loadAll();
+
+    // 监听主进程预算变更通知，立即刷新
+    const handler = () => { loadBudgetStatus(); loadStats(); };
+    window.electronAPI?.on?.('budget:changed', handler);
+    return () => { window.electronAPI?.off?.('budget:changed', handler); };
   }, [loadProxyStatus, loadBudgetStatus, loadStats, loadOptimizations]);
 
   const pollStats = useCallback(() => {

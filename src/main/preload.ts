@@ -5,6 +5,7 @@ const ALLOWED_CHANNELS = [
   'proxy:statusChanged',
   'proxy:error',
   'stats:updated',
+  'budget:changed',
 ] as const;
 
 /** 合法的 API 密钥类型 */

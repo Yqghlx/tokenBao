@@ -360,6 +360,10 @@ function registerIpcHandlers(): void {
     try {
       const result = await budgetService.setBudgetLimit(type as 'daily' | 'monthly', limit);
       if (proxyServer) await proxyServer.loadBudgetSnapshot();
+      // 主动通知渲染进程预算已变更，减少轮询延迟
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('budget:changed');
+      }
       return result;
     } catch (err) {
       console.error('budget:set 错误:', err);
@@ -380,6 +384,9 @@ function registerIpcHandlers(): void {
     try {
       await budgetService.resetSpent(type as 'daily' | 'monthly');
       if (proxyServer) await proxyServer.loadBudgetSnapshot();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('budget:changed');
+      }
       return { success: true };
     } catch (err) {
       console.error('budget:resetSpent 错误:', err);

@@ -929,7 +929,9 @@ class ProxyServer {
   }
 
   isRunning(): boolean {
-    return this.server !== null;
+    if (!this.server) return false;
+    // 检查 server 是否正在监听（而非仅对象存在）
+    return this.server.listening;
   }
 
   getActiveConnections(): number {

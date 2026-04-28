@@ -130,8 +130,8 @@ interface ElectronAPI {
     setEnabled: (ruleId: string, enabled: boolean) => Promise<{ success: boolean; error?: string }>;
   };
 
-  on: (channel: 'proxy:statusChanged' | 'proxy:error' | 'stats:updated', callback: (...args: unknown[]) => void) => void;
-  off: (channel: 'proxy:statusChanged' | 'proxy:error' | 'stats:updated', callback?: (...args: unknown[]) => void) => void;
+  on: (channel: 'proxy:statusChanged' | 'proxy:error' | 'stats:updated' | 'budget:changed', callback: (...args: unknown[]) => void) => void;
+  off: (channel: 'proxy:statusChanged' | 'proxy:error' | 'stats:updated' | 'budget:changed', callback?: (...args: unknown[]) => void) => void;
 }
 
 interface Window {

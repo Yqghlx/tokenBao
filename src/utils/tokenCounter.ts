@@ -11,12 +11,15 @@ interface Message {
 
 let encoder: Tiktoken | null = null;
 let encoderFailed = false;
+let encodeFailCount = 0;
+const MAX_ENCODE_FAILS = 5;
 
 function getEncoder(): Tiktoken | null {
   if (encoderFailed) return null;
   if (!encoder) {
     try {
       encoder = getEncoding('cl100k_base');
+      encodeFailCount = 0;
     } catch (err) {
       console.warn('tiktoken 初始化失败，后续将使用估算:', (err as Error).message);
       encoderFailed = true;
@@ -33,7 +36,13 @@ function countTokensOpenAI(text: string): number {
     return enc.encode(text).length;
   } catch (err) {
     console.warn('tiktoken 编码失败，使用估算 fallback:', (err as Error).message);
-    encoder = null;
+    encodeFailCount++;
+    // 连续失败超过阈值后彻底降级，避免反复创建失败的编码器
+    if (encodeFailCount >= MAX_ENCODE_FAILS) {
+      encoder = null;
+      encoderFailed = true;
+      console.warn(`tiktoken 连续 ${MAX_ENCODE_FAILS} 次编码失败，永久降级为估算模式`);
+    }
     return estimateTokensFallback(text);
   }
 }
