@@ -111,6 +111,13 @@ function createWindow(): void {
 function registerIpcHandlers(): void {
   ipcMain.handle('proxy:start', async (_, port?: number) => {
     try {
+      // 重入保护：代理已在运行时先停止旧实例
+      if (proxyServer) {
+        stopHealthCheck();
+        try { await proxyServer.stop(); } catch { /* 停止失败忽略 */ }
+        proxyServer = null;
+      }
+
       // 优先使用传入端口，否则从配置读取，最终默认 3000
       const configPort = await configService.getConfig('proxyPort');
       const parsedConfigPort = configPort ? parseInt(configPort, 10) : NaN;

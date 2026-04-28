@@ -115,10 +115,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   history: {
     list: (options?: { limit?: number; offset?: number; apiType?: string; search?: string }) => {
       if (options) {
-        if (options.limit !== undefined && (options.limit < 1 || options.limit > 1000)) {
+        if (options.limit !== undefined && (options.limit < 1 || options.limit > 1000 || !Number.isInteger(options.limit))) {
           return Promise.resolve([]);
         }
-        if (options.offset !== undefined && (options.offset < 0)) {
+        if (options.offset !== undefined && (options.offset < 0 || !Number.isInteger(options.offset))) {
           return Promise.resolve([]);
         }
         if (options.search !== undefined && (typeof options.search !== 'string' || options.search.length > 200)) {
@@ -244,6 +244,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     validate: (pattern: string) => {
       if (typeof pattern !== 'string') {
         return Promise.resolve({ error: '正则表达式必须为字符串' });
+      }
+      if (pattern.length > 500) {
+        return Promise.resolve({ error: '正则表达式过长' });
       }
       return ipcRenderer.invoke('rules:validate', pattern);
     }

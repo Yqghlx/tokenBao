@@ -1,9 +1,18 @@
 import { applyOptimizations, setOptimizationConfig, getOptimizationConfig } from '../optimizations/index';
+import rulesModule from '../optimizations/rules';
 
 describe('优化管线 pipeline', () => {
+  // 清理 rules 模块中的测试规则
+  const addedRuleIds: number[] = [];
+
   afterEach(() => {
     // 恢复默认配置
     setOptimizationConfig({ caching: true, compression: true, routing: true, batching: false, rules: true });
+  });
+
+  afterAll(() => {
+    // 清理所有测试添加的规则
+    addedRuleIds.forEach(id => rulesModule.deleteRule(id));
   });
 
   test('空 body 应返回空结果', () => {
@@ -122,5 +131,82 @@ describe('优化管线 pipeline', () => {
     // 原始请求体应完全不变
     expect(body.messages[0].content).toBe(originalContent);
     expect(body).toEqual(originalSnapshot);
+  });
+
+  test('rules 策略应在管线中生效', () => {
+    const rule = rulesModule.addRule({
+      name: '管线测试规则',
+      type: 'replace',
+      pattern: 'pipeline_test_marker',
+      replacement: 'replaced',
+      enabled: true,
+      priority: 1
+    });
+    addedRuleIds.push(rule.id);
+
+    const body = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Please pipeline_test_marker here' }]
+    };
+    const result = applyOptimizations('openai', body);
+
+    // rules 策略应被标记
+    expect(result.appliedStrategies.some(s => s.startsWith('rules'))).toBe(true);
+    // 替换应在消息内容中生效
+    expect(result.modifiedBody.messages[0].content).toContain('replaced');
+    expect(result.modifiedBody.messages[0].content).not.toContain('pipeline_test_marker');
+    // 原始请求体不受影响
+    expect(body.messages[0].content).toContain('pipeline_test_marker');
+  });
+
+  test('rules 策略禁用后不应生效', () => {
+    const rule = rulesModule.addRule({
+      name: '禁用测试规则',
+      type: 'replace',
+      pattern: 'disabled_marker',
+      replacement: 'should_not_appear',
+      enabled: true,
+      priority: 1
+    });
+    addedRuleIds.push(rule.id);
+
+    setOptimizationConfig({ rules: false });
+
+    const body = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Please disabled_marker here' }]
+    };
+    const result = applyOptimizations('openai', body);
+
+    expect(result.appliedStrategies.some(s => s.startsWith('rules'))).toBe(false);
+    expect(result.modifiedBody.messages[0].content).toContain('disabled_marker');
+  });
+
+  test('rules 策略应用于 array 类型消息', () => {
+    const rule = rulesModule.addRule({
+      name: '数组消息测试',
+      type: 'replace',
+      pattern: 'array_marker',
+      replacement: 'array_replaced',
+      enabled: true,
+      priority: 1
+    });
+    addedRuleIds.push(rule.id);
+
+    const body = {
+      model: 'gpt-4',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Please array_marker here' },
+          { type: 'image', data: 'base64...' }
+        ]
+      }]
+    };
+    const result = applyOptimizations('openai', body);
+
+    const content = result.modifiedBody.messages[0].content as Array<{ type: string; text?: string }>;
+    const textBlock = content.find(b => b.type === 'text');
+    expect(textBlock!.text).toContain('array_replaced');
   });
 });
