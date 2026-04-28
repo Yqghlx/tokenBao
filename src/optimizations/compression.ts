@@ -42,11 +42,19 @@ function setOptions(options: Partial<CompressionOptions>): void {
   Object.assign(defaultOptions, options);
 }
 
+/** 判断字符是否为 CJK 统一汉字、假名或韩文 */
+function isCJK(code: number): boolean {
+  return (code >= 0x4E00 && code <= 0x9FFF)   // CJK 统一汉字
+    || (code >= 0x3040 && code <= 0x309F)       // 平假名
+    || (code >= 0x30A0 && code <= 0x30FF)       // 片假名
+    || (code >= 0xAC00 && code <= 0xD7AF);      // 韩文音节
+}
+
 function estimateTokens(text: string): number {
-  // 英文约 4 chars/token，中文约 2 chars/token
+  // CJK 约 2 chars/token，其他约 4 chars/token
   let count = 0;
   for (const char of text) {
-    count += char.charCodeAt(0) > 127 ? 0.5 : 0.25;
+    count += isCJK(char.charCodeAt(0)) ? 0.5 : 0.25;
   }
   return Math.ceil(count);
 }

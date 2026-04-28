@@ -21,6 +21,12 @@ const SEARCH_DEBOUNCE_MS = 300;
 const EXPORT_LIMIT = 1000;
 const BLOB_RELEASE_DELAY_MS = 1000;
 
+/** 安全格式化时间戳，畸形值返回原始字符串 */
+function formatTimestamp(ts: string): string {
+  const d = new Date(ts);
+  return Number.isFinite(d.getTime()) ? d.toLocaleString() : ts;
+}
+
 function History() {
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -249,7 +255,7 @@ function History() {
             ) : (
               history.map((item) => (
                 <tr key={item.id}>
-                  <td>{(() => { const d = new Date(item.timestamp); return Number.isFinite(d.getTime()) ? d.toLocaleString() : item.timestamp; })()}</td>
+                  <td>{formatTimestamp(item.timestamp)}</td>
                   <td>{item.apiType}</td>
                   <td>{item.model}</td>
                   <td>{item.inputTokens}</td>
