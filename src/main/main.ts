@@ -363,7 +363,11 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('budget:set', async (_, type: string, limit: number) => {
     try {
-      const result = await budgetService.setBudgetLimit(type as 'daily' | 'monthly', limit);
+      // 主进程二次校验 type 参数，防御 preload 绕过
+      if (type !== 'daily' && type !== 'monthly') {
+        return { success: false, error: '无效的预算类型' };
+      }
+      const result = await budgetService.setBudgetLimit(type, limit);
       if (proxyServer) await proxyServer.loadBudgetSnapshot();
       // 主动通知渲染进程预算已变更，减少轮询延迟
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -387,7 +391,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('budget:resetSpent', async (_, type: string) => {
     try {
-      await budgetService.resetSpent(type as 'daily' | 'monthly');
+      if (type !== 'daily' && type !== 'monthly') {
+        return { success: false, error: '无效的预算类型' };
+      }
+      await budgetService.resetSpent(type);
       if (proxyServer) await proxyServer.loadBudgetSnapshot();
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('budget:changed');
@@ -453,9 +460,12 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('rules:add', async (_, rule: { name: string; type: 'replace' | 'filter' | 'route'; pattern: string; replacement: string; enabled: boolean; priority: number }) => {
     try {
-      // 主进程二次校验 replacement 长度
+      // 主进程二次校验 replacement 长度和 priority 范围
       if (typeof rule.replacement !== 'string' || rule.replacement.length > 1000) {
         return { success: false, error: '替换文本过长' };
+      }
+      if (typeof rule.priority !== 'number' || !Number.isInteger(rule.priority) || rule.priority < 0 || rule.priority > 1000) {
+        return { success: false, error: 'priority 必须是 0-1000 之间的整数' };
       }
       const result = rulesModule.addRule(rule);
       return { success: true, rule: result };

@@ -28,9 +28,8 @@ function getDataDir(): string {
       dataDir = path.join(process.cwd(), 'test-data');
     }
 
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
+    // recursive: true 在目录已存在时不抛错，消除 existsSync 的 TOCTOU 竞态
+    fs.mkdirSync(dataDir, { recursive: true });
 
     // 清理上次进程崩溃残留的临时文件
     cleanupStaleTempFiles();

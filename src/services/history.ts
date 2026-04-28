@@ -142,7 +142,12 @@ function filterRequests(requests: RequestLog[], options?: { apiType?: string; se
 export async function listRequests(options?: { limit?: number; offset?: number; apiType?: string; search?: string }): Promise<RequestLog[]> {
   return mutex.runExclusive(() => {
     const store = getStore();
-    let filtered = filterRequests([...store.requests].reverse(), options);
+    // 倒序构建：从末尾向前遍历，避免完整数组反转复制
+    const reversed: RequestLog[] = [];
+    for (let i = store.requests.length - 1; i >= 0; i--) {
+      reversed.push(store.requests[i]);
+    }
+    let filtered = filterRequests(reversed, options);
 
     if (options?.offset) {
       filtered = filtered.slice(options.offset);

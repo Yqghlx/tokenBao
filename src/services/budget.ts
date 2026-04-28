@@ -104,7 +104,9 @@ export async function updateSpent(type: 'daily' | 'monthly', amount: number): Pr
     if (amount < 0) return;
     const store = getStore();
     checkAutoReset(store);
-    const newSpent = store[type].spent + amount;
+    // 防止磁盘损坏数据（NaN/Infinity）污染累加结果
+    const currentSpent = Number.isFinite(store[type].spent) ? store[type].spent : 0;
+    const newSpent = currentSpent + amount;
     // 防止溢出
     store[type].spent = newSpent > Number.MAX_SAFE_INTEGER ? Number.MAX_SAFE_INTEGER : newSpent;
     await saveStore(store);
