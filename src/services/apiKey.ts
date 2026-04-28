@@ -32,6 +32,7 @@ interface ApiKeyStore {
 }
 
 const STORAGE_FILE = 'apiKeys.json';
+const MAX_KEYS = 50;
 const mutex = getMutex(STORAGE_FILE);
 
 function getStore(): ApiKeyStore {
@@ -56,6 +57,9 @@ export async function addApiKey(name: string, type: string, key: string): Promis
 
   return mutex.runExclusive(async () => {
     const store = getStore();
+    if (store.keys.length >= MAX_KEYS) {
+      throw new Error(`API Key 数量已达上限 (${MAX_KEYS})，请删除不需要的 Key 后再添加`);
+    }
     const encryptedKey = encrypt(key);
     const now = new Date().toISOString();
     const apiKey: ApiKey = {

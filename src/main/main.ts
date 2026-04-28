@@ -156,6 +156,11 @@ function registerIpcHandlers(): void {
       const optimConfig = await getOptimizationConfig();
       proxyServer.updateOptimizationConfig(optimConfig);
       startHealthCheck();
+      // 事件驱动的崩溃检测：server error/close 立即触发重启，不依赖 10s 轮询
+      proxyServer.onServerError(() => {
+        console.warn('代理服务器异常事件，触发即时重启...');
+        restartProxy().catch(err => console.error('事件驱动重启失败:', err));
+      });
 
       return { success: true, port: proxyServer.getPort() };
     } catch (err) {

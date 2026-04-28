@@ -230,6 +230,7 @@ class ProxyServer {
   private circuitBreakers = new Map<ApiType, { failures: number; openUntil: number }>();
   private budgetState: BudgetSnapshot = { monthlyLimit: 100, monthlySpent: 0, dailyLimit: 10, dailySpent: 0 };
   private budgetSyncTimer: ReturnType<typeof setInterval> | null = null;
+  private errorCallback: (() => void) | null = null;
 
   constructor(config: ProxyConfig) {
     this.port = config.port;
@@ -775,6 +776,18 @@ class ProxyServer {
         }
         resolve();
       });
+
+      // 运行时 server 错误/关闭事件：立即触发回调通知主进程重启
+      this.server.on('error', (err) => {
+        logProxy('error', '代理服务器运行时错误', { error: (err as Error).message });
+        if (this.errorCallback) this.errorCallback();
+      });
+      this.server.on('close', () => {
+        if (!this.shuttingDown && this.errorCallback) {
+          logProxy('warn', '代理服务器意外关闭');
+          this.errorCallback();
+        }
+      });
     });
   }
 
@@ -958,6 +971,11 @@ class ProxyServer {
     if (timeout >= 1000 && timeout <= 300000) {
       this.proxyTimeout = timeout;
     }
+  }
+
+  /** 注册运行时错误回调，用于事件驱动的崩溃检测 */
+  onServerError(callback: () => void): void {
+    this.errorCallback = callback;
   }
 
   getProxyTimeout(): number {

@@ -2,6 +2,21 @@ import * as apiKeyService from '../services/apiKey';
 import * as historyService from '../services/history';
 import * as statsService from '../services/stats';
 import * as budgetService from '../services/budget';
+import fs from 'fs';
+import path from 'path';
+
+const TEST_DATA_DIR = path.resolve(__dirname, '../../test-data');
+
+// 每个测试套件前清理旧数据，防止 key 累积超过上限
+beforeAll(() => {
+  if (fs.existsSync(TEST_DATA_DIR)) {
+    for (const file of fs.readdirSync(TEST_DATA_DIR)) {
+      if (file.endsWith('.json')) {
+        fs.unlinkSync(path.join(TEST_DATA_DIR, file));
+      }
+    }
+  }
+});
 
 describe('apiKey 服务', () => {
   test('添加 API Key 后应能通过列表查询', async () => {
