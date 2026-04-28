@@ -9,6 +9,7 @@ interface ConfigStore {
     routing: boolean;
     batching: boolean;
     rules: boolean;
+    dlp: boolean;
   };
 }
 
@@ -35,7 +36,7 @@ const CONFIG_VALIDATORS: Record<string, (val: string) => boolean> = {
 };
 
 /** 优化配置允许的键白名单 */
-const VALID_OPTIM_KEYS = new Set(['caching', 'compression', 'routing', 'batching', 'rules']);
+const VALID_OPTIM_KEYS = new Set(['caching', 'compression', 'routing', 'batching', 'rules', 'dlp']);
 
 /** 默认配置（单一来源，消除 DRY 违规） */
 const DEFAULT_CONFIG: ConfigStore = {
@@ -50,7 +51,8 @@ const DEFAULT_CONFIG: ConfigStore = {
     compression: true,
     routing: true,
     batching: false,
-    rules: true
+    rules: true,
+    dlp: false
   }
 };
 

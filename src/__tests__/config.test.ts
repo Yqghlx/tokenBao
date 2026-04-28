@@ -76,6 +76,7 @@ describe('config 服务', () => {
     expect(optim.routing).toBe(true);
     expect(optim.batching).toBe(false);
     expect(optim.rules).toBe(true);
+    expect(optim.dlp).toBe(false);
   });
 
   test('setOptimizationConfig 应正确更新', async () => {

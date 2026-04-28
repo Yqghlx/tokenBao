@@ -3,11 +3,13 @@ export { default as compression } from './compression';
 export { default as routing } from './routing';
 export { default as rules } from './rules';
 export { default as batch } from './batch';
+export { default as dlp } from './dlp';
 
 import cachingModule from './caching';
 import compressionModule from './compression';
 import routingModule from './routing';
 import rulesModule from './rules';
+import dlpModule from './dlp';
 import tokenCounterModule from '../utils/tokenCounter';
 
 interface OptimizationConfig {
@@ -16,6 +18,7 @@ interface OptimizationConfig {
   routing: boolean;
   batching: boolean;
   rules: boolean;
+  dlp: boolean;
 }
 
 /** 聊天消息中的文本内容块 */
@@ -64,7 +67,8 @@ const config: OptimizationConfig = {
   compression: true,
   routing: true,
   batching: false,
-  rules: true
+  rules: true,
+  dlp: false
 };
 
 export function setOptimizationConfig(newConfig: Partial<OptimizationConfig>): void {
@@ -72,6 +76,7 @@ export function setOptimizationConfig(newConfig: Partial<OptimizationConfig>): v
   cachingModule.setOptions({ enabled: newConfig.caching ?? config.caching });
   compressionModule.setOptions({ enabled: newConfig.compression ?? config.compression });
   routingModule.setOptions({ enabled: newConfig.routing ?? config.routing });
+  dlpModule.setOptions({ enabled: newConfig.dlp ?? config.dlp });
 }
 
 export function getOptimizationConfig(): OptimizationConfig {
@@ -123,6 +128,23 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
 
   // 深拷贝请求体，防止优化失败时污染原始数据
   let modifiedBody = structuredClone(body) as ApiRequestBody;
+
+  // DLP 敏感数据脱敏 —— 优先于其他策略执行，确保 PII 不泄露到上游
+  if (config.dlp) {
+    try {
+      let totalDetections = 0;
+      modifiedBody.messages = processMessageTexts(modifiedBody.messages, (text) => {
+        const scanResult = dlpModule.scan(text);
+        totalDetections += scanResult.detections.reduce((sum, d) => sum + d.count, 0);
+        return scanResult.text;
+      });
+      if (totalDetections > 0) {
+        result.appliedStrategies.push(`dlp(${totalDetections})`);
+      }
+    } catch (err) {
+      console.warn('DLP 脱敏扫描失败，已跳过:', (err as Error).message);
+    }
+  }
 
   // 规则替换 —— 错误隔离，失败则跳过
   if (config.rules) {

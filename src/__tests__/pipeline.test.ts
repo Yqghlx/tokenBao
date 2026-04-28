@@ -13,7 +13,7 @@ describe('优化管线 pipeline', () => {
 
   afterEach(() => {
     // 恢复默认配置
-    setOptimizationConfig({ caching: true, compression: true, routing: true, batching: false, rules: true });
+    setOptimizationConfig({ caching: true, compression: true, routing: true, batching: false, rules: true, dlp: false });
   });
 
   afterAll(() => {
