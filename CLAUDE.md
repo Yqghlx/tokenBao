@@ -55,43 +55,43 @@ typescript-language-server --version  # 需全局安装
     → 否: 缓冲响应 + 智能重试（4xx 不重试，5xx/408/429 指数退避）→ 解析 usage → 记录统计/历史/预算
 ```
 
-关键：预算只在响应后用实际 token 更新一次。非流式重试区分客户端/服务端错误，指数退避含 jitter。优雅关闭追踪上游请求，`shuttingDown` 标志拒绝新请求（503）。
+关键：预算只在响应后用实际 token 更新一次。非流式重试区分客户端/服务端错误，指数退避含 jitter。优雅关闭追踪上游请求，`shuttingDown` 标志拒绝新请求（503）。GET 只读请求（/v1/models 等）跳过预算/熔断检查。流式请求检测客户端断连，自动销毁 PassThrough 和上游请求防资源泄漏。非流式响应 >1KB 自动 gzip 压缩（含错误回退）。`before-quit` 事件确保 macOS Cmd+Q 触发代理清理。
 
 ### 模型定价与归一化
 
-`src/proxy/pricing.ts` 是唯一定价源（23 个模型，含 o1-preview/o1-mini），`server.ts`、`responseHandler.ts`、`tokenCounter.ts` 均从此导入 `normalizeModelName()` 和 `calculateCost()`。别名表 + 前缀匹配将 API 返回的模型名归一化到定价表标准名。
+`src/proxy/pricing.ts` 是唯一定价源（23 个模型，含 o1-preview/o1-mini），`server.ts`、`responseHandler.ts`、`tokenCounter.ts` 均从此导入 `normalizeModelName()` 和 `calculateCost()`。别名表 + 前缀匹配（按 key 长度降序排列防前缀碰撞，如 gpt-4o-mini 不会误匹配 gpt-4o）将 API 返回的模型名归一化到定价表标准名。
 
 ### 数据流与持久化
 
-- **统计** (`src/services/stats.ts`): `recordOptimization` 记录节省 token，`addStats` 记录完整请求统计（含 NaN/负值校验）
+- **统计** (`src/services/stats.ts`): `recordOptimization` 记录节省 token，`addStats` 记录完整请求统计（含 NaN/负值校验 + 累加后 Infinity/NaN 二次校验）
 - **历史** (`src/services/history.ts`): 输入校验（apiType/model/tokens/cost），`dataRetentionDays` 缓存（60s TTL），自动清理过期记录，上限 1000 条
-- **预算** (`src/services/budget.ts`): 日/月预算自动重置（本地时区），深拷贝默认值防引用污染，`resetSpent` 支持
+- **预算** (`src/services/budget.ts`): 日/月预算自动重置（本地时区），深拷贝默认值防引用污染，`resetSpent` 支持，`updateSpent` 含溢出保护和 isFinite 校验
 - **配置** (`src/services/config.ts`): 深拷贝默认值防引用污染，CONFIG_VALIDATORS 验证写入值
-- **存储** (`src/utils/storage.ts`): JSON 文件 + 原子写入 + 备份恢复 + `.bak` 清理
+- **存储** (`src/utils/storage.ts`): JSON 文件 + 原子写入（fsync 持久化保证）+ 备份恢复 + `.bak` 清理，`loadJson` 返回深拷贝默认值
 - **加密** (`src/utils/crypto.ts`): AES-256-GCM，密钥文件权限 0o600
 - **互斥** (`src/utils/mutex.ts`): 按文件名粒度的写入串行化，异常时自动释放锁，队列上限 100 防积压
 
 ### 优化模块
 
-- **rules** (`src/optimizations/rules.ts`): 正则替换规则引擎，ReDoS 防护（500 字符限制 + 50ms 超时），非法正则降级为字符串替换
-- **compression** (`src/optimizations/compression.ts`): 21 条替换规则 + 空白压缩 + 膨胀安全检查（压缩后更大则回退原文），代码块保护
-- **routing** (`src/optimizations/routing.ts`): 4 级复杂度检测（simple/classification/extraction/complex），27 条路由规则覆盖 GPT-4.1/o3/o4-mini/Claude Opus 4.6 等
-- **caching** (`src/optimizations/caching.ts`): Anthropic Prompt Caching，LRU 淘汰（MAX_CACHE_SIZE=1000），SHA-256 缓存键
+- **rules** (`src/optimizations/rules.ts`): 正则替换规则引擎，ReDoS 防护（500 字符限制 + 50ms 超时 + 替换迭代计数器上限 10000），非法正则降级为字符串替换，优先级校验（0-1000 整数）
+- **compression** (`src/optimizations/compression.ts`): 21 条替换规则 + 空白压缩（先合并连续空行再压缩水平空白，保留段落结构）+ 膨胀安全检查（压缩后更大则回退原文），代码块保护
+- **routing** (`src/optimizations/routing.ts`): 4 级复杂度检测（simple/classification/extraction/complex），27 条路由规则覆盖 GPT-4.1/o3/o4-mini/Claude Opus 4.6 等，关键词布尔命中（防重复计数），fallback 链（extraction→classification→simple）
+- **caching** (`src/optimizations/caching.ts`): Anthropic Prompt Caching，LRU 淘汰（MAX_CACHE_SIZE=1000），SHA-256 缓存键，`beforeExit` 处理器刷盘脏数据
 - **batch** (`src/optimizations/batch.ts`): 实验性，仅用于统计
-- **pipeline** (`src/optimizations/index.ts`): 统一管线，精确类型（`ApiRequestBody`/`ChatMessage`/`TextContentBlock`），每个策略 try-catch 错误隔离，管线结束验证 body 完整性，执行计时（>10ms 日志输出）
+- **pipeline** (`src/optimizations/index.ts`): 统一管线，`JSON.parse(JSON.stringify())` 深拷贝隔离原始请求体，精确类型（`ApiRequestBody`/`ChatMessage`/`TextContentBlock`），每个策略 try-catch 错误隔离，管线结束验证 body 完整性，执行计时（>10ms 日志输出）
 
 ### 安全设计
 
 - Preload 层 IPC 输入验证 + 主进程二次校验（proxy:setKeys API Key 格式验证 + 控制字符检测）
 - 服务层输入校验：history（apiType/model/tokens/cost）、apiKey（名称非空+长度+trim+mutex）、stats（NaN/负值含日志）
 - API Key 格式校验（正则匹配前缀 + 长度 + 控制字符过滤）
-- 规则引擎 ReDoS 防护（500 字符 + 50ms 超时）
+- 规则引擎 ReDoS 防护（500 字符 + 50ms 超时 + 替换迭代上限 10000）
 - 请求 Content-Type 校验（415 拒绝非 JSON）
 - macOS hardenedRuntime 打包
 
 ### 渲染进程
 
-独立 `package.json`，Vite 构建。Toast 通知（滑入动画、手动关闭、堆叠上限 5、定时器清理防泄漏），所有页面骨架屏 shimmer 加载态。响应式断点（1024px/768px），`focus-visible` 无障碍焦点样式，`aria-live` 动态区域（Monitor 统计卡片），`aria-label` 表格/按钮/表单。ConfirmDialog 支持 Escape 取消/Enter 确认/背景点击关闭，支持 `ReactNode` 消息。ErrorBoundary 含返回首页 + 复制错误信息。ControlPanel 预算进度条，Monitor 数据导出 JSON + aria-live，Optimization 批量启用/禁用规则 + 删除确认弹窗，ApiKeys 骨架屏 + 删除 loading 保护 + 无障碍表单。
+独立 `package.json`，Vite 构建。Toast 通知（滑入动画、手动关闭、堆叠上限 5、定时器清理防泄漏），所有页面骨架屏 shimmer 加载态。响应式断点（1024px/768px），`focus-visible` 无障碍焦点样式，`aria-live` 动态区域（Monitor 统计卡片），`aria-label` 表格/按钮/表单。ConfirmDialog 支持 Escape 取消/Enter 仅确认按钮聚焦时触发/背景点击关闭，支持 `ReactNode` 消息，`aria-describedby` 无障碍。ErrorBoundary 含返回首页 + 复制错误信息。ControlPanel 预算进度条（`role="progressbar"`），Monitor 数据导出 JSON + aria-live，Optimization 批量启用/禁用规则 + 删除确认弹窗 + 实时正则校验 + 防双击 + 优先级范围（0-1000），ApiKeys 骨架屏 + 删除确认含 Key 名称 + 删除 loading 保护 + 无障碍表单。Settings 变更检测（isDirty）+ 恢复默认确认弹窗。Layout 含 skip-nav 链接 + 语义化 nav/footer。
 
 ## 关键配置文件
 
@@ -104,7 +104,7 @@ typescript-language-server --version  # 需全局安装
 
 ## 测试
 
-测试文件位于 `src/__tests__/`，18 个测试套件，255+ 测试用例：
+测试文件位于 `src/__tests__/`，19 个测试套件，290 测试用例：
 
 | 套件 | 用途 |
 |------|------|
@@ -143,6 +143,11 @@ typescript-language-server --version  # 需全局安装
 - requestTracker 每 5 分钟自动清理，完成记录上限 50 条，`unref()` 不阻塞进程退出
 - 代理超时/error 处理器会清理 `activeUpstreamRequests`，SSE 缓冲有 1MB 硬上限
 - 优化管线错误隔离：单个策略失败不影响其他策略，body 完整性异常时回退原始数据
+- 优化管线深拷贝：`JSON.parse(JSON.stringify(body))` 确保原始请求体不被修改
+- `normalizeModelName()` 按 key 长度降序排列进行前缀匹配，防止 gpt-4o-mini 被误匹配为 gpt-4o
+- IPC handlers 全量 try-catch 包裹（29 个），主进程异常不会导致渲染进程无响应
+- SSE 流式响应 `extractStreamUsage` 从 `message_start` 事件提取模型名作为 fallback
+- requestTracker 僵尸 pending 请求清理（>10 分钟）
 - apiKey `getDecryptedKey`/`getDecryptedKeyByType` 使用 mutex 保护防并发读取
 - 健康检查端点 `GET /health` 返回 uptime/connections/requestCount/shuttingDown
 - 懒加载 ChunkErrorBoundary 捕获 chunk 加载失败并提供重试

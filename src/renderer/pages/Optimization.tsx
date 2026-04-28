@@ -121,7 +121,8 @@ function Optimization() {
         try {
           await window.electronAPI?.rules?.update?.(rule.id, { enabled });
           successCount++;
-        } catch {
+        } catch (err) {
+          console.error(`规则「${rule.name}」操作失败:`, err);
           failCount++;
         }
       }

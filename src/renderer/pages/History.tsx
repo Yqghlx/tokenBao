@@ -93,7 +93,11 @@ function History() {
         const headers = ['时间', 'API', '模型', '输入 Tokens', '输出 Tokens', '缓存 Tokens', '成本'];
 
         const escapeCsv = (value: string | number): string => {
-          const str = String(value).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+          let str = String(value).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+          // 防止 CSV 注入：以公式触发字符开头的单元格加前缀
+          if (/^[=+\-\t\r@]/.test(str)) {
+            str = "'" + str;
+          }
           if (str.includes(',') || str.includes('"') || str.includes('\n')) {
             return `"${str.replace(/"/g, '""')}"`;
           }

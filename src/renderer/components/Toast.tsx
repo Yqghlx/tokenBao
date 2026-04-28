@@ -42,8 +42,19 @@ export function useToast() {
     const id = ++nextIdRef.current;
     setToasts(prev => {
       const updated = [...prev, { id, message, type }];
-      // 超过上限时移除最早的
-      return updated.length > MAX_TOASTS ? updated.slice(-MAX_TOASTS) : updated;
+      // 超过上限时移除最早的，并清理对应的定时器
+      if (updated.length > MAX_TOASTS) {
+        const removed = updated.slice(0, updated.length - MAX_TOASTS);
+        removed.forEach(t => {
+          const timer = timersRef.current.get(t.id);
+          if (timer) {
+            clearTimeout(timer);
+            timersRef.current.delete(t.id);
+          }
+        });
+        return updated.slice(-MAX_TOASTS);
+      }
+      return updated;
     });
 
     // loading 类型不自动关闭

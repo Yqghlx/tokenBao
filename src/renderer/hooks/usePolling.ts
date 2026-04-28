@@ -17,7 +17,11 @@ export function usePolling(callback: () => void, intervalMs: number): void {
     const startPolling = () => {
       timerId = setInterval(() => {
         try {
-          savedCallback.current();
+          const result = savedCallback.current() as unknown;
+          // 支持 async 回调：捕获 promise 拒绝
+          if (result instanceof Promise) {
+            result.catch((err: unknown) => console.warn('轮询回调异常:', err));
+          }
         } catch (err) {
           console.warn('轮询回调异常:', err);
         }
@@ -34,7 +38,10 @@ export function usePolling(callback: () => void, intervalMs: number): void {
       } else {
         // 页面重新可见时立即刷新一次再恢复轮询
         try {
-          savedCallback.current();
+          const result = savedCallback.current() as unknown;
+          if (result instanceof Promise) {
+            result.catch((err: unknown) => console.warn('可见性切换回调异常:', err));
+          }
         } catch (err) {
           console.warn('可见性切换回调异常:', err);
         }

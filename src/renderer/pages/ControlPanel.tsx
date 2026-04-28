@@ -63,12 +63,17 @@ function ControlPanel() {
     if (window.electronAPI?.budget?.status) {
       try {
         const raw = await window.electronAPI.budget.status();
-        const status = raw as unknown as { monthly?: { spent: number; limit: number; remaining: number } };
-        const monthly = status.monthly ?? { spent: 0, limit: 100, remaining: 100 };
+        // 安全提取 monthly 字段，防止 API 返回结构变化
+        const monthly = typeof raw === 'object' && raw !== null && 'monthly' in raw
+          ? (raw as Record<string, unknown>).monthly
+          : null;
+        const m = typeof monthly === 'object' && monthly !== null
+          ? monthly as Record<string, unknown>
+          : {};
         setBudgetStatus({
-          spent: monthly.spent ?? 0,
-          limit: monthly.limit ?? 100,
-          remaining: monthly.remaining ?? 100
+          spent: typeof m.spent === 'number' ? m.spent : 0,
+          limit: typeof m.limit === 'number' ? m.limit : 100,
+          remaining: typeof m.remaining === 'number' ? m.remaining : 100
         });
       } catch (err) {
         console.error('获取预算状态失败:', err);
