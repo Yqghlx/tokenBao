@@ -130,7 +130,12 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
     return result;
   }
 
-  result.originalTokens = tokenCounterModule.countMessages(body.messages, apiType);
+  try {
+    result.originalTokens = tokenCounterModule.countMessages(body.messages, apiType);
+  } catch (err) {
+    console.warn('原始 token 计数失败，使用默认值 0:', (err as Error).message);
+    result.originalTokens = 0;
+  }
 
   // 深拷贝请求体，防止优化失败时污染原始数据
   let modifiedBody = structuredClone(body) as ApiRequestBody;
@@ -211,7 +216,12 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
 
   // 无策略应用时 body 未修改，跳过昂贵的 token 重计数
   if (result.appliedStrategies.length > 0) {
-    result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages, apiType);
+    try {
+      result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages, apiType);
+    } catch (err) {
+      console.warn('优化后 token 计数失败，使用原始值:', (err as Error).message);
+      result.optimizedTokens = result.originalTokens;
+    }
     result.savedTokens = result.originalTokens - result.optimizedTokens;
   } else {
     result.optimizedTokens = result.originalTokens;

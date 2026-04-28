@@ -300,6 +300,9 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('apiKeys:delete', async (_, id: number) => {
     try {
+      if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+        return { success: false, error: '无效的 API Key ID' };
+      }
       const result = await apiKeyService.deleteApiKey(id);
 
       if (proxyServer && proxyServer.isRunning()) {
@@ -514,6 +517,9 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('rules:delete', async (_, id: number) => {
     try {
+      if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+        return { success: false, error: '无效的规则 ID' };
+      }
       return { success: rulesModule.deleteRule(id) };
     } catch (err) {
       console.error('rules:delete 错误:', err);

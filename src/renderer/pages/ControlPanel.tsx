@@ -90,8 +90,9 @@ function ControlPanel() {
     if (window.electronAPI?.stats?.summary) {
       try {
         const stats = await window.electronAPI.stats.summary();
-        const totalTokens = stats.totalInputTokens + stats.totalOutputTokens;
-        const cacheRate = totalTokens > 0
+        const totalTokens = (Number.isFinite(stats.totalInputTokens) ? stats.totalInputTokens : 0)
+          + (Number.isFinite(stats.totalOutputTokens) ? stats.totalOutputTokens : 0);
+        const cacheRate = totalTokens > 0 && Number.isFinite(stats.totalCachedTokens)
           ? Math.round((stats.totalCachedTokens / totalTokens) * 100)
           : 0;
         setStatsData({
@@ -233,7 +234,7 @@ function ControlPanel() {
 
   /** 预算使用百分比 */
   const budgetPercent = useMemo(() =>
-    budgetStatus.limit > 0 ? Math.min(100, Math.round((budgetStatus.spent / budgetStatus.limit) * 100)) : 0,
+    budgetStatus.limit > 0 && Number.isFinite(budgetStatus.spent) ? Math.min(100, Math.round((budgetStatus.spent / budgetStatus.limit) * 100)) : 0,
     [budgetStatus.spent, budgetStatus.limit]
   );
 
