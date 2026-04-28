@@ -128,7 +128,7 @@ export function ToastContainer({ toasts, removeToast }: { toasts: ToastItem[]; r
               padding: '2px'
             }}
           >
-            x
+            ×
           </button>
         </div>
       ))}

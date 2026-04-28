@@ -258,12 +258,12 @@ function Optimization() {
           {showRuleForm && (
             <div className="info-panel">
               <div className="form-group">
-                <label>规则名称</label>
-                <input type="text" value={newRule.name} onChange={(e) => setNewRule(p => ({ ...p, name: e.target.value }))} placeholder="例如: 移除问候语" />
+                <label htmlFor="rule-name">规则名称</label>
+                <input id="rule-name" type="text" value={newRule.name} onChange={(e) => setNewRule(p => ({ ...p, name: e.target.value }))} placeholder="例如: 移除问候语" />
               </div>
               <div className="form-group">
-                <label>正则表达式</label>
-                <input type="text" value={newRule.pattern} onChange={(e) => {
+                <label htmlFor="rule-pattern">正则表达式</label>
+                <input id="rule-pattern" type="text" value={newRule.pattern} onChange={(e) => {
                   const pattern = e.target.value;
                   setNewRule(p => ({ ...p, pattern }));
                   if (pattern) {
@@ -276,12 +276,12 @@ function Optimization() {
                 {patternError && <span className="form-error">{patternError}</span>}
               </div>
               <div className="form-group">
-                <label>替换文本</label>
-                <input type="text" value={newRule.replacement} onChange={(e) => setNewRule(p => ({ ...p, replacement: e.target.value }))} placeholder="留空则为删除" />
+                <label htmlFor="rule-replacement">替换文本</label>
+                <input id="rule-replacement" type="text" value={newRule.replacement} onChange={(e) => setNewRule(p => ({ ...p, replacement: e.target.value }))} placeholder="留空则为删除" />
               </div>
               <div className="form-group">
-                <label>优先级（0-1000，数字越大越先执行）</label>
-                <input type="number" value={newRule.priority} min={0} max={1000} onChange={(e) => {
+                <label htmlFor="rule-priority">优先级（0-1000，数字越大越先执行）</label>
+                <input id="rule-priority" type="number" value={newRule.priority} min={0} max={1000} onChange={(e) => {
                   const val = parseInt(e.target.value);
                   setNewRule(p => ({ ...p, priority: isNaN(val) ? 0 : val }));
                 }} />
