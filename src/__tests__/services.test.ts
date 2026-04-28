@@ -225,6 +225,64 @@ describe('budget 服务', () => {
     const status = await budgetService.getBudgetStatus();
     expect(status.daily.limit).toBe(50);
     expect(status.daily.spent).toBe(0);
+    // 清理
+    await budgetService.setBudgetLimit('daily', 10);
+  });
+
+  test('updateSpent 应拒绝 NaN', async () => {
+    await budgetService.resetSpent('daily');
+    await budgetService.updateSpent('daily', NaN);
+    const status = await budgetService.getBudgetStatus();
+    expect(status.daily.spent).toBe(0);
+  });
+
+  test('updateSpent 应拒绝 Infinity', async () => {
+    await budgetService.resetSpent('daily');
+    await budgetService.updateSpent('daily', Infinity);
+    const status = await budgetService.getBudgetStatus();
+    expect(status.daily.spent).toBe(0);
+  });
+
+  test('limit=0 时 percentage 应为 0 而非 Infinity', async () => {
+    await budgetService.setBudgetLimit('daily', 0);
+    await budgetService.resetSpent('daily');
+    const status = await budgetService.getBudgetStatus();
+    expect(status.daily.percentage).toBe(0);
+    // 清理
+    await budgetService.setBudgetLimit('daily', 10);
+  });
+
+  test('remaining 不应为负数', async () => {
+    await budgetService.setBudgetLimit('daily', 5);
+    await budgetService.resetSpent('daily');
+    await budgetService.updateSpent('daily', 3);
+    await budgetService.updateSpent('daily', 3);
+    const status = await budgetService.getBudgetStatus();
+    expect(status.daily.remaining).toBe(0);
+    // 清理
+    await budgetService.setBudgetLimit('daily', 10);
+    await budgetService.resetSpent('daily');
+  });
+
+  test('累加不应超过 MAX_SAFE_INTEGER', async () => {
+    await budgetService.setBudgetLimit('daily', Number.MAX_SAFE_INTEGER);
+    await budgetService.resetSpent('daily');
+    for (let i = 0; i < 3; i++) {
+      await budgetService.updateSpent('daily', Number.MAX_SAFE_INTEGER / 4);
+    }
+    const status = await budgetService.getBudgetStatus();
+    expect(Number.isFinite(status.daily.spent)).toBe(true);
+    expect(status.daily.spent).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
+    // 清理
+    await budgetService.setBudgetLimit('daily', 10);
+    await budgetService.resetSpent('daily');
+  });
+
+  test('getBudget 应返回正确类型和字段', async () => {
+    const daily = await budgetService.getBudget('daily');
+    expect(daily.type).toBe('daily');
+    expect(typeof daily.limit).toBe('number');
+    expect(typeof daily.spent).toBe('number');
   });
 });
 
