@@ -214,6 +214,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
       if (typeof rule.replacement !== 'string' || rule.replacement.length > 1000) {
         return Promise.resolve({ success: false, error: '替换文本过长' });
       }
+      // enabled 必须为布尔值
+      if (typeof rule.enabled !== 'boolean') {
+        return Promise.resolve({ success: false, error: 'enabled 必须为布尔值' });
+      }
+      // priority 必须为 0-1000 的整数
+      if (!Number.isInteger(rule.priority) || rule.priority < 0 || rule.priority > 1000) {
+        return Promise.resolve({ success: false, error: '优先级应为 0-1000 的整数' });
+      }
       return ipcRenderer.invoke('rules:add', rule);
     },
     update: (id: number, updates: Record<string, unknown>) => {
@@ -248,6 +256,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
       if (updates.replacement !== undefined) {
         if (typeof updates.replacement !== 'string' || updates.replacement.length > 1000) {
           return Promise.resolve({ success: false, error: '替换文本过长' });
+        }
+      }
+      // 更新 type 时校验枚举值
+      if (updates.type !== undefined && !['replace', 'filter', 'route'].includes(updates.type as string)) {
+        return Promise.resolve({ success: false, error: '不支持的规则类型' });
+      }
+      // 更新 enabled 时校验布尔类型
+      if (updates.enabled !== undefined && typeof updates.enabled !== 'boolean') {
+        return Promise.resolve({ success: false, error: 'enabled 必须为布尔值' });
+      }
+      // 更新 priority 时校验范围
+      if (updates.priority !== undefined) {
+        if (typeof updates.priority !== 'number' || !Number.isInteger(updates.priority) || updates.priority < 0 || updates.priority > 1000) {
+          return Promise.resolve({ success: false, error: '优先级应为 0-1000 的整数' });
         }
       }
       return ipcRenderer.invoke('rules:update', id, updates);
