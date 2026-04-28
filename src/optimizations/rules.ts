@@ -69,7 +69,11 @@ export function validatePattern(pattern: string): string | null {
     return `正则表达式长度不能超过 ${MAX_PATTERN_LENGTH} 字符`;
   }
   try {
-    new RegExp(pattern);
+    const regex = new RegExp(pattern);
+    // 检测空匹配模式（如 .*、a*、|），会导致替换时无法推进位置
+    if (regex.test('')) {
+      return '正则表达式匹配空字符串，可能导致性能问题';
+    }
     return null;
   } catch {
     return '正则表达式语法错误';
@@ -110,7 +114,8 @@ export function listRules(): Rule[] {
 }
 
 export function getRule(id: number): Rule | undefined {
-  return rules.get(id);
+  const rule = rules.get(id);
+  return rule ? { ...rule } : undefined;
 }
 
 export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined {
