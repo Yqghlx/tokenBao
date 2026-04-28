@@ -30,9 +30,10 @@ class ErrorBoundary extends Component<Props, State> {
   handleCopyError = (): void => {
     if (this.state.error) {
       const text = this.state.error.stack || this.state.error.message;
+      // 异步回调前捕获按钮引用，避免焦点变化导致 activeElement 不正确
+      const btn = document.activeElement as HTMLButtonElement | null;
       navigator.clipboard.writeText(text).then(
         () => {
-          const btn = document.activeElement as HTMLButtonElement | null;
           if (btn) {
             const original = btn.textContent || '';
             btn.textContent = '已复制';

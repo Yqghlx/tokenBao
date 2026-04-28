@@ -456,14 +456,22 @@ app.whenReady().then(() => {
   createWindow();
 });
 
-app.on('window-all-closed', async () => {
+app.on('window-all-closed', () => {
   stopHealthCheck();
-  if (proxyServer) {
-    await proxyServer.stop();
-    proxyServer = null;
-  }
+  // macOS 保持Dock运行，代理清理由 before-quit 统一处理
+  // 非 macOS 先停止代理再退出（同步等待 before-quit 完成清理）
   if (process.platform !== 'darwin') {
-    app.quit();
+    if (proxyServer) {
+      proxyServer.stop().then(() => {
+        proxyServer = null;
+        app.quit();
+      }).catch(() => {
+        proxyServer = null;
+        app.quit();
+      });
+    } else {
+      app.quit();
+    }
   }
 });
 

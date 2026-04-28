@@ -27,6 +27,7 @@ export function usePolling(callback: () => void, intervalMs: number): void {
     };
 
     const startPolling = () => {
+      stopPolling();
       timerId = setInterval(safeInvoke, intervalMs);
     };
 
