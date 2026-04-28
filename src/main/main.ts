@@ -448,6 +448,7 @@ function registerIpcHandlers(): void {
       const result = rulesModule.addRule(rule);
       return { success: true, rule: result };
     } catch (err) {
+      console.error('rules:add 错误:', err);
       return { success: false, error: (err as Error).message };
     }
   });
@@ -457,6 +458,7 @@ function registerIpcHandlers(): void {
       const result = rulesModule.updateRule(id, updates);
       return result ? { success: true, rule: result } : { success: false, error: '规则不存在' };
     } catch (err) {
+      console.error('rules:update 错误:', err);
       return { success: false, error: (err as Error).message };
     }
   });

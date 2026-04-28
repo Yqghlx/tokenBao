@@ -35,7 +35,8 @@ function ControlPanel() {
     compression: true,
     routing: true,
     batching: false,
-    rules: true
+    rules: true,
+    dlp: false
   });
   const [loading, setLoading] = useState(true);
   const [togglingProxy, setTogglingProxy] = useState(false);
@@ -118,7 +119,8 @@ function ControlPanel() {
           compression: config.compression ?? true,
           routing: config.routing ?? true,
           batching: config.batching ?? false,
-          rules: config.rules ?? true
+          rules: config.rules ?? true,
+          dlp: config.dlp ?? false
         });
       } catch (err) {
         console.error('获取优化配置失败:', err);
@@ -347,6 +349,15 @@ function ControlPanel() {
               aria-label="自定义替换规则开关"
             />
             <span>自定义替换规则</span>
+          </label>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={optimizations.dlp}
+              onChange={() => toggleOptimization('dlp')}
+              aria-label="敏感数据脱敏开关"
+            />
+            <span>敏感数据脱敏</span>
           </label>
         </div>
       </div>

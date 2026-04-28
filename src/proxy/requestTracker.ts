@@ -205,20 +205,25 @@ function getStatsSummary(): {
 } {
   const totalRequests = pendingRequests.size + completedRequests.size;
   const pending = pendingRequests.size;
-  const completedCount = Array.from(completedRequests.values()).filter(r => r.status < 400).length;
-  const failedCount = Array.from(completedRequests.values()).filter(r => r.status >= 400).length;
 
-  const durations = Array.from(completedRequests.values()).map(r => r.duration);
-  const rawAvgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
-  const avgDuration = Number.isFinite(rawAvgDuration) ? rawAvgDuration : 0;
+  // 单次遍历合并所有统计，避免对 Map 做 4 次 Array.from + filter/map
+  let completedCount = 0;
+  let failedCount = 0;
+  let totalDuration = 0;
+  let totalInputTokens = 0;
+  for (const r of completedRequests.values()) {
+    totalDuration += r.duration;
+    totalInputTokens += r.inputTokens;
+    if (r.status < 400) {
+      completedCount++;
+    } else {
+      failedCount++;
+    }
+  }
 
-  // 统计成功请求的平均输入 token 数
-  const inputTokensList = Array.from(completedRequests.values())
-    .filter(r => r.status < 400)
-    .map(r => r.inputTokens);
-  const rawAvgInput = inputTokensList.length > 0
-    ? inputTokensList.reduce((a, b) => a + b, 0) / inputTokensList.length : 0;
-  const avgInputTokens = Number.isFinite(rawAvgInput) ? rawAvgInput : 0;
+  const completedSize = completedRequests.size;
+  const avgDuration = completedSize > 0 && Number.isFinite(totalDuration) ? totalDuration / completedSize : 0;
+  const avgInputTokens = completedCount > 0 && Number.isFinite(totalInputTokens) ? totalInputTokens / completedCount : 0;
 
   return {
     totalRequests,
