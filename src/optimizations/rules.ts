@@ -28,10 +28,20 @@ let nextId = 1;
 function loadFromStorage(): void {
   try {
     const store = loadJson<RuleStore>(STORAGE_FILE, { rules: [], nextId: 1 });
-    store.rules.forEach(r => rules.set(r.id, r));
+    store.rules.forEach(r => {
+      // 跳过损坏的规则记录（缺少必要字段或 priority 越界）
+      if (!r.id || !r.type || !r.pattern || typeof r.priority !== 'number') {
+        console.warn(`规则加载跳过: ID=${r.id}，缺少必要字段`);
+        return;
+      }
+      if (r.priority < 0 || r.priority > 1000 || !Number.isInteger(r.priority)) {
+        console.warn(`规则加载修正: ID=${r.id}，priority=${r.priority} 超出范围，重置为 0`);
+        r.priority = 0;
+      }
+      rules.set(r.id, r);
+    });
     nextId = store.nextId;
   } catch (err) {
-    // 首次加载文件不存在是正常的，其他错误需要记录
     if (err instanceof Error && !err.message.includes('ENOENT')) {
       console.error('加载规则存储失败:', err);
     }
@@ -98,6 +108,10 @@ export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined
     // 校验 pattern 格式
     if (updates.pattern !== undefined && typeof updates.pattern === 'string' && updates.pattern.length > 500) {
       throw new Error('正则表达式过长');
+    }
+    // 校验 type 合法性
+    if (updates.type !== undefined && !['replace', 'filter', 'route'].includes(updates.type)) {
+      throw new Error('不支持的规则类型');
     }
     Object.assign(rule, updates);
     saveToStorage();

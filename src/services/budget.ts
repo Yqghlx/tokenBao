@@ -132,12 +132,17 @@ export async function getBudgetStatus(): Promise<{
     const store = getStore();
     if (checkAutoReset(store)) await saveStore(store);
 
-    const computeStatus = (b: BudgetEntry) => ({
-      limit: b.limit,
-      spent: b.spent,
-      remaining: Math.max(0, b.limit - b.spent),
-      percentage: b.limit > 0 ? Math.min(100, Math.round((b.spent / b.limit) * 100)) : 0
-    });
+    const computeStatus = (b: BudgetEntry) => {
+      // 防止持久化数据被污染时产生 NaN/Infinity/null
+      const spent = Number.isFinite(b.spent) ? b.spent : 0;
+      const limit = Number.isFinite(b.limit) ? b.limit : 0;
+      return {
+        limit,
+        spent,
+        remaining: Math.max(0, limit - spent),
+        percentage: limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0
+      };
+    };
     return {
       daily: computeStatus(store.daily),
       monthly: computeStatus(store.monthly)

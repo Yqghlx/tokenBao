@@ -400,6 +400,23 @@ describe('budget 服务', () => {
     await budgetService.setBudgetLimit('monthly', 100);
     await budgetService.resetSpent('monthly');
   });
+
+  test('getBudgetStatus 应防御 NaN/Infinity spent', async () => {
+    // 模拟持久化数据被污染：直接写入 NaN spent
+    const { loadJson, saveJson } = require('../utils/storage');
+    const store = loadJson('budget.json', {});
+    if (store.daily) {
+      store.daily.spent = NaN;
+      saveJson('budget.json', store);
+    }
+    const status = await budgetService.getBudgetStatus();
+    expect(Number.isFinite(status.daily.spent)).toBe(true);
+    expect(Number.isFinite(status.daily.remaining)).toBe(true);
+    expect(Number.isFinite(status.daily.percentage)).toBe(true);
+    // 清理
+    await budgetService.setBudgetLimit('daily', 10);
+    await budgetService.resetSpent('daily');
+  });
 });
 
 describe('history 输入验证', () => {

@@ -5,6 +5,12 @@ describe('优化管线 pipeline', () => {
   // 清理 rules 模块中的测试规则
   const addedRuleIds: number[] = [];
 
+  beforeEach(() => {
+    // 清理所有残留规则（包括从持久化文件加载的），确保测试隔离
+    rulesModule.listRules().forEach(r => rulesModule.deleteRule(r.id));
+    addedRuleIds.length = 0;
+  });
+
   afterEach(() => {
     // 恢复默认配置
     setOptimizationConfig({ caching: true, compression: true, routing: true, batching: false, rules: true });

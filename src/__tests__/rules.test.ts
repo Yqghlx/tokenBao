@@ -206,4 +206,11 @@ describe('rules 优化模块', () => {
       name: '小数', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1.5
     })).toThrow('priority');
   });
+
+  test('updateRule 非法 type 应被拒绝', () => {
+    const rule = rulesModule.addRule({
+      name: 'test', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 0
+    });
+    expect(() => rulesModule.updateRule(rule.id, { type: 'invalid' as any })).toThrow('不支持的规则类型');
+  });
 });
