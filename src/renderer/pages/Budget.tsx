@@ -24,10 +24,12 @@ function Budget() {
     if (window.electronAPI?.budget?.status) {
       try {
         const data = await window.electronAPI.budget.status();
-        setStatus(data);
-        // 轮询时只更新未在编辑的字段，避免覆盖用户输入
-        if (editingFieldRef.current !== 'daily') setDailyLimit(String(data.daily.limit));
-        if (editingFieldRef.current !== 'monthly') setMonthlyLimit(String(data.monthly.limit));
+        if (data?.daily && data?.monthly) {
+          setStatus(data);
+          // 轮询时只更新未在编辑的字段，避免覆盖用户输入
+          if (editingFieldRef.current !== 'daily') setDailyLimit(String(data.daily.limit));
+          if (editingFieldRef.current !== 'monthly') setMonthlyLimit(String(data.monthly.limit));
+        }
       } catch (err) {
         console.error('加载预算状态失败:', err);
       } finally {

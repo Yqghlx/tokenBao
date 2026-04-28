@@ -165,7 +165,7 @@ function completeRequest(requestId: string, result: RequestResult): void {
     // 容量保护：超限时立即按时间戳淘汰最早的记录
     if (completedRequests.size > COMPLETED_MAX_SIZE) {
       const entries = Array.from(completedRequests.entries())
-        .sort((a, b) => a[1].completedAt - b[1].completedAt);
+        .sort((a, b) => (a[1].completedAt || 0) - (b[1].completedAt || 0));
       const removeCount = completedRequests.size - COMPLETED_MAX_SIZE;
       for (let i = 0; i < removeCount; i++) {
         completedRequests.delete(entries[i][0]);

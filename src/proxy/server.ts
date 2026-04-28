@@ -945,6 +945,9 @@ class ProxyServer {
   private updateBudgetSnapshot(cost: number): void {
     // 防止 NaN/Infinity 污染内存快照
     if (!Number.isFinite(cost) || cost < 0) return;
+    // 预校验：磁盘数据损坏时已有值可能为 NaN/Infinity，归零后再累加
+    if (!Number.isFinite(this.budgetState.monthlySpent)) this.budgetState.monthlySpent = 0;
+    if (!Number.isFinite(this.budgetState.dailySpent)) this.budgetState.dailySpent = 0;
     // 防止极端累加溢出 MAX_SAFE_INTEGER
     const newMonthly = this.budgetState.monthlySpent + cost;
     const newDaily = this.budgetState.dailySpent + cost;
@@ -959,6 +962,8 @@ class ProxyServer {
     // 防止浮点累加导致 NaN/Infinity 异常
     if (!Number.isFinite(monthlySpent)) monthlySpent = 0;
     if (!Number.isFinite(dailySpent)) dailySpent = 0;
+    if (!Number.isFinite(monthlyLimit) || monthlyLimit < 0) monthlyLimit = 0;
+    if (!Number.isFinite(dailyLimit) || dailyLimit < 0) dailyLimit = 0;
 
     // 日预算检查
     if (dailyLimit > 0 && dailySpent >= dailyLimit) {
