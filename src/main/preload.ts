@@ -21,6 +21,7 @@ const VALID_OPTIM_KEYS = ['caching', 'compression', 'routing', 'batching'] as co
 
 /** 检测字符串中是否含有控制字符（\x00-\x1F 除 \t\n\r 外，以及 \x7F） */
 function hasControlChars(str: string): boolean {
+  // eslint-disable-next-line no-control-regex
   return /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(str);
 }
 

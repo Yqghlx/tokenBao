@@ -51,7 +51,8 @@ function loadFromStorage(): void {
 /** 淘汰最早的条目直到缓存大小合规 */
 function evictIfNeeded(): void {
   while (cachePatterns.size > MAX_CACHE_SIZE && cacheOrder.length > 0) {
-    const oldest = cacheOrder.shift()!;
+    // while 条件保证 length > 0，shift 必有返回值
+    const oldest = cacheOrder.shift()!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
     cachePatterns.delete(oldest);
   }
 }
