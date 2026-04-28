@@ -322,6 +322,47 @@ describe('budget 服务', () => {
     expect(typeof daily.limit).toBe('number');
     expect(typeof daily.spent).toBe('number');
   });
+
+  test('日预算日期变更时应自动重置 spent', async () => {
+    await budgetService.updateSpent('daily', 5);
+    const before = await budgetService.getBudgetStatus();
+    expect(before.daily.spent).toBeGreaterThan(0);
+
+    // 模拟日变更：直接修改存储中的 lastResetDate
+    const { loadJson, saveJson } = require('../utils/storage');
+    const store = loadJson('budget.json', {});
+    if (store.daily) {
+      store.daily.lastResetDate = '2000-01-01';
+      saveJson('budget.json', store);
+    }
+
+    // 下次读取应触发自动重置
+    const after = await budgetService.getBudgetStatus();
+    expect(after.daily.spent).toBe(0);
+    // 清理
+    await budgetService.setBudgetLimit('daily', 10);
+    await budgetService.resetSpent('daily');
+  });
+
+  test('月预算月份变更时应自动重置 spent', async () => {
+    await budgetService.updateSpent('monthly', 10);
+    const before = await budgetService.getBudgetStatus();
+    expect(before.monthly.spent).toBeGreaterThan(0);
+
+    // 模拟月变更
+    const { loadJson, saveJson } = require('../utils/storage');
+    const store = loadJson('budget.json', {});
+    if (store.monthly) {
+      store.monthly.lastResetDate = '2000-01';
+      saveJson('budget.json', store);
+    }
+
+    const after = await budgetService.getBudgetStatus();
+    expect(after.monthly.spent).toBe(0);
+    // 清理
+    await budgetService.setBudgetLimit('monthly', 100);
+    await budgetService.resetSpent('monthly');
+  });
 });
 
 describe('history 输入验证', () => {

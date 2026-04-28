@@ -174,4 +174,36 @@ describe('rules 优化模块', () => {
     const result = rulesModule.applyRules('test content');
     expect(result).toBe('test content');
   });
+
+  test('priority 边界值 0 应被接受', () => {
+    const rule = rulesModule.addRule({
+      name: '最低优先级', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 0
+    });
+    expect(rule.priority).toBe(0);
+  });
+
+  test('priority 边界值 1000 应被接受', () => {
+    const rule = rulesModule.addRule({
+      name: '最高优先级', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1000
+    });
+    expect(rule.priority).toBe(1000);
+  });
+
+  test('priority 负数应被拒绝', () => {
+    expect(() => rulesModule.addRule({
+      name: '负数', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: -1
+    })).toThrow('priority');
+  });
+
+  test('priority 超过 1000 应被拒绝', () => {
+    expect(() => rulesModule.addRule({
+      name: '超限', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1001
+    })).toThrow('priority');
+  });
+
+  test('priority 小数应被拒绝', () => {
+    expect(() => rulesModule.addRule({
+      name: '小数', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 1.5
+    })).toThrow('priority');
+  });
 });

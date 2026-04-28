@@ -192,4 +192,14 @@ describe('compression 模块', () => {
     // 非代码区域短语替换生效
     expect(result.text).not.toContain('in order to');
   });
+
+  test('压缩后 token 膨胀时应回退到原文', () => {
+    // 构造一个极端场景：原文很短但替换规则会产生更多 token
+    // "please" 被移除，但如果原文只有 "please"，替换后为空字符串，
+    // estimateTokens 结果可能因空白差异而膨胀
+    const input = 'Please   ';
+    const result = compression.compress(input);
+    // 膨胀安全检查确保 tokenSaved >= 0
+    expect(result.tokensSaved).toBeGreaterThanOrEqual(0);
+  });
 });
