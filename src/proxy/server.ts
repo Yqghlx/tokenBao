@@ -413,7 +413,7 @@ class ProxyServer {
           requestId = `req_${Date.now()}`;
           if (!clientRes.headersSent) {
             clientRes.writeHead(413, { 'Content-Type': 'application/json' });
-            clientRes.end(JSON.stringify({ error: err instanceof Error ? err.message : '请求体过大', requestId }));
+            clientRes.end(JSON.stringify({ error: 'Payload Too Large', message: err instanceof Error ? err.message : '请求体过大', requestId }));
           }
           return;
         }

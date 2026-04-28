@@ -60,6 +60,11 @@ export async function addApiKey(name: string, type: string, key: string): Promis
     if (store.keys.length >= MAX_KEYS) {
       throw new Error(`API Key 数量已达上限 (${MAX_KEYS})，请删除不需要的 Key 后再添加`);
     }
+    // 重名检测：同名 Key 导致 UI 混淆且难以区分
+    const trimmedName = name.trim();
+    if (store.keys.some(k => k.name === trimmedName)) {
+      throw new Error(`已存在名为「${trimmedName}」的 API Key`);
+    }
     const encryptedKey = encrypt(key);
     const now = new Date().toISOString();
     const apiKey: ApiKey = {

@@ -60,6 +60,11 @@ export function updateRemotePricing(
     if (typeof price?.input !== 'number' || typeof price?.output !== 'number') continue;
     if (!Number.isFinite(price.input) || !Number.isFinite(price.output)) continue;
     if (price.input < 0 || price.output < 0) continue;
+    // 零值定价会使模型显示为免费，导致费用统计完全失效
+    if (price.input === 0 || price.output === 0) {
+      console.warn(`远程定价跳过零值: ${model} input=${price.input} output=${price.output}`);
+      continue;
+    }
     if (price.input > MAX_REMOTE_PRICE || price.output > MAX_REMOTE_PRICE) {
       console.warn(`远程定价跳过异常高价: ${model} input=${price.input} output=${price.output}`);
       continue;
