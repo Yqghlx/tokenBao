@@ -122,11 +122,19 @@ async function recordRequestResult(
   }
 
   try {
-    await budgetService.updateSpent('daily', cost);
-    await budgetService.updateSpent('monthly', cost);
+    const budgetResults = await Promise.allSettled([
+      budgetService.updateSpent('daily', cost),
+      budgetService.updateSpent('monthly', cost)
+    ]);
+    for (const r of budgetResults) {
+      if (r.status === 'rejected') {
+        allSucceeded = false;
+        logProxy('error', '预算更新失败', { requestId, error: (r.reason instanceof Error ? r.reason.message : String(r.reason)) });
+      }
+    }
   } catch (err) {
     allSucceeded = false;
-    logProxy('error', '预算更新失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
+    logProxy('error', '预算更新异常', { requestId, error: (err instanceof Error ? err.message : String(err)) });
   }
 
   try {
@@ -167,10 +175,15 @@ function sendUpstream(
       req.setTimeout(0);
       const chunks: Buffer[] = [];
       let totalSize = 0;
+      let sizeExceeded = false;
       res.on('data', (chunk) => {
         totalSize += chunk.length;
         if (totalSize <= MAX_UPSTREAM_RESPONSE_SIZE) {
           chunks.push(chunk);
+        } else if (!sizeExceeded) {
+          // 超出缓冲上限时立即销毁响应流，停止接收数据释放内存和带宽
+          sizeExceeded = true;
+          res.destroy();
         }
       });
       res.on('end', () => {
@@ -384,10 +397,6 @@ class ProxyServer {
           return;
         }
 
-        this.requestCount++;
-        this.activeConnections.add(clientRes);
-        clientRes.on('close', () => this.activeConnections.delete(clientRes));
-
         // 优雅关闭期间拒绝新请求
         if (this.shuttingDown) {
           const rejectId = `reject_${Date.now()}`;
@@ -395,6 +404,11 @@ class ProxyServer {
           clientRes.end(JSON.stringify({ error: 'Service Unavailable', message: '代理服务器正在关闭', requestId: rejectId }));
           return;
         }
+
+        // 所有验证通过后才计入请求计数和连接追踪，避免被拒绝的请求污染统计
+        this.requestCount++;
+        this.activeConnections.add(clientRes);
+        clientRes.on('close', () => this.activeConnections.delete(clientRes));
 
         const requestStart = Date.now();
         const path = clientReq.url || '';
