@@ -418,6 +418,28 @@
   background: #1a472a;
 }
 
+/* 模型成本排名条 */
+.cost-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+}
+.cost-bar-fill {
+  height: 8px;
+  background: #4ade80;
+  border-radius: 4px;
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  transition: width 0.3s ease;
+}
+.cost-bar-label {
+  font-size: 12px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
 /* 分页容器 */
 .pagination {
   display: flex;

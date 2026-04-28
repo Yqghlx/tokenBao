@@ -113,6 +113,29 @@ function Monitor() {
   const savedCost = (Number.isFinite(cacheSavings) ? cacheSavings : 0).toFixed(2);
   const actualCost = formatCost(stats.totalCost);
 
+  /** ROI 效率指标 */
+  const avgCostPerRequest = useMemo(() => {
+    if (stats.totalRequests === 0) return 0;
+    const avg = stats.totalCost / stats.totalRequests;
+    return Number.isFinite(avg) ? avg : 0;
+  }, [stats.totalCost, stats.totalRequests]);
+
+  const savingsRate = useMemo(() => {
+    const totalWithSavings = stats.totalCost + cacheSavings;
+    if (totalWithSavings === 0) return 0;
+    const rate = (cacheSavings / totalWithSavings) * 100;
+    return Number.isFinite(rate) ? Math.min(rate, 100) : 0;
+  }, [cacheSavings, stats.totalCost]);
+
+  /** 模型成本排名（按费用降序） */
+  const modelRanking = useMemo(() =>
+    Object.entries(stats.byModel)
+      .map(([model, data]) => ({ model, ...data }))
+      .sort((a, b) => b.cost - a.cost)
+      .slice(0, 10),
+    [stats.byModel]
+  );
+
   return (
     <div className="page">
       <div className="page-header">
@@ -165,6 +188,62 @@ function Monitor() {
                 <p className="stat-value">${formatCost(cacheSavings)}</p>
                 <p className="stat-detail">基于实际成本保守估算</p>
               </div>
+            </div>
+          )}
+
+          {/* ROI 效率指标 */}
+          <div className="stats-grid">
+            <div className="stat-card">
+              <h3>节省率</h3>
+              <p className="stat-value">{savingsRate.toFixed(1)}%</p>
+              <p className="stat-detail">优化策略为您节省的费用比例</p>
+            </div>
+            <div className="stat-card">
+              <h3>平均每请求成本</h3>
+              <p className="stat-value">${formatCost(avgCostPerRequest)}</p>
+              <p className="stat-detail">基于 {stats.totalRequests} 次请求</p>
+            </div>
+            <div className="stat-card">
+              <h3>平均每请求 Tokens</h3>
+              <p className="stat-value">{stats.totalRequests > 0 ? Math.round(totalTokens / stats.totalRequests).toLocaleString() : '0'}</p>
+              <p className="stat-detail">输入+输出合计</p>
+            </div>
+          </div>
+
+          {/* 模型成本排名 */}
+          {modelRanking.length > 0 && (
+            <div className="stats-details">
+              <h3>模型成本排名</h3>
+              <table className="data-table" aria-label="模型成本排名">
+                <thead>
+                  <tr>
+                    <th>模型</th>
+                    <th>请求数</th>
+                    <th>Tokens</th>
+                    <th>费用</th>
+                    <th>占比</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modelRanking.map((item) => {
+                    const costPercent = stats.totalCost > 0 ? (item.cost / stats.totalCost * 100) : 0;
+                    return (
+                      <tr key={item.model}>
+                        <td>{item.model}</td>
+                        <td>{item.requests}</td>
+                        <td>{item.tokens.toLocaleString()}</td>
+                        <td>${formatCost(item.cost)}</td>
+                        <td>
+                          <div className="cost-bar-container">
+                            <div className="cost-bar-fill" style={{ width: `${Math.min(costPercent, 100)}%` }} />
+                            <span className="cost-bar-label">{costPercent.toFixed(1)}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
 
