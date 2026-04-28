@@ -115,11 +115,16 @@ function parseNonStreamUsage(body: string): UsageStats | null {
 
 /**
  * 检测是否为流式响应
+ * 优先使用 content-type 判断，避免 JSON 响应中包含 "data: " 文本时误判
  */
 function isStreamResponse(headers: Record<string, string>, body: string): boolean {
   const contentType = headers['content-type'] || '';
   if (contentType.includes('text/event-stream')) {
     return true;
+  }
+  // 明确的 JSON 响应不可能是流式，跳过文本内容匹配防止误判
+  if (contentType.includes('application/json')) {
+    return false;
   }
   if (body.startsWith('data: ') || body.includes('\ndata: ')) {
     return true;

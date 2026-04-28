@@ -114,9 +114,12 @@ process.on('exit', flushSave);
 
 loadFromStorage();
 
+const MAX_CACHE_INPUT_SIZE = 1024 * 1024; // 缓存键输入最大 1MB，防止超长内容消耗 CPU
+
 function getCacheKey(apiType: string, content: string): string {
-  // 使用 SHA-256 哈希避免前缀碰撞
-  const hash = crypto.createHash('sha256').update(content).digest('hex');
+  // 使用 SHA-256 哈希避免前缀碰撞，超长内容截断防 DoS
+  const input = content.length > MAX_CACHE_INPUT_SIZE ? content.slice(0, MAX_CACHE_INPUT_SIZE) : content;
+  const hash = crypto.createHash('sha256').update(input).digest('hex');
   return `${apiType}:${hash}`;
 }
 

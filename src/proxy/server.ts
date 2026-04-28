@@ -564,7 +564,9 @@ class ProxyServer {
                     if (allSucceeded) {
                       this.updateBudgetSnapshot(recordedCost);
                     } else {
-                      this.loadBudgetSnapshot();
+                      this.loadBudgetSnapshot().catch((err) => {
+                        logProxy('warn', '流式请求预算快照重载失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
+                      });
                     }
                   }
                 } catch (err) {
@@ -576,6 +578,12 @@ class ProxyServer {
             // 流传输中途出错时确保资源清理
             passThrough.on('error', (err) => {
               logProxy('error', 'PassThrough 流处理错误', { requestId, error: err.message });
+              passThrough.destroy();
+            });
+
+            // 上游响应流出错时清理资源
+            proxyRes.on('error', (err) => {
+              logProxy('error', '上游响应流错误', { requestId, error: err.message });
               passThrough.destroy();
             });
 
@@ -717,7 +725,9 @@ class ProxyServer {
             if (allSucceeded) {
               this.updateBudgetSnapshot(recordedCost);
             } else {
-              this.loadBudgetSnapshot();
+              this.loadBudgetSnapshot().catch((err) => {
+                logProxy('warn', '非流式请求预算快照重载失败', { requestId, error: (err instanceof Error ? err.message : String(err)) });
+              });
             }
           }
         }
