@@ -183,7 +183,7 @@ function ApiKeys() {
                   <button
                     className="btn-secondary btn-sm"
                     onClick={() => setConfirmDeleteId(key.id)}
-                    disabled={deletingId !== null}
+                    disabled={deletingId !== null && deletingId !== key.id}
                     aria-label={`删除 ${key.name}`}
                   >
                     {deletingId === key.id ? '删除中...' : '删除'}

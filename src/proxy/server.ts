@@ -30,12 +30,19 @@ const SHUTDOWN_TIMEOUT = 5000; // 优雅关闭等待超时 5s
 const SSE_BUFFER_SOFT_LIMIT = 10240; // SSE 缓冲区软限制，保留最近 10KB
 const SSE_BUFFER_HARD_LIMIT = 1024 * 1024; // SSE 缓冲区绝对上限 1MB
 
+/** HTTPS 连接池配置 */
+const HTTPS_MAX_SOCKETS = 50;
+const HTTPS_KEEPALIVE_MSECS = 30000;
+const HTTPS_TIMEOUT = 120000;
+const BUDGET_SYNC_INTERVAL = 60000; // 预算快照定期同步间隔
+const BUDGET_WARNING_THRESHOLD = 80; // 预算使用率警告阈值（%）
+
 /** HTTPS 连接池：复用 TLS 连接，避免每次请求重新握手 */
 const httpsAgent = new https.Agent({
   keepAlive: true,
-  maxSockets: 50,
-  keepAliveMsecs: 30000,
-  timeout: 120000
+  maxSockets: HTTPS_MAX_SOCKETS,
+  keepAliveMsecs: HTTPS_KEEPALIVE_MSECS,
+  timeout: HTTPS_TIMEOUT
 });
 
 /**
@@ -782,12 +789,12 @@ class ProxyServer {
         } catch (err) {
           logProxy('warn', '初始预算快照加载失败，使用默认值', { error: (err as Error).message });
         }
-        // 每 60 秒从 budgetService 重新同步预算快照，纠正浮点漂移
+        // 定期从 budgetService 重新同步预算快照，纠正浮点漂移
         this.budgetSyncTimer = setInterval(() => {
           this.loadBudgetSnapshot().catch((err) => {
             logProxy('warn', '定期预算快照同步失败', { error: (err instanceof Error ? err.message : String(err)) });
           });
-        }, 60000);
+        }, BUDGET_SYNC_INTERVAL);
         if (this.budgetSyncTimer && typeof this.budgetSyncTimer === 'object' && 'unref' in this.budgetSyncTimer) {
           this.budgetSyncTimer.unref();
         }
@@ -943,7 +950,7 @@ class ProxyServer {
     }
 
     const monthlyPercent = monthlyLimit > 0 ? (monthlySpent / monthlyLimit) * 100 : 0;
-    if (monthlyPercent >= 80) {
+    if (monthlyPercent >= BUDGET_WARNING_THRESHOLD) {
       return { allowed: true, warning: `Budget usage at ${Math.round(monthlyPercent)}%` };
     }
 

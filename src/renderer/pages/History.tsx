@@ -17,6 +17,9 @@ interface HistoryItem {
 }
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
+const EXPORT_LIMIT = 1000;
+const BLOB_RELEASE_DELAY_MS = 1000;
 
 function History() {
   const [loading, setLoading] = useState(true);
@@ -79,7 +82,7 @@ function History() {
 
   // 搜索防抖：300ms 无新输入后才更新搜索值
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    const timer = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -106,7 +109,7 @@ function History() {
       try {
         // 导出时全量拉取（服务端过滤）
         const options: { limit: number; offset: number; apiType?: string; search?: string } = {
-          limit: 1000,
+          limit: EXPORT_LIMIT,
           offset: 0
         };
         if (filter) options.apiType = filter;
@@ -153,7 +156,7 @@ function History() {
         document.body.removeChild(a);
         // 追踪 blob URL，组件卸载时可清理；延迟释放确保浏览器完成下载
         pendingBlobUrlRef.current = url;
-        setTimeout(() => { URL.revokeObjectURL(url); pendingBlobUrlRef.current = null; }, 1000);
+        setTimeout(() => { URL.revokeObjectURL(url); pendingBlobUrlRef.current = null; }, BLOB_RELEASE_DELAY_MS);
         showToast(`已导出 ${allData.length} 条记录`, 'success');
       } catch (err) {
         showToast('导出失败', 'error');
