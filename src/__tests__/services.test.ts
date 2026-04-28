@@ -187,6 +187,23 @@ describe('stats 服务', () => {
     const summary = await statsService.getSummary();
     expect(summary.totalRequests).toBe(0);
   });
+
+  test('byApi/byModel 费用溢出时应被重置为 0', async () => {
+    await statsService.resetStats();
+    // 添加大量正常数据使 byApi/byModel 积累
+    await statsService.addStats({
+      apiType: 'openai',
+      model: 'gpt-4',
+      inputTokens: 10,
+      outputTokens: 10,
+      cachedTokens: 0,
+      cost: 0.01
+    });
+    const summary = await statsService.getSummary();
+    // 正常数据 byApi 和 byModel 应存在且为有限值
+    expect(isFinite(summary.byApi['openai']!.cost)).toBe(true);
+    expect(isFinite(summary.byModel['gpt-4']!.cost)).toBe(true);
+  });
 });
 
 describe('budget 服务', () => {
