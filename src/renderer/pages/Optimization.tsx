@@ -12,6 +12,13 @@ interface RuleItem {
   priority: number;
 }
 
+interface DLPRuleItem {
+  id: string;
+  name: string;
+  enabled: boolean;
+  severity: string;
+}
+
 function Optimization() {
   const [loading, setLoading] = useState(true);
   const [optimizationConfig, setOptimizationConfig] = useState({
@@ -19,7 +26,8 @@ function Optimization() {
     compression: true,
     routing: true,
     batching: false,
-    rules: true
+    rules: true,
+    dlp: false
   });
   const [cacheTTL, setCacheTTL] = useState('5min');
   const [rules, setRules] = useState<RuleItem[]>([]);
@@ -28,13 +36,16 @@ function Optimization() {
   const [patternError, setPatternError] = useState('');
   const [operatingRuleId, setOperatingRuleId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<RuleItem | null>(null);
+  const [dlpRules, setDlpRules] = useState<DLPRuleItem[]>([]);
+  const [operatingDlpId, setOperatingDlpId] = useState<string | null>(null);
 
   const loadConfig = useCallback(async () => {
     try {
       const results = await Promise.allSettled([
         window.electronAPI?.optimization?.getConfig?.(),
         window.electronAPI?.config?.get?.('cacheTTL'),
-        window.electronAPI?.rules?.list?.()
+        window.electronAPI?.rules?.list?.(),
+        window.electronAPI?.dlp?.getRules?.()
       ]);
       if (results[0].status === 'fulfilled' && results[0].value) {
         const cfg = results[0].value;
@@ -43,7 +54,8 @@ function Optimization() {
           compression: cfg.compression ?? true,
           routing: cfg.routing ?? true,
           batching: cfg.batching ?? false,
-          rules: cfg.rules ?? true
+          rules: cfg.rules ?? true,
+          dlp: cfg.dlp ?? false
         });
       }
       if (results[1].status === 'fulfilled') {
@@ -51,6 +63,9 @@ function Optimization() {
       }
       if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
         setRules(results[2].value as RuleItem[]);
+      }
+      if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) {
+        setDlpRules(results[3].value as DLPRuleItem[]);
       }
     } catch (err) {
       console.error('获取优化配置失败:', err);
@@ -245,6 +260,65 @@ function Optimization() {
             </label>
             <span className="feature-desc">合并多个请求批量发送，减少 API 调用次数。当前仅用于统计，不影响实际请求。</span>
           </div>
+        </section>
+
+        <section className="optim-section">
+          <h3>敏感数据脱敏 (DLP)</h3>
+          <div className="form-group">
+            <label className="toggle-row">
+              <input
+                type="checkbox"
+                checked={optimizationConfig.dlp}
+                onChange={(e) => updateConfig('dlp', e.target.checked)}
+                aria-label="启用敏感数据脱敏"
+              />
+              <span>启用敏感数据脱敏</span>
+            </label>
+            <span className="feature-desc">转发请求前自动检测并脱敏手机号、身份证、邮箱、API Key 等 PII，防止敏感信息泄露给 AI 服务商</span>
+          </div>
+
+          {dlpRules.length > 0 && (
+            <table className="data-table" aria-label="DLP 脱敏规则列表">
+              <thead>
+                <tr>
+                  <th>规则名称</th>
+                  <th>严重级别</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dlpRules.map(rule => (
+                  <tr key={rule.id}>
+                    <td>{rule.name}</td>
+                    <td>{rule.severity === 'high' ? '高' : '普通'}</td>
+                    <td>{rule.enabled ? '启用' : '禁用'}</td>
+                    <td>
+                      <button
+                        className="btn-secondary btn-sm"
+                        onClick={async () => {
+                          if (operatingDlpId !== null) return;
+                          setOperatingDlpId(rule.id);
+                          try {
+                            await window.electronAPI?.dlp?.setEnabled?.(rule.id, !rule.enabled);
+                            loadConfig();
+                          } catch (err) {
+                            console.error('切换 DLP 规则失败:', err);
+                            showToast('操作失败', 'error');
+                          } finally {
+                            setOperatingDlpId(null);
+                          }
+                        }}
+                        disabled={operatingDlpId !== null}
+                      >
+                        {operatingDlpId === rule.id ? '...' : (rule.enabled ? '禁用' : '启用')}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </section>
 
         <section className="optim-section">

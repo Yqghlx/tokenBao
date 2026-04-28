@@ -125,6 +125,11 @@ interface ElectronAPI {
     validate: (pattern: string) => Promise<{ error: string | null }>;
   };
 
+  dlp: {
+    getRules: () => Promise<Array<{ id: string; name: string; enabled: boolean; severity: string }>>;
+    setEnabled: (ruleId: string, enabled: boolean) => Promise<{ success: boolean; error?: string }>;
+  };
+
   on: (channel: 'proxy:statusChanged' | 'proxy:error' | 'stats:updated', callback: (...args: unknown[]) => void) => void;
   off: (channel: 'proxy:statusChanged' | 'proxy:error' | 'stats:updated', callback?: (...args: unknown[]) => void) => void;
 }

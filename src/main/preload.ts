@@ -268,6 +268,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 
+  dlp: {
+    getRules: () => ipcRenderer.invoke('dlp:getRules'),
+    setEnabled: (ruleId: string, enabled: boolean) => {
+      if (typeof ruleId !== 'string' || !ruleId) {
+        return Promise.resolve({ success: false, error: '无效的规则 ID' });
+      }
+      if (typeof enabled !== 'boolean') {
+        return Promise.resolve({ success: false, error: 'enabled 必须为布尔值' });
+      }
+      return ipcRenderer.invoke('dlp:setEnabled', ruleId, enabled);
+    }
+  },
+
   on: (channel: string, callback: (...args: unknown[]) => void) => {
     if (!ALLOWED_CHANNELS.includes(channel as typeof ALLOWED_CHANNELS[number])) {
       console.warn(`IPC 通道 "${channel}" 不在白名单中，拒绝监听`);

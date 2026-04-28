@@ -225,9 +225,18 @@ export function getRules(): Array<{ id: string; name: string; enabled: boolean; 
   }));
 }
 
+/** 切换单条规则的启用状态 */
+export function setRuleEnabled(ruleId: string, enabled: boolean): boolean {
+  const rule = BUILTIN_RULES.find(r => r.id === ruleId);
+  if (!rule) return false;
+  rule.enabled = enabled;
+  return true;
+}
+
 export default {
   getOptions,
   setOptions,
   scan,
-  getRules
+  getRules,
+  setRuleEnabled
 };

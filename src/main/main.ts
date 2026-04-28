@@ -7,6 +7,7 @@ import * as historyService from '../services/history';
 import * as budgetService from '../services/budget';
 import * as statsService from '../services/stats';
 import * as rulesModule from '../optimizations/rules';
+import dlpModule from '../optimizations/dlp';
 import cachingModule from '../optimizations/caching';
 import * as pricingSync from '../services/pricingSync';
 import { initSafeStorage, isSafeStorageAvailable } from '../utils/safeCrypto';
@@ -475,6 +476,26 @@ function registerIpcHandlers(): void {
     } catch (err) {
       console.error('rules:validate 错误:', err);
       return { error: (err as Error).message };
+    }
+  });
+
+  // DLP 敏感数据脱敏
+  ipcMain.handle('dlp:getRules', async () => {
+    try {
+      return dlpModule.getRules();
+    } catch (err) {
+      console.error('dlp:getRules 错误:', err);
+      return [];
+    }
+  });
+
+  ipcMain.handle('dlp:setEnabled', async (_, ruleId: string, enabled: boolean) => {
+    try {
+      const success = dlpModule.setRuleEnabled(ruleId, enabled);
+      return { success };
+    } catch (err) {
+      console.error('dlp:setEnabled 错误:', err);
+      return { success: false, error: (err as Error).message };
     }
   });
 }
