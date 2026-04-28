@@ -3,6 +3,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/global.css';
 
+// 全局未捕获 Promise 拒绝处理，防止静默失败
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('未捕获的 Promise 拒绝:', event.reason);
+});
+
 /**
  * 安全地显示 electronAPI 不可用错误页面
  * 使用 DOM API 而非 innerHTML 避免 XSS 风险

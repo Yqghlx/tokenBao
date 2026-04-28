@@ -1,5 +1,6 @@
 import http from 'http';
 import https from 'https';
+import crypto from 'crypto';
 import { PassThrough } from 'stream';
 import zlib from 'zlib';
 import { applyOptimizations, setOptimizationConfig } from '../optimizations/index';
@@ -327,7 +328,7 @@ class ProxyServer {
         const headers = this.transformHeaders(clientReq.headers, apiType);
         let rawBody: string;
         // 每个请求都有唯一 ID，后续优化管线可能覆盖
-        let requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        let requestId = `req_${crypto.randomUUID().slice(0, 8)}`;
         try {
           rawBody = await this.collectBody(clientReq);
         } catch (err: unknown) {
@@ -526,7 +527,7 @@ class ProxyServer {
             passThrough.destroy();
             if (!clientRes.headersSent) {
               clientRes.writeHead(504, { 'Content-Type': 'application/json' });
-              clientRes.end(JSON.stringify({ error: 'Gateway Timeout', message: '上游 API 响应超时' }));
+              clientRes.end(JSON.stringify({ error: 'Gateway Timeout', message: '上游 API 响应超时', requestId }));
             } else if (!clientRes.writableEnded) {
               // 响应头已发送，注入 SSE 错误事件让客户端区分正常结束和异常中断
               clientRes.write('\ndata: {"error":"timeout","message":"上游 API 响应超时，流被截断"}\n\n');
@@ -539,7 +540,7 @@ class ProxyServer {
             passThrough.destroy();
             if (!clientRes.headersSent) {
               clientRes.writeHead(502, { 'Content-Type': 'application/json' });
-              clientRes.end(JSON.stringify({ error: err.message }));
+              clientRes.end(JSON.stringify({ error: err.message, requestId }));
             } else if (!clientRes.writableEnded) {
               // 响应头已发送，注入 SSE 错误事件
               clientRes.write(`\ndata: {"error":"upstream_error","message":"${err.message}"}\n\n`);
@@ -605,7 +606,7 @@ class ProxyServer {
           }
           if (!clientRes.headersSent) {
             clientRes.writeHead(502, { 'Content-Type': 'application/json' });
-            clientRes.end(JSON.stringify({ error: errMsg }));
+            clientRes.end(JSON.stringify({ error: errMsg, requestId }));
           }
           return;
         }
@@ -697,7 +698,9 @@ class ProxyServer {
         }
         // 每 60 秒从 budgetService 重新同步预算快照，纠正浮点漂移
         this.budgetSyncTimer = setInterval(() => {
-          this.loadBudgetSnapshot().catch(() => {});
+          this.loadBudgetSnapshot().catch((err) => {
+            logProxy('warn', '定期预算快照同步失败', { error: (err instanceof Error ? err.message : String(err)) });
+          });
         }, 60000);
         if (this.budgetSyncTimer && typeof this.budgetSyncTimer === 'object' && 'unref' in this.budgetSyncTimer) {
           this.budgetSyncTimer.unref();
@@ -841,8 +844,8 @@ class ProxyServer {
       this.budgetState.monthlySpent = status.monthly.spent;
       this.budgetState.dailyLimit = status.daily.limit;
       this.budgetState.dailySpent = status.daily.spent;
-    } catch {
-      // 加载失败使用默认值
+    } catch (err) {
+      logProxy('warn', '预算快照加载失败，使用当前内存值', { error: (err instanceof Error ? err.message : String(err)) });
     }
   }
 
