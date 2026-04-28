@@ -22,12 +22,12 @@ const VALID_CONFIG_KEYS = new Set(['proxyPort', 'dataRetentionDays', 'cacheTTL',
 /** 配置值验证规则 */
 const CONFIG_VALIDATORS: Record<string, (val: string) => boolean> = {
   proxyPort: (v) => {
-    if (!/^\d+$/.test(v)) return false;
+    if (!/^\d+$/.test(v) || v.length > 5) return false;
     const n = parseInt(v, 10);
     return n >= 1024 && n <= 65535;
   },
   dataRetentionDays: (v) => {
-    if (!/^\d+$/.test(v)) return false;
+    if (!/^\d+$/.test(v) || v.length > 3) return false;
     const n = parseInt(v, 10);
     return n >= 1 && n <= 365;
   },

@@ -12,6 +12,7 @@ const DEFAULT_REMOTE_URL = 'https://raw.githubusercontent.com/anthropics/tokenba
 const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 小时
 const REQUEST_TIMEOUT_MS = 10000; // 10 秒超时
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 缓存最多保留 7 天
+const MAX_RESPONSE_SIZE = 1024 * 1024; // 远程响应体最大 1MB
 
 interface RemotePricingData {
   /** 定价数据 */
@@ -57,6 +58,13 @@ function fetchRemote(url: string, maxRedirects = 5, visited = new Set<string>())
     visited.add(url);
 
     const req = https.get(url, { timeout: REQUEST_TIMEOUT_MS }, (res) => {
+      // 校验 Content-Type 为 JSON，防止下载非预期内容
+      const contentType = res.headers['content-type'] || '';
+      if (!contentType.includes('application/json') && !contentType.includes('text/plain')) {
+        reject(new Error(`远程响应类型无效: ${contentType}`));
+        res.resume();
+        return;
+      }
       // 跟随重定向（有深度限制）
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         if (maxRedirects <= 0) {
@@ -73,7 +81,16 @@ function fetchRemote(url: string, maxRedirects = 5, visited = new Set<string>())
       }
 
       let body = '';
-      res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+      let bodySize = 0;
+      res.on('data', (chunk: Buffer) => {
+        bodySize += chunk.length;
+        if (bodySize > MAX_RESPONSE_SIZE) {
+          reject(new Error(`远程响应超过大小限制 (${MAX_RESPONSE_SIZE / 1024 / 1024}MB)`));
+          res.destroy();
+          return;
+        }
+        body += chunk.toString();
+      });
       res.on('error', (err) => { reject(new Error(`响应流错误: ${err.message}`)); });
       res.on('end', () => {
         try {

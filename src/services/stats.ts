@@ -54,6 +54,12 @@ export async function recordOptimization(data: {
     const stats = getStats();
     stats.totalCachedTokens += data.savedTokens;
 
+    // 后置检查：磁盘数据损坏时 NaN/Infinity 传播到累加值，回退到 0
+    if (!Number.isFinite(stats.totalCachedTokens)) {
+      console.warn(`stats.totalCachedTokens 变为 ${stats.totalCachedTokens}，重置为 0`);
+      stats.totalCachedTokens = 0;
+    }
+
     if (!stats.byApi[data.apiType]) {
       stats.byApi[data.apiType] = { requests: 0, tokens: 0, cost: 0 };
     }
