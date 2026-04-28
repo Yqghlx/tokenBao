@@ -70,9 +70,10 @@ export function validatePattern(pattern: string): string | null {
   }
   try {
     const regex = new RegExp(pattern);
-    // 检测空匹配模式（如 .*、a*、|），会导致替换时无法推进位置
+    // 检测空匹配模式（如 a*、|），在替换回调中无法推进位置导致大量迭代
+    // 不硬性拒绝（.* 等模式有合法用途），仅在运行时由迭代上限保护
     if (regex.test('')) {
-      return '正则表达式匹配空字符串，可能导致性能问题';
+      console.warn(`正则表达式 "${pattern.slice(0, 30)}" 可匹配空字符串，替换时可能触发迭代上限`);
     }
     return null;
   } catch {

@@ -116,6 +116,23 @@ function processMessageTexts(
   });
 }
 
+/** 计算 Anthropic system 字段的 token 数（支持 string 和 array 格式） */
+function countSystemTokens(system: unknown, apiType: string): number {
+  if (!system) return 0;
+  if (typeof system === 'string' && system.length > 0) {
+    return tokenCounterModule.countTokens(system, apiType);
+  }
+  if (Array.isArray(system)) {
+    return system.reduce((total: number, block: Record<string, unknown>) => {
+      if (typeof block.text === 'string' && block.text.length > 0) {
+        return total + tokenCounterModule.countTokens(block.text, apiType);
+      }
+      return total;
+    }, 0);
+  }
+  return 0;
+}
+
 export function applyOptimizations(apiType: string, body: ApiRequestBody): OptimizationResult {
   const startTime = Date.now();
   const result: OptimizationResult = {
@@ -133,9 +150,7 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
   try {
     result.originalTokens = tokenCounterModule.countMessages(body.messages, apiType);
     // Anthropic system prompt 作为顶级字段独立于 messages，需额外计算
-    if (typeof body.system === 'string' && body.system.length > 0) {
-      result.originalTokens += tokenCounterModule.countTokens(body.system, apiType);
-    }
+    result.originalTokens += countSystemTokens(body.system, apiType);
   } catch (err) {
     console.warn('原始 token 计数失败，使用默认值 0:', (err as Error).message);
     result.originalTokens = 0;
@@ -223,11 +238,9 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
     try {
       result.optimizedTokens = tokenCounterModule.countMessages(modifiedBody.messages, apiType);
       // Anthropic system prompt 作为顶级字段独立于 messages，需额外计算
-      if (typeof (modifiedBody as Record<string, unknown>).system === 'string') {
-        result.optimizedTokens += tokenCounterModule.countTokens(
-          (modifiedBody as Record<string, unknown>).system as string, apiType
-        );
-      }
+      result.optimizedTokens += countSystemTokens(
+        (modifiedBody as Record<string, unknown>).system, apiType
+      );
     } catch (err) {
       console.warn('优化后 token 计数失败，使用原始值:', (err as Error).message);
       result.optimizedTokens = result.originalTokens;
