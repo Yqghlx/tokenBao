@@ -158,6 +158,8 @@ function History() {
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
+  const pageStart = totalCount > 0 ? (safePage - 1) * PAGE_SIZE + 1 : 0;
+  const pageEnd = Math.min(safePage * PAGE_SIZE, totalCount);
 
   if (loading) {
     return (
@@ -242,7 +244,7 @@ function History() {
             上一页
           </button>
           <span className="pagination-info">
-            {safePage} / {totalPages}
+            显示 {pageStart}-{pageEnd} / 共 {totalCount} 条
           </span>
           <button
             className="btn-secondary"

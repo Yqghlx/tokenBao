@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
+import ErrorBoundary from './ErrorBoundary';
 import './Layout.css';
 
 const navItems = [
@@ -44,7 +45,9 @@ const Layout = memo(function Layout() {
         </footer>
       </aside>
       <main className="main-content" role="main" id="main-content" tabIndex={-1}>
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   );

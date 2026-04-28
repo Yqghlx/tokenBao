@@ -95,7 +95,7 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
   result.originalTokens = tokenCounterModule.countMessages(body.messages, apiType);
 
   // 深拷贝请求体，防止优化失败时污染原始数据
-  let modifiedBody = JSON.parse(JSON.stringify(body)) as ApiRequestBody;
+  let modifiedBody = structuredClone(body) as ApiRequestBody;
 
   // 规则替换 —— 错误隔离，失败则跳过
   if (config.rules) {
