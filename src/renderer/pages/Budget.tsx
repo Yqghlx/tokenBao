@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { showToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { usePolling } from '../hooks/usePolling';
+import { formatMoney } from '../utils/format';
 
 function Budget() {
   const [loading, setLoading] = useState(true);
@@ -110,14 +111,14 @@ function Budget() {
       <h3>{title}</h3>
       <div className="budget-values">
         <span className={`budget-amount ${budgetStatus.percentage >= 100 ? 'over-budget' : ''}`}>
-          ${budgetStatus.spent.toFixed(2)}
+          ${formatMoney(budgetStatus.spent)}
         </span>
         <span className="budget-limit">
-          / ${budgetStatus.limit.toFixed(2)}
+          / ${formatMoney(budgetStatus.limit)}
         </span>
       </div>
       <p className="budget-remaining">
-        剩余: ${budgetStatus.remaining.toFixed(2)} ({budgetStatus.percentage}% 已使用)
+        剩余: ${formatMoney(budgetStatus.remaining)} ({budgetStatus.percentage}% 已使用)
       </p>
       {renderProgressBar(budgetStatus.percentage)}
       {budgetStatus.percentage >= 80 && (

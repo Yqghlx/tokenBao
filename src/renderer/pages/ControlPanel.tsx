@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import { usePolling } from '../hooks/usePolling';
+import { formatMoney } from '../utils/format';
 
 /** 将秒数格式化为可读时长 */
 function formatUptime(seconds: number): string {
@@ -272,8 +273,8 @@ function ControlPanel() {
 
         <div className="status-card">
           <h3>本月成本</h3>
-          <p className="status-value" aria-live="polite">${budgetStatus.spent.toFixed(2)}</p>
-          <span className="status-label">预算: ${budgetStatus.limit.toFixed(2)}</span>
+          <p className="status-value" aria-live="polite">${formatMoney(budgetStatus.spent)}</p>
+          <span className="status-label">预算: ${formatMoney(budgetStatus.limit)}</span>
           {budgetStatus.limit > 0 && (
             <div className="progress-bar" role="progressbar" aria-valuenow={budgetPercent} aria-valuemin={0} aria-valuemax={100} aria-label={`预算使用 ${budgetPercent}%`}>
               <div

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import { usePolling } from '../hooks/usePolling';
+import { formatMoney } from '../utils/format';
 
 /**
  * 缓存节省估算：缓存 token 的费用是非缓存的 10%（即节省 90%）
@@ -8,10 +9,9 @@ import { usePolling } from '../hooks/usePolling';
  */
 const CACHE_SAVINGS_RATIO = 0.9;
 
-/** 安全格式化费用，防止 Infinity/NaN 污染 UI 显示 */
+/** 安全格式化费用（4 位小数），用于统计展示 */
 function formatCost(value: number): string {
-  if (!isFinite(value) || isNaN(value)) return '0.00';
-  return value.toFixed(4);
+  return formatMoney(value, 4);
 }
 
 function Monitor() {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { showToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { usePolling } from '../hooks/usePolling';
+import { formatMoney } from '../utils/format';
 
 interface HistoryItem {
   id: number;
@@ -120,7 +121,7 @@ function History() {
           escapeCsv(item.inputTokens),
           escapeCsv(item.outputTokens),
           escapeCsv(item.cachedTokens),
-          escapeCsv(item.cost.toFixed(4))
+          escapeCsv(formatMoney(item.cost, 4))
         ]);
 
         const csv = [headers.map(escapeCsv).join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -227,7 +228,7 @@ function History() {
                   <td>{item.inputTokens}</td>
                   <td>{item.outputTokens}</td>
                   <td>{item.cachedTokens}</td>
-                  <td>{item.cost > 0 ? `$${item.cost.toFixed(4)}` : '-'}</td>
+                  <td>{item.cost > 0 ? `$${formatMoney(item.cost, 4)}` : '-'}</td>
                 </tr>
               ))
             )}
