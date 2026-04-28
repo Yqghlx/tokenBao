@@ -40,17 +40,20 @@ function ApiKeys() {
   }, [loadApiKeys]);
 
   const addApiKey = async () => {
-    if (!newKey.name || !newKey.key) {
+    const trimmedName = newKey.name.trim();
+    const trimmedKey = newKey.key.trim();
+
+    if (!trimmedName || !trimmedKey) {
       showToast('请填写名称和 Key', 'error');
       return;
     }
 
-    if (newKey.type === 'openai' && !newKey.key.startsWith('sk-')) {
+    if (newKey.type === 'openai' && !trimmedKey.startsWith('sk-')) {
       showToast('OpenAI API Key 应以 sk- 开头', 'error');
       return;
     }
 
-    if (newKey.type === 'anthropic' && !newKey.key.startsWith('sk-ant-')) {
+    if (newKey.type === 'anthropic' && !trimmedKey.startsWith('sk-ant-')) {
       showToast('Anthropic API Key 应以 sk-ant- 开头', 'error');
       return;
     }
@@ -58,7 +61,7 @@ function ApiKeys() {
     if (window.electronAPI?.apiKeys?.add) {
       setSaving(true);
       try {
-        await window.electronAPI.apiKeys.add(newKey.name, newKey.type, newKey.key);
+        await window.electronAPI.apiKeys.add(trimmedName, newKey.type, trimmedKey);
         setNewKey({ name: '', type: 'openai', key: '' });
         setShowAddForm(false);
         loadApiKeys();

@@ -261,7 +261,6 @@ function Optimization() {
             </label>
             <span className="feature-desc">通过正则表达式替换请求内容中的文本，优先级越高越先执行。</span>
           </div>
-          <span className="feature-desc">通过正则表达式替换请求内容中的文本，优先级越高越先执行。</span>
           <div className="form-actions">
             <button className="btn-primary btn-sm" onClick={() => setShowRuleForm(true)}>
               添加规则

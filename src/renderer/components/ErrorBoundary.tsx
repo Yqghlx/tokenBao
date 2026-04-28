@@ -75,7 +75,7 @@ class ErrorBoundary extends Component<Props, State> {
             <button className="btn-primary" onClick={this.handleRetry}>
               重试
             </button>
-            <button className="btn-secondary" onClick={() => { window.location.hash = '#/'; this.handleRetry(); }}>
+            <button className="btn-secondary" onClick={() => { this.handleRetry(); window.location.hash = '#/'; }}>
               返回首页
             </button>
             {isDev && this.state.error && (

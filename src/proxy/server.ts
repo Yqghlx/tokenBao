@@ -919,5 +919,3 @@ class ProxyServer {
 }
 
 export default ProxyServer;
-// 兼容旧引用，从 pricing 模块重新导出
-export { calculateCost, normalizeModelName, MODEL_PRICING } from './pricing';
