@@ -151,6 +151,30 @@ describe('routing 模块', () => {
     expect(routing.routeModel('claude-3-sonnet', 'Classify this sentiment')).toBe('claude-3-haiku');
   });
 
+  test('o1-preview 简单任务应降级为 o4-mini', () => {
+    expect(routing.routeModel('o1-preview', 'Summarize this article')).toBe('o4-mini');
+  });
+
+  test('o1-preview 提取任务应降级为 o4-mini', () => {
+    expect(routing.routeModel('o1-preview', 'Extract key entities from the text')).toBe('o4-mini');
+  });
+
+  test('o1-mini 简单任务应降级为 o4-mini', () => {
+    expect(routing.routeModel('o1-mini', 'Translate this sentence')).toBe('o4-mini');
+  });
+
+  test('o1-mini 复杂任务应保持不变', () => {
+    expect(routing.routeModel('o1-mini', 'Analyze and prove this theorem step by step')).toBe('o1-mini');
+  });
+
+  test('claude-sonnet-4 简单任务应降级为 claude-haiku-4.5', () => {
+    expect(routing.routeModel('claude-sonnet-4', 'Summarize this article')).toBe('claude-haiku-4.5');
+  });
+
+  test('claude-opus-4 分类任务应降级为 claude-haiku-4.5', () => {
+    expect(routing.routeModel('claude-opus-4', 'Classify this sentiment')).toBe('claude-haiku-4.5');
+  });
+
   test('模型名大小写不敏感匹配', () => {
     expect(routing.routeModel('GPT-4', 'Summarize this article')).not.toBe('GPT-4');
     expect(routing.routeModel('Claude-3-Sonnet', 'Classify this text')).not.toBe('Claude-3-Sonnet');
