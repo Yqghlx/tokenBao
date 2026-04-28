@@ -63,6 +63,14 @@ export async function recordOptimization(data: {
     }
     stats.byModel[data.model].tokens += data.savedTokens;
 
+    // byApi/byModel 费用溢出保护
+    for (const entry of Object.values(stats.byApi)) {
+      if (!isFinite(entry.tokens)) entry.tokens = 0;
+    }
+    for (const entry of Object.values(stats.byModel)) {
+      if (!isFinite(entry.tokens)) entry.tokens = 0;
+    }
+
     await saveStats(stats);
   });
 }

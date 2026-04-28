@@ -138,8 +138,19 @@ describe('config 服务', () => {
       await expect(configService.setConfig('cacheTTL', '10min')).rejects.toThrow('配置值无效');
     });
 
+    test('cacheTTL 有效值应被接受', async () => {
+      await expect(configService.setConfig('cacheTTL', '5min')).resolves.toBeUndefined();
+      await expect(configService.setConfig('cacheTTL', '1hour')).resolves.toBeUndefined();
+    });
+
     test('theme 无效值应被拒绝', async () => {
       await expect(configService.setConfig('theme', 'blue')).rejects.toThrow('配置值无效');
+    });
+
+    test('theme 有效值应被接受', async () => {
+      await expect(configService.setConfig('theme', 'light')).resolves.toBeUndefined();
+      await expect(configService.setConfig('theme', 'dark')).resolves.toBeUndefined();
+      await expect(configService.setConfig('theme', 'auto')).resolves.toBeUndefined();
     });
 
     test('未知配置键应被拒绝', async () => {

@@ -74,4 +74,23 @@ describe('crypto 模块', () => {
     parts[1] = 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
     expect(() => decrypt(parts.join(':'))).toThrow('认证标签长度或格式错误');
   });
+
+  test('解密两段式密文应抛出格式错误', () => {
+    expect(() => decrypt('abcdef:123456')).toThrow('密文格式无效');
+  });
+
+  test('解密四段式密文应抛出格式错误', () => {
+    expect(() => decrypt('a:b:c:d')).toThrow('密文格式无效');
+  });
+
+  test('解密空字符串应抛出格式错误', () => {
+    expect(() => decrypt('')).toThrow('密文格式无效');
+  });
+
+  test('解密 IV 过短应抛出格式错误', () => {
+    const encrypted = encrypt('test');
+    const parts = encrypted.split(':');
+    parts[0] = 'abcd';
+    expect(() => decrypt(parts.join(':'))).toThrow('IV 长度或格式错误');
+  });
 });

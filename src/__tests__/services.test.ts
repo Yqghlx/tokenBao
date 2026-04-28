@@ -75,8 +75,7 @@ describe('history 服务', () => {
 
 describe('stats 服务', () => {
   test('recordOptimization 应更新节省 tokens', async () => {
-    const before = await statsService.getSummary();
-
+    await statsService.resetStats();
     await statsService.recordOptimization({
       apiType: 'openai',
       model: 'gpt-4',
@@ -84,7 +83,45 @@ describe('stats 服务', () => {
     });
 
     const after = await statsService.getSummary();
-    expect(after.totalCachedTokens).toBe(before.totalCachedTokens + 20);
+    expect(after.totalCachedTokens).toBe(20);
+  });
+
+  test('recordOptimization 应为新的 apiType 创建 byApi 条目', async () => {
+    await statsService.resetStats();
+    await statsService.recordOptimization({
+      apiType: 'newapi',
+      model: 'newmodel-v1',
+      savedTokens: 50,
+    });
+
+    const summary = await statsService.getSummary();
+    expect(summary.byApi['newapi']).toBeDefined();
+    expect(summary.byApi['newapi'].tokens).toBe(50);
+    expect(summary.byModel['newmodel-v1']).toBeDefined();
+    expect(summary.byModel['newmodel-v1'].tokens).toBe(50);
+  });
+
+  test('recordOptimization byApi/byModel tokens 溢出保护', async () => {
+    await statsService.resetStats();
+    // 先创建条目
+    await statsService.recordOptimization({ apiType: 'overflow-api', model: 'overflow-model', savedTokens: 1 });
+    // 直接篡改存储模拟溢出
+    const { loadJson, saveJson } = require('../utils/storage');
+    const store = loadJson('stats.json', {});
+    if (store.byApi && store.byApi['overflow-api']) {
+      store.byApi['overflow-api'].tokens = Infinity;
+    }
+    if (store.byModel && store.byModel['overflow-model']) {
+      store.byModel['overflow-model'].tokens = Infinity;
+    }
+    saveJson('stats.json', store);
+
+    // 再次调用 recordOptimization，Infinity + savedTokens 应被保护
+    await statsService.recordOptimization({ apiType: 'overflow-api', model: 'overflow-model', savedTokens: 10 });
+
+    const summary = await statsService.getSummary();
+    expect(isFinite(summary.byApi['overflow-api'].tokens)).toBe(true);
+    expect(isFinite(summary.byModel['overflow-model'].tokens)).toBe(true);
   });
 
   test('recordOptimization 应拒绝 NaN 的 savedTokens', async () => {

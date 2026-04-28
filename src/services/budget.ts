@@ -43,7 +43,7 @@ function getMonthStr(): string {
 
 function getStore(): BudgetStore {
   // 深拷贝默认值，避免 loadJson 返回引用导致默认值被修改
-  return loadJson<BudgetStore>(STORAGE_FILE, JSON.parse(JSON.stringify(getDefaultBudget())));
+  return loadJson<BudgetStore>(STORAGE_FILE, structuredClone(getDefaultBudget()));
 }
 
 async function saveStore(store: BudgetStore): Promise<void> {
