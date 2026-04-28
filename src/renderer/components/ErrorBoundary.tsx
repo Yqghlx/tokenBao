@@ -24,7 +24,8 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   handleRetry = (): void => {
-    this.setState({ hasError: false, error: undefined });
+    // 状态损坏时仅清除 state 无法恢复，刷新页面是唯一可靠方案
+    window.location.reload();
   };
 
   handleCopyError = (): void => {
@@ -75,7 +76,7 @@ class ErrorBoundary extends Component<Props, State> {
             <button className="btn-primary" onClick={this.handleRetry}>
               重试
             </button>
-            <button className="btn-secondary" onClick={() => { this.handleRetry(); window.location.hash = '#/'; }}>
+            <button className="btn-secondary" onClick={() => { window.location.hash = '#/'; window.location.reload(); }}>
               返回首页
             </button>
             {isDev && this.state.error && (

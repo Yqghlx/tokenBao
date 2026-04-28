@@ -748,7 +748,13 @@ class ProxyServer {
         }
       });
 
-      this.server.on('error', reject);
+      this.server.on('error', (err: Error & { code?: string }) => {
+        if (err.code === 'EADDRINUSE') {
+          reject(new Error(`端口 ${this.port} 已被占用，请在设置中更换端口或关闭占用该端口的程序`));
+        } else {
+          reject(err);
+        }
+      });
       this.server.listen(this.port, async () => {
         console.log(`TokenBao proxy running on port ${this.port}`);
         console.log(`OpenAI: http://localhost:${this.port}/v1/chat/completions`);

@@ -105,10 +105,11 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
         return restored;
       }
     } catch (backupErr) {
-      console.error(`备份恢复 ${filename} 也失败:`, backupErr);
+      console.error(`备份恢复 ${filename} 也失败，数据已丢失:`, backupErr);
     }
   }
-  // 深拷贝默认值，防止调用方修改污染原始默认对象
+  // 所有恢复路径均失败，返回默认值并记录严重警告
+  console.error(`严重: ${filename} 数据丢失，已恢复为默认值`);
   return structuredClone(defaultValue) as T;
 }
 
