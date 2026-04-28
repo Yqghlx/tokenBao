@@ -11,6 +11,7 @@ const STORAGE_FILE = 'remote-pricing.json';
 const DEFAULT_REMOTE_URL = 'https://raw.githubusercontent.com/anthropics/tokenbao-pricing/main/pricing.json';
 const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 小时
 const REQUEST_TIMEOUT_MS = 10000; // 10 秒超时
+const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 缓存最多保留 7 天
 
 interface RemotePricingData {
   /** 定价数据 */
@@ -131,9 +132,9 @@ export async function sync(remoteUrl?: string): Promise<number> {
  * 3. 启动定时同步（每 24 小时）
  */
 export function initSync(remoteUrl?: string): void {
-  // 加载缓存
+  // 加载缓存（跳过过期数据，避免使用过旧的定价）
   const cached = loadCache();
-  if (cached?.data?.pricing) {
+  if (cached?.data?.pricing && (Date.now() - cached.fetchedAt < CACHE_MAX_AGE_MS)) {
     const updated = updateRemotePricing(cached.data.pricing, cached.source, cached.fetchedAt);
     if (updated > 0) {
       console.log(`从缓存加载远程定价: ${updated} 个模型 (fetched: ${new Date(cached.fetchedAt).toISOString()})`);

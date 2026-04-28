@@ -23,6 +23,8 @@ function History() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
+  // 防抖搜索值：按键输入 300ms 后才触发实际查询，减少 IPC 调用
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
@@ -43,7 +45,7 @@ function History() {
           offset
         };
         if (filter) options.apiType = filter;
-        if (search.trim()) options.search = search.trim();
+        if (debouncedSearch.trim()) options.search = debouncedSearch.trim();
 
         const data = await window.electronAPI.history.list(options);
         setHistory(data);
@@ -52,7 +54,7 @@ function History() {
         if (window.electronAPI?.history?.count) {
           const countOptions: { apiType?: string; search?: string } = {};
           if (filter) countOptions.apiType = filter;
-          if (search.trim()) countOptions.search = search.trim();
+          if (debouncedSearch.trim()) countOptions.search = debouncedSearch.trim();
           const count = await window.electronAPI.history.count(countOptions);
           totalCountRef.current = count;
           setTotalCount(count);
@@ -73,7 +75,13 @@ function History() {
     } else {
       setLoading(false);
     }
-  }, [currentPage, filter, search]);
+  }, [currentPage, filter, debouncedSearch]);
+
+  // 搜索防抖：300ms 无新输入后才更新搜索值
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     loadHistory();

@@ -216,6 +216,10 @@ function ControlPanel() {
     if (window.electronAPI?.optimization?.setConfig) {
       try {
         await window.electronAPI.optimization.setConfig({ [key]: newValue });
+        // 配置已持久化但代理未运行时提醒用户
+        if (!proxyStatus.running) {
+          showToast('配置已保存，启动代理后生效', 'info');
+        }
       } catch (err) {
         console.error('保存优化配置失败:', err);
         showToast('保存配置失败', 'error');

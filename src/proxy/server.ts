@@ -299,6 +299,12 @@ class ProxyServer {
   }
 
   private collectBody(req: http.IncomingMessage): Promise<string> {
+    // Content-Length 预检：已知长度超限时立即拒绝，避免缓冲无用数据
+    const declaredLength = parseInt(req.headers['content-length'] || '0', 10);
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_SIZE) {
+      return Promise.reject(new Error(`请求体超过最大限制 (${MAX_BODY_SIZE / 1024 / 1024}MB)`));
+    }
+
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       let totalSize = 0;
