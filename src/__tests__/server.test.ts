@@ -140,6 +140,7 @@ describe('ProxyServer 核心逻辑', () => {
       server = new ProxyServer({ port: getRandomPort() });
       await server.start();
       expect(server['detectApiType']('/v1/chat/completions')).toBe('openai');
+      expect(server['detectApiType']('/v1/completions')).toBe('openai');
       expect(server['detectApiType']('/v1/models')).toBe('openai');
       expect(server['detectApiType']('/v1/embeddings')).toBe('openai');
     });

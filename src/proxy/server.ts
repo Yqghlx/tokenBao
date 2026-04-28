@@ -212,6 +212,7 @@ class ProxyServer {
 
   detectApiType(path: string): ApiType {
     if (path.includes('/v1/chat/completions') ||
+        path.includes('/v1/completions') ||
         path.includes('/v1/embeddings') ||
         path.includes('/v1/models')) {
       return 'openai';

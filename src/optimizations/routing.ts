@@ -20,6 +20,9 @@ const defaultOptions: RoutingOptions = {
     { sourceModel: 'gpt-4', targetModel: 'gpt-4o-mini', condition: 'simple' },
     { sourceModel: 'gpt-4', targetModel: 'gpt-4o-mini', condition: 'classification' },
     { sourceModel: 'gpt-4', targetModel: 'gpt-4o-mini', condition: 'extraction' },
+    { sourceModel: 'gpt-4-turbo', targetModel: 'gpt-4o-mini', condition: 'simple' },
+    { sourceModel: 'gpt-4-turbo', targetModel: 'gpt-4o-mini', condition: 'classification' },
+    { sourceModel: 'gpt-4-turbo', targetModel: 'gpt-4o-mini', condition: 'extraction' },
     { sourceModel: 'gpt-4o', targetModel: 'gpt-4o-mini', condition: 'simple' },
     { sourceModel: 'gpt-4o', targetModel: 'gpt-4o-mini', condition: 'classification' },
     { sourceModel: 'gpt-4o', targetModel: 'gpt-4o-mini', condition: 'extraction' },
@@ -31,6 +34,8 @@ const defaultOptions: RoutingOptions = {
     // Anthropic 路由规则
     { sourceModel: 'claude-3-opus', targetModel: 'claude-3-haiku', condition: 'simple' },
     { sourceModel: 'claude-3-opus', targetModel: 'claude-3-haiku', condition: 'classification' },
+    { sourceModel: 'claude-3-sonnet', targetModel: 'claude-3-haiku', condition: 'simple' },
+    { sourceModel: 'claude-3-sonnet', targetModel: 'claude-3-haiku', condition: 'classification' },
     { sourceModel: 'claude-3.5-sonnet', targetModel: 'claude-3.5-haiku', condition: 'simple' },
     { sourceModel: 'claude-3.5-sonnet', targetModel: 'claude-3.5-haiku', condition: 'classification' },
     { sourceModel: 'claude-3.7-sonnet', targetModel: 'claude-3.5-haiku', condition: 'simple' },

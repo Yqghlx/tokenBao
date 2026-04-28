@@ -130,4 +130,24 @@ describe('routing 模块', () => {
   test('无路由规则的模型应保持不变', () => {
     expect(routing.routeModel('gpt-4o-mini', 'Classify this')).toBe('gpt-4o-mini');
   });
+
+  test('gpt-4-turbo 分类应降级为 gpt-4o-mini', () => {
+    expect(routing.routeModel('gpt-4-turbo', 'Categorize these items')).toBe('gpt-4o-mini');
+  });
+
+  test('gpt-4-turbo 提取应降级为 gpt-4o-mini', () => {
+    expect(routing.routeModel('gpt-4-turbo', 'Extract the names from this text')).toBe('gpt-4o-mini');
+  });
+
+  test('gpt-4-turbo 复杂任务应保持不变', () => {
+    expect(routing.routeModel('gpt-4-turbo', 'Analyze and refactor this code')).toBe('gpt-4-turbo');
+  });
+
+  test('claude-3-sonnet 简单应降级为 claude-3-haiku', () => {
+    expect(routing.routeModel('claude-3-sonnet', 'Summarize this article')).toBe('claude-3-haiku');
+  });
+
+  test('claude-3-sonnet 分类应降级为 claude-3-haiku', () => {
+    expect(routing.routeModel('claude-3-sonnet', 'Classify this sentiment')).toBe('claude-3-haiku');
+  });
 });

@@ -15,13 +15,13 @@ describe('pricing 定价模块', () => {
       }
     });
 
-    test('应包含所有预期的模型（23 个）', () => {
+    test('应包含所有预期的模型（24 个）', () => {
       const expectedModels = [
         'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini',
         'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
         'gpt-3.5-turbo', 'o1-preview', 'o1-mini', 'o3', 'o4-mini',
         'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
-        'claude-3.5-sonnet', 'claude-3.5-haiku',
+        'claude-3.5-sonnet', 'claude-3.5-haiku', 'claude-3.7-sonnet',
         'claude-sonnet-4', 'claude-opus-4',
         'claude-opus-4.1', 'claude-sonnet-4.6', 'claude-opus-4.6',
         'claude-haiku-4.5'
