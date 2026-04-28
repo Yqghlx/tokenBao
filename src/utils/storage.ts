@@ -141,11 +141,18 @@ export async function saveJsonAsync<T>(filename: string, data: T): Promise<void>
   const filePath = getFilePath(filename);
   const content = JSON.stringify(data, null, 2);
   const tmpPath = filePath + '.tmp';
-  await writeFileAsync(tmpPath, content, 'utf-8');
+  try {
+    await writeFileAsync(tmpPath, content, 'utf-8');
+  } catch (writeErr) {
+    try { await promisify(fs.unlink)(tmpPath); } catch { /* 忽略清理失败 */ }
+    throw writeErr;
+  }
   // fsync 确保数据落盘后再 rename，防止系统崩溃导致数据丢失
   const fd = await openAsync(tmpPath, 'r');
   try {
     await fsyncAsync(fd);
+  } catch (syncErr) {
+    console.warn(`fsync 失败 (${filename})，数据已写入但持久化不保证:`, (syncErr as Error).message);
   } finally {
     await closeAsync(fd);
   }
