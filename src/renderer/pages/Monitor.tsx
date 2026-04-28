@@ -244,7 +244,7 @@ function Monitor() {
                 </thead>
                 <tbody>
                   {modelRanking.map((item) => {
-                    const costPercent = stats.totalCost > 0 ? (item.cost / stats.totalCost * 100) : 0;
+                    const costPercent = stats.totalCost > 0 && Number.isFinite(item.cost) ? (item.cost / stats.totalCost * 100) : 0;
                     return (
                       <tr key={item.model}>
                         <td>{item.model}</td>

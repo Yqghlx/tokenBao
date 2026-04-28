@@ -114,12 +114,12 @@ function detectComplexity(prompt: string): 'simple' | 'classification' | 'extrac
   // 所有关键词评分为 0，无法确定复杂度，保持原模型不降级
   if (maxScore === 0) return 'unknown';
 
-  // 复杂度优先级：complex > extraction > classification > simple
+  // 复杂度优先级：complex > extraction > classification
   // 平局时偏向高级别，避免含复杂关键词的 prompt 被错误降级
   if (complexScore > 0 && complexScore >= extractionScore && complexScore >= simpleScore) return 'complex';
   if (extractionScore > 0 && extractionScore >= simpleScore) return 'extraction';
-  if (simpleScore > 0) return 'classification';
-  return 'simple';
+  // simpleScore > 0 必然成立（maxScore > 0 已排除全零情况），返回 classification
+  return 'classification';
 }
 
 function routeModel(model: string, prompt: string): string {

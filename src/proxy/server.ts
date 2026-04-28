@@ -52,10 +52,11 @@ const httpsAgent = new https.Agent({
 function logProxy(level: 'info' | 'warn' | 'error', msg: string, data?: Record<string, unknown>): void {
   const timestamp = new Date().toISOString();
   const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
+  const logFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.info;
   if (data) {
-    console.log(`${prefix} ${msg}`, JSON.stringify(data));
+    logFn(`${prefix} ${msg}`, JSON.stringify(data));
   } else {
-    console.log(`${prefix} ${msg}`);
+    logFn(`${prefix} ${msg}`);
   }
 }
 
