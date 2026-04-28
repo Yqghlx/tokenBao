@@ -158,6 +158,15 @@ describe('rules 优化模块', () => {
     expect(result).toBe('c');
   });
 
+  test('逆序插入时优先级仍应生效（回归测试）', () => {
+    // 低优先级先插入，高优先级后插入——Map 迭代顺序与优先级不一致
+    rulesModule.addRule({ name: '低优先级', type: 'replace', pattern: 'b', replacement: 'c', enabled: true, priority: 1 });
+    rulesModule.addRule({ name: '高优先级', type: 'replace', pattern: 'a', replacement: 'b', enabled: true, priority: 2 });
+
+    const result = rulesModule.applyRules('a');
+    expect(result).toBe('c');
+  });
+
   test('非 replace 类型规则不应在 applyRules 中生效', () => {
     rulesModule.addRule({ name: '过滤规则', type: 'filter', pattern: 'test', replacement: '', enabled: true, priority: 1 });
 

@@ -129,7 +129,8 @@ function safeRegexReplace(text: string, pattern: string, replacement: string): s
     });
     return result;
   } catch {
-    // 正则执行失败或超时，回退到字符串替换
+    // 正则执行失败或超时，回退到字符串替换（非正则语义）
+    console.warn(`规则正则执行失败，降级为字符串替换: pattern="${pattern.slice(0, 50)}"`);
     return text.split(pattern).join(replacement);
   }
 }
@@ -137,7 +138,10 @@ function safeRegexReplace(text: string, pattern: string, replacement: string): s
 export function applyRules(content: string): string {
   let result = content;
 
-  for (const rule of rules.values()) {
+  // 按优先级降序应用规则（与 listRules 排序一致），确保高优先级先执行
+  const sortedRules = Array.from(rules.values()).sort((a, b) => b.priority - a.priority);
+
+  for (const rule of sortedRules) {
     if (!rule.enabled) continue;
 
     if (rule.type === 'replace') {
