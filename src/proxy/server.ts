@@ -232,14 +232,14 @@ const CIRCUIT_BREAKER_THRESHOLD = 5;  // 连续失败 5 次触发熔断
 const CIRCUIT_BREAKER_COOLDOWN = 60000; // 熔断冷却 60 秒
 
 /** 不应转发给客户端的 hop-by-hop 头 */
-const HOP_BY_HOP_HEADERS = new Set([
+export const HOP_BY_HOP_HEADERS = new Set([
   'connection', 'keep-alive', 'transfer-encoding', 'te',
   'upgrade', 'proxy-connection', 'proxy-authenticate', 'proxy-authorization',
   'trailer'
 ]);
 
 /** 过滤响应头：移除 hop-by-hop 头 + CRLF 注入防护 */
-function sanitizeResponseHeaders(headers: http.IncomingHttpHeaders): http.OutgoingHttpHeaders {
+export function sanitizeResponseHeaders(headers: http.IncomingHttpHeaders): http.OutgoingHttpHeaders {
   const result: http.OutgoingHttpHeaders = {};
   for (const [key, value] of Object.entries(headers)) {
     if (HOP_BY_HOP_HEADERS.has(key.toLowerCase())) continue;

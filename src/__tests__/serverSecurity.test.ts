@@ -1,36 +1,23 @@
 /**
  * server.ts 安全函数单元测试
- * 覆盖 sanitizeResponseHeaders 和 collectBody 超时行为
+ * 直接测试 server.ts 中导出的 sanitizeResponseHeaders 生产代码
  */
 
-import http from 'http';
-
-// 直接测试 sanitizeResponseHeaders 的行为
-// 由于 server.ts 导出的是 ProxyServer class，我们通过集成测试验证
-// 这里测试的是模块级别的工具函数
+import { sanitizeResponseHeaders, HOP_BY_HOP_HEADERS } from '../proxy/server';
 
 describe('sanitizeResponseHeaders', () => {
-  // 将 server.ts 中的函数逻辑提取出来独立测试
-  const HOP_BY_HOP_HEADERS = new Set([
-    'connection', 'keep-alive', 'transfer-encoding', 'te',
-    'upgrade', 'proxy-connection', 'proxy-authenticate', 'proxy-authorization',
-    'trailer'
-  ]);
-
-  function sanitizeResponseHeaders(headers: http.IncomingHttpHeaders): http.OutgoingHttpHeaders {
-    const result: http.OutgoingHttpHeaders = {};
-    for (const [key, value] of Object.entries(headers)) {
-      if (HOP_BY_HOP_HEADERS.has(key.toLowerCase())) continue;
-      if (typeof value === 'string') {
-        result[key] = value.replace(/[\r\n]/g, ' ');
-      } else if (Array.isArray(value)) {
-        result[key] = value.map(v => typeof v === 'string' ? v.replace(/[\r\n]/g, ' ') : v);
-      } else if (value !== undefined) {
-        result[key] = String(value).replace(/[\r\n]/g, ' ');
-      }
+  it('HOP_BY_HOP_HEADERS 集合应包含所有标准 hop-by-hop 头', () => {
+    const expected = [
+      'connection', 'keep-alive', 'transfer-encoding', 'te',
+      'upgrade', 'proxy-connection', 'proxy-authenticate', 'proxy-authorization',
+      'trailer'
+    ];
+    for (const header of expected) {
+      expect(HOP_BY_HOP_HEADERS.has(header)).toBe(true);
     }
-    return result;
-  }
+  });
+
+
 
   it('过滤 hop-by-hop 头', () => {
     const result = sanitizeResponseHeaders({
