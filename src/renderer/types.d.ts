@@ -68,6 +68,7 @@ declare global {
         totalCost: number;
         byApi: Record<string, { requests: number; tokens: number; cost: number }>;
         byModel: Record<string, { requests: number; tokens: number; cost: number }>;
+        cacheMetrics: { hits: number; misses: number; size: number; hitRate: number };
       }>;
       reset: () => Promise<{ success: boolean }>;
     };
@@ -91,6 +92,11 @@ declare global {
       update: (id: number, updates: Record<string, unknown>) => Promise<{ success: boolean; rule?: unknown; error?: string }>;
       delete: (id: number) => Promise<{ success: boolean; error?: string }>;
       validate: (pattern: string) => Promise<{ error: string | null }>;
+    };
+
+    dlp: {
+      getRules: () => Promise<Array<{ id: string; name: string; enabled: boolean; severity: string }>>;
+      setEnabled: (ruleId: string, enabled: boolean) => Promise<{ success: boolean; error?: string }>;
     };
 
     on: (channel: 'proxy:statusChanged' | 'proxy:error' | 'stats:updated' | 'budget:changed', callback: (...args: unknown[]) => void) => void;
