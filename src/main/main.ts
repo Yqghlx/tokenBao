@@ -542,6 +542,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('rules:update', async (_, id: number, updates: Record<string, unknown>) => {
     try {
+      // 主进程二次校验 ID 参数，防御 preload 绕过
+      if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+        return { success: false, error: '无效的规则 ID' };
+      }
       // 字段白名单校验，防止注入非法字段
       const allowedFields = new Set(['name', 'type', 'pattern', 'replacement', 'enabled', 'priority']);
       // 主进程二次校验 priority 类型和范围（与 rules:add 保持一致）
