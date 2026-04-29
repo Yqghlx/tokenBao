@@ -109,24 +109,7 @@ function Monitor() {
     }
   }, [stats, totalTokens, cacheSavings]);
 
-  if (loading) {
-    return (
-      <div className="page">
-        <h2>监控仪表盘</h2>
-        <div className="stats-grid">
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-        </div>
-      </div>
-    );
-  }
-
-  const savedCost = (Number.isFinite(cacheSavings) ? cacheSavings : 0).toFixed(2);
-  const actualCost = formatCost(stats.totalCost);
-
-  /** ROI 效率指标 */
+  /** ROI 效率指标（必须在 early return 之前声明，保持 hooks 调用顺序一致） */
   const avgCostPerRequest = useMemo(() => {
     if (stats.totalRequests === 0) return 0;
     const avg = stats.totalCost / stats.totalRequests;
@@ -148,6 +131,23 @@ function Monitor() {
       .slice(0, 10),
     [stats.byModel]
   );
+
+  if (loading) {
+    return (
+      <div className="page">
+        <h2>监控仪表盘</h2>
+        <div className="stats-grid">
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+        </div>
+      </div>
+    );
+  }
+
+  const savedCost = (Number.isFinite(cacheSavings) ? cacheSavings : 0).toFixed(2);
+  const actualCost = formatCost(stats.totalCost);
 
   return (
     <div className="page">

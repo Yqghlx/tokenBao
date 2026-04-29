@@ -122,6 +122,23 @@ function Settings() {
     }
   };
 
+  // hooks 必须在 early return 之前声明，保持调用顺序一致
+  const hasError = portError || daysError;
+  const isDirty = useMemo(() =>
+    String(proxyPort) !== String(savedValues.proxyPort) || String(dataRetentionDays) !== String(savedValues.dataRetentionDays) || String(cacheTTL) !== String(savedValues.cacheTTL),
+    [proxyPort, dataRetentionDays, cacheTTL, savedValues]
+  );
+
+  // 有未保存变更时阻止页面关闭/刷新
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
   if (loading) {
     return (
       <div className="page">
@@ -143,22 +160,6 @@ function Settings() {
       </div>
     );
   }
-
-  const hasError = portError || daysError;
-  const isDirty = useMemo(() =>
-    String(proxyPort) !== String(savedValues.proxyPort) || String(dataRetentionDays) !== String(savedValues.dataRetentionDays) || String(cacheTTL) !== String(savedValues.cacheTTL),
-    [proxyPort, dataRetentionDays, cacheTTL, savedValues]
-  );
-
-  // 有未保存变更时阻止页面关闭/刷新
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
 
   return (
     <div className="page">
