@@ -577,7 +577,10 @@ class ProxyServer {
               // 超过绝对上限则强制断开，防止内存暴涨
               if (sseBuffer.length > SSE_BUFFER_HARD_LIMIT) {
                 logProxy('error', 'SSE 缓冲超出上限，强制断开', { requestId });
-                passThrough.destroy(new Error('SSE buffer exceeded hard limit'));
+                // 不传 Error 参数：passThrough 无 error handler，传参会触发未捕获异常
+                passThrough.destroy();
+                // 销毁上游请求释放连接资源，防止连接池退化
+                proxyReq.destroy();
                 return;
               }
               // 保留最近数据用于提取 usage，但确保不截断最后一个完整的 data: 行
