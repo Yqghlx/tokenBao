@@ -356,7 +356,9 @@ function Optimization() {
                 <input id="rule-pattern" type="text" value={newRule.pattern} onChange={(e) => {
                   const pattern = e.target.value;
                   setNewRule(p => ({ ...p, pattern }));
-                  if (pattern) {
+                  if (pattern.length > 500) {
+                    setPatternError('正则表达式不能超过 500 字符');
+                  } else if (pattern) {
                     try { new RegExp(pattern); setPatternError(''); }
                     catch { setPatternError('无效的正则表达式'); }
                   } else {
