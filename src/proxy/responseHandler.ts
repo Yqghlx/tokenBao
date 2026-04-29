@@ -19,20 +19,20 @@ const MAX_SSE_LINES = 100000;
 /** 模型名称最大长度，超出截断防止畸形数据传播 */
 const MAX_MODEL_NAME_LEN = 100;
 
+/** 清理模型名：剥离控制字符并截断过长值，防止畸形数据传播到统计/计费系统 */
+function sanitizeModel(name: unknown): string {
+  if (typeof name !== 'string' || !name) return 'unknown';
+  const cleaned = name.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  if (!cleaned) return 'unknown';
+  return cleaned.length > MAX_MODEL_NAME_LEN ? cleaned.slice(0, MAX_MODEL_NAME_LEN) : cleaned;
+}
+
 /**
  * 从 SSE 流数据中提取 usage 统计（流式路径共用）
  * 单次反向遍历：先收集末尾的 usage，再继续向前扫描 message_start 模型名
  */
 export function extractStreamUsage(sseData: string): UsageStats | null {
   if (!sseData || !sseData.includes('data: ')) return null;
-
-  /** 清理模型名：截断过长值并剥离控制字符，防止畸形数据传播到统计/计费系统 */
-  const sanitizeModel = (name: unknown): string => {
-    if (typeof name !== 'string' || !name) return 'unknown';
-    // 剥离控制字符（保留常见空白 0x09/0x0A/0x0D/0x20），防止日志注入
-    const cleaned = name.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    return cleaned.length > MAX_MODEL_NAME_LEN ? cleaned.slice(0, MAX_MODEL_NAME_LEN) : cleaned;
-  };
 
   // 截断超长数据防止内存耗尽，usage 信息通常在流末尾，截掉头部不影响结果
   let dataToProcess = sseData;
@@ -125,9 +125,7 @@ function parseNonStreamUsage(body: string): UsageStats | null {
         // OpenAI: prompt_tokens_details.cached_tokens
         cacheReadTokens: safeToken(parsed.usage.cache_read_input_tokens ?? parsed.usage.prompt_tokens_details?.cached_tokens),
         cacheCreationTokens: safeToken(parsed.usage.cache_creation_input_tokens),
-        model: typeof parsed.model === 'string' && parsed.model.length <= MAX_MODEL_NAME_LEN
-          ? parsed.model.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') || 'unknown'
-          : 'unknown'
+        model: sanitizeModel(parsed.model)
       };
     }
   } catch (e) {

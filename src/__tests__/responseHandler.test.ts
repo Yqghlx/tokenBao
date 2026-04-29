@@ -340,13 +340,13 @@ describe('responseHandler', () => {
       expect(result.stats!.model).toBe(longModel.slice(0, 100));
     });
 
-    test('非流式响应中超长模型名应被标记为 unknown', () => {
+    test('非流式响应中超长模型名应被截断', () => {
       const longModel = 'gpt-4-' + 'b'.repeat(200);
       const body = JSON.stringify({ model: longModel, usage: { prompt_tokens: 10, completion_tokens: 5 } });
       const result = handleResponse(body, { 'content-type': 'application/json' }, 'openai');
       expect(result.stats).not.toBeNull();
-      // 非流式路径对超长模型名返回 unknown（拒绝畸形数据）
-      expect(result.stats!.model).toBe('unknown');
+      expect(result.stats!.model.length).toBeLessThanOrEqual(100);
+      expect(result.stats!.model).toBe(longModel.slice(0, 100));
     });
   });
 

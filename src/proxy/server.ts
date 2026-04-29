@@ -183,7 +183,13 @@ function sendUpstream(
         } else if (!sizeExceeded) {
           // 超出缓冲上限时立即销毁响应流，停止接收数据释放内存和带宽
           sizeExceeded = true;
+          settled = true;
           res.destroy();
+          resolve({
+            statusCode: res.statusCode || 500,
+            headers: res.headers,
+            body: Buffer.concat(chunks).toString()
+          });
         }
       });
       res.on('end', () => {
