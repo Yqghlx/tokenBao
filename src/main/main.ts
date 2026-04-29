@@ -16,9 +16,11 @@ import { getOptimizationConfig, setOptimizationConfig } from '../services/config
 let mainWindow: BrowserWindow | null = null;
 let proxyServer: ProxyServer | null = null;
 
-/** 代理服务器崩溃后自动重启 */
+/** 代理服务器崩溃后自动重启（含并发保护） */
+let isRestarting = false;
 async function restartProxy(): Promise<void> {
-  if (!proxyServer) return;
+  if (!proxyServer || isRestarting) return;
+  isRestarting = true;
   const port = proxyServer.getPort();
   console.warn(`代理服务器异常停止，尝试自动重启 (端口: ${port})...`);
   try {
@@ -47,6 +49,8 @@ async function restartProxy(): Promise<void> {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('proxy:error', { message: '代理服务器崩溃后自动重启失败' });
     }
+  } finally {
+    isRestarting = false;
   }
 }
 
@@ -62,6 +66,9 @@ function startHealthCheck(): void {
       restartProxy().catch(err => console.error('健康检查重启失败:', err));
     }
   }, HEALTH_CHECK_INTERVAL);
+  if (healthCheckTimer && typeof healthCheckTimer === 'object' && 'unref' in healthCheckTimer) {
+    healthCheckTimer.unref();
+  }
 }
 
 function stopHealthCheck(): void {
