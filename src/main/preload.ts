@@ -32,8 +32,8 @@ const listenerMap = new WeakMap<(...args: unknown[]) => void, (_: unknown, ...ar
 contextBridge.exposeInMainWorld('electronAPI', {
   proxy: {
     start: (port?: number) => {
-      if (port !== undefined && (typeof port !== 'number' || port < 1024 || port > 65535)) {
-        return Promise.resolve({ success: false, error: '端口范围应为 1024-65535' });
+      if (port !== undefined && (typeof port !== 'number' || !Number.isInteger(port) || port < 1024 || port > 65535)) {
+        return Promise.resolve({ success: false, error: '端口必须为 1024-65535 之间的整数' });
       }
       return ipcRenderer.invoke('proxy:start', port);
     },

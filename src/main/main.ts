@@ -574,6 +574,10 @@ function registerIpcHandlers(): void {
       if (updates.priority !== undefined && (typeof updates.priority !== 'number' || !Number.isInteger(updates.priority) || updates.priority < 0 || updates.priority > 1000)) {
         return { success: false, error: 'priority 必须是 0-1000 之间的整数' };
       }
+      // 主进程二次校验 type 字段，与 rules:add 保持一致
+      if (updates.type !== undefined && !['replace', 'filter', 'route'].includes(updates.type as string)) {
+        return { success: false, error: '不支持的规则类型' };
+      }
       const safeUpdates: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(updates)) {
         if (allowedFields.has(key)) {
