@@ -22,6 +22,7 @@ const MAX_MODEL_NAME_LEN = 100;
 /** 清理模型名：剥离控制字符并截断过长值，防止畸形数据传播到统计/计费系统 */
 function sanitizeModel(name: unknown): string {
   if (typeof name !== 'string' || !name) return 'unknown';
+  // eslint-disable-next-line no-control-regex
   const cleaned = name.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   if (!cleaned) return 'unknown';
   return cleaned.length > MAX_MODEL_NAME_LEN ? cleaned.slice(0, MAX_MODEL_NAME_LEN) : cleaned;
