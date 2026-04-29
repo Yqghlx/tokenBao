@@ -155,6 +155,11 @@ function registerIpcHandlers(): void {
       const openaiKey = await apiKeyService.getDecryptedKeyByType('openai');
       const anthropicKey = await apiKeyService.getDecryptedKeyByType('anthropic');
 
+      // 无 API Key 时返回警告，引导首次用户完成配置
+      if (!openaiKey && !anthropicKey) {
+        return { success: false, error: '未配置任何 API Key，请先在「API Keys」页面添加密钥' };
+      }
+
       proxyServer = new ProxyServer({ port: effectivePort, openaiKey, anthropicKey });
       await proxyServer.start();
 
