@@ -88,6 +88,9 @@ async function saveStore(store: HistoryStore): Promise<void> {
 
 export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLog> {
   // 输入校验：拒绝无效数据
+  if (!log.timestamp || typeof log.timestamp !== 'string' || log.timestamp.length > 50) {
+    throw new Error('timestamp 无效');
+  }
   if (!log.apiType || typeof log.apiType !== 'string' || log.apiType.length > 50) {
     throw new Error('apiType 无效');
   }

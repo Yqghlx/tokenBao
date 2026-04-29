@@ -482,6 +482,17 @@ describe('budget 服务', () => {
 });
 
 describe('history 输入验证', () => {
+  test('addRequest 应拒绝无效 timestamp', async () => {
+    await expect(historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: ''
+    })).rejects.toThrow('timestamp');
+    await expect(historyService.addRequest({
+      apiType: 'openai', model: 'gpt-4', inputTokens: 10, outputTokens: 10,
+      cachedTokens: 0, cost: 0.01, cached: false, timestamp: 'a'.repeat(51)
+    })).rejects.toThrow('timestamp');
+  });
+
   test('addRequest 应拒绝空 apiType', async () => {
     await expect(historyService.addRequest({
       apiType: '', model: 'gpt-4', inputTokens: 10, outputTokens: 10,

@@ -75,9 +75,15 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
           return structuredClone(defaultValue) as T;
         }
       }
-      // 加载成功后创建备份，供未来损坏时恢复
+      // 加载成功后创建备份，供未来损坏时恢复（含 fsync 持久化保证）
       try {
-        fs.writeFileSync(backupPath, content, 'utf-8');
+        const bfd = fs.openSync(backupPath, 'w');
+        try {
+          fs.writeFileSync(bfd, content, 'utf-8');
+          fs.fsyncSync(bfd);
+        } finally {
+          fs.closeSync(bfd);
+        }
       } catch (backupErr) {
         console.warn(`创建 ${filename} 备份失败:`, (backupErr as Error).message);
       }
