@@ -61,10 +61,10 @@ function Monitor() {
 
   usePolling(loadStats, 10000);
 
-  const totalTokens = useMemo(() =>
-    stats.totalInputTokens + stats.totalOutputTokens,
-    [stats.totalInputTokens, stats.totalOutputTokens]
-  );
+  const totalTokens = useMemo(() => {
+    const total = stats.totalInputTokens + stats.totalOutputTokens;
+    return Number.isFinite(total) ? total : 0;
+  }, [stats.totalInputTokens, stats.totalOutputTokens]);
 
   const cacheSavings = useMemo(() => {
     // cachedTokens 是 inputTokens 的子集，不应重复计算
@@ -277,7 +277,7 @@ function Monitor() {
                     <div key={api} className="breakdown-item">
                       <span className="breakdown-item-label">{api.toUpperCase()}</span>
                       <div className="breakdown-item-detail">
-                        请求: {data.requests} | Tokens: {data.tokens.toLocaleString()} | 费用: ${formatCost(data.cost)}
+                        请求: {data.requests} | Tokens: {(Number.isFinite(data.tokens) ? data.tokens : 0).toLocaleString()} | 费用: ${formatCost(data.cost)}
                       </div>
                     </div>
                   ))
@@ -292,7 +292,7 @@ function Monitor() {
                     <div key={model} className="breakdown-item">
                       <span className="breakdown-item-label">{model}</span>
                       <div className="breakdown-item-detail">
-                        请求: {data.requests} | Tokens: {data.tokens.toLocaleString()} | 费用: ${formatCost(data.cost)}
+                        请求: {data.requests} | Tokens: {(Number.isFinite(data.tokens) ? data.tokens : 0).toLocaleString()} | 费用: ${formatCost(data.cost)}
                       </div>
                     </div>
                   ))
