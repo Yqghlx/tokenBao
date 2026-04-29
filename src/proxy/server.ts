@@ -486,6 +486,11 @@ class ProxyServer {
           }
         }
 
+        // 优化可能修改了请求体，需同步 Content-Length 防止上游 API 因长度不匹配拒绝请求
+        if (clientReq.method === 'POST' && optimizedBody) {
+          headers['content-length'] = String(Buffer.byteLength(optimizedBody));
+        }
+
         // 只读 GET 请求（如 /v1/models）跳过预算和熔断检查
         const isReadOnlyGet = clientReq.method === 'GET' && (
           path.includes('/v1/models') || path.includes('/v1/files')

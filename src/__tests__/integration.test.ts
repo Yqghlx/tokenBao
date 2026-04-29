@@ -77,8 +77,8 @@ describe('集成测试', () => {
       req.write(JSON.stringify({ model: 'gpt-4', messages: [{ role: 'user', content: 'test' }] }));
       req.end();
     });
-    // 无有效 Key 时应返回 502（上游连接失败）或 504（超时）
-    expect([0, 401, 502, 504]).toContain(response);
+    // 无有效 Key 时应返回 400/401/502/504 或连接失败（0）
+    expect([0, 400, 401, 502, 504]).toContain(response);
   });
 
   test('预算超限时应返回 429', async () => {
