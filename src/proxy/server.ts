@@ -283,7 +283,11 @@ class ProxyServer {
     if (path.includes('/v1/chat/completions') ||
         path.includes('/v1/completions') ||
         path.includes('/v1/embeddings') ||
-        path.includes('/v1/models')) {
+        path.includes('/v1/models') ||
+        path.includes('/v1/images/') ||
+        path.includes('/v1/audio/') ||
+        path.includes('/v1/moderations') ||
+        path.includes('/v1/responses')) {
       return 'openai';
     }
     if (path.includes('/v1/messages') ||
@@ -329,7 +333,8 @@ class ProxyServer {
       }
     }
 
-    if (apiType === 'anthropic') {
+    // Anthropic API 版本：客户端未指定时使用默认值，已有则保留（兼容新版 SDK）
+    if (apiType === 'anthropic' && !result['anthropic-version']) {
       result['anthropic-version'] = '2023-06-01';
     }
 
