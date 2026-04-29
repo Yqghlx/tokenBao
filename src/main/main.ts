@@ -139,9 +139,11 @@ function registerIpcHandlers(): void {
       }
 
       // 优先使用传入端口，否则从配置读取，最终默认 3000
+      // 主进程二次校验端口参数，防御 preload 绕过
+      const validPort = (typeof port === 'number' && Number.isInteger(port) && port >= 1024 && port <= 65535) ? port : undefined;
       const configPort = await configService.getConfig('proxyPort');
       const parsedConfigPort = configPort ? parseInt(configPort, 10) : NaN;
-      const effectivePort = port || (Number.isFinite(parsedConfigPort) && parsedConfigPort >= 1024 && parsedConfigPort <= 65535 ? parsedConfigPort : 3000);
+      const effectivePort = validPort || (Number.isFinite(parsedConfigPort) && parsedConfigPort >= 1024 && parsedConfigPort <= 65535 ? parsedConfigPort : 3000);
 
       const openaiKey = await apiKeyService.getDecryptedKeyByType('openai');
       const anthropicKey = await apiKeyService.getDecryptedKeyByType('anthropic');
@@ -302,6 +304,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('apiKeys:add', async (_, name: string, type: string, key: string) => {
     try {
+      // 主进程二次校验 type 参数，防御 preload 绕过
+      if (type !== 'openai' && type !== 'anthropic') {
+        return { success: false, error: '不支持的密钥类型' };
+      }
       const result = await apiKeyService.addApiKey(name, type, key);
 
       if (proxyServer && proxyServer.isRunning()) {
@@ -525,6 +531,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('rules:add', async (_, rule: { name: string; type: 'replace' | 'filter' | 'route'; pattern: string; replacement: string; enabled: boolean; priority: number }) => {
     try {
+      // 主进程二次校验 type 枚举值，防御 preload 绕过
+      if (!['replace', 'filter', 'route'].includes(rule.type)) {
+        return { success: false, error: '不支持的规则类型' };
+      }
       // 主进程二次校验 replacement 长度和 priority 范围
       if (typeof rule.replacement !== 'string' || rule.replacement.length > 1000) {
         return { success: false, error: '替换文本过长' };
