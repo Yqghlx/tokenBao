@@ -150,7 +150,25 @@ function ControlPanel() {
     // 监听主进程预算变更通知，立即刷新
     const handler = () => { loadBudgetStatus(); loadStats(); };
     window.electronAPI?.on?.('budget:changed', handler);
-    return () => { window.electronAPI?.off?.('budget:changed', handler); };
+
+    // 监听主进程代理状态变更（崩溃/自动重启），立即刷新 UI
+    const onStatusChanged = () => { loadProxyStatus(); loadStats(); };
+    window.electronAPI?.on?.('proxy:statusChanged', onStatusChanged);
+
+    // 监听主进程代理错误通知，显示错误提示
+    const onProxyError = (msg: unknown) => {
+      const message = typeof msg === 'object' && msg !== null && 'message' in msg
+        ? String((msg as Record<string, unknown>).message)
+        : '代理服务异常';
+      showToast(message, 'error');
+    };
+    window.electronAPI?.on?.('proxy:error', onProxyError);
+
+    return () => {
+      window.electronAPI?.off?.('budget:changed', handler);
+      window.electronAPI?.off?.('proxy:statusChanged', onStatusChanged);
+      window.electronAPI?.off?.('proxy:error', onProxyError);
+    };
   }, [loadProxyStatus, loadBudgetStatus, loadStats, loadOptimizations]);
 
   const pollStats = useCallback(() => {

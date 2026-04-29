@@ -181,7 +181,7 @@ function registerIpcHandlers(): void {
 
       return { success: true, port: proxyServer.getPort() };
     } catch (err) {
-      return { success: false, error: (err as Error).message };
+      return { success: false, error: sanitizeErrorMessage(err) };
     }
   });
 
@@ -198,7 +198,7 @@ function registerIpcHandlers(): void {
       }
       return { success: true };
     } catch (err) {
-      return { success: false, error: (err as Error).message };
+      return { success: false, error: sanitizeErrorMessage(err) };
     }
   });
 
