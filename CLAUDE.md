@@ -141,14 +141,14 @@ typescript-language-server --version  # 需全局安装
 - 渲染进程有独立的 `node_modules`，修改前端依赖需在 `src/renderer/` 目录操作
 - 主进程和渲染进程使用不同的 TypeScript 模块系统（CommonJS vs ESNext）
 - 端口优先级：启动参数 > config.proxyPort > 默认 3000
-- 类型声明在 `src/types/electronAPI.d.ts`，修改 preload API 后需同步更新
+- 类型声明有**两份**需保持同步：`src/types/electronAPI.d.ts`（主进程）和 `src/renderer/types.d.ts`（渲染进程），修改 preload API 后两处都需更新
 - `MODEL_PRICING` 唯一定价源在 `src/proxy/pricing.ts`，更新模型定价只修改此文件
 - 所有费用计算均通过 `normalizeModelName()` 归一化后再查定价表
 - 预算自动重置使用本地时区（非 UTC），避免午夜边界问题
 - config/budget 服务默认值使用 `JSON.parse(JSON.stringify())` 深拷贝防引用污染
 - HTTPS 连接池 `httpsAgent` 全局共享，keepAlive + maxSockets:50
 - requestTracker 每 5 分钟自动清理，完成记录上限 50 条，`unref()` 不阻塞进程退出
-- 代理超时/error 处理器会清理 `activeUpstreamRequests`，SSE 缓冲有 1MB 硬上限
+- 代理超时/error 处理器会清理 `activeUpstreamRequests`，SSE 缓冲有 1MB 硬上限（超限时 destroy 不传 Error 防未捕获异常，同时销毁 proxyReq 释放上游连接）
 - 非流式错误响应不暴露上游错误细节（统一返回"上游 API 请求失败"）
 - 优化管线错误隔离：单个策略失败不影响其他策略，body 完整性异常时回退原始数据
 - 优化管线：所有策略关闭或 messages 为空时跳过 `structuredClone` 直接返回原 body
@@ -167,11 +167,11 @@ typescript-language-server --version  # 需全局安装
 - rules 优先级按降序排列应用（非 Map 插入顺序），updateRule 返回防御性拷贝 + pattern 语法校验
 - `window-all-closed` 非 macOS 先 await stop() 再 quit()，确保代理完全清理后退出
 - 流式超时/错误处理器检查 clientDisconnected/clientRes.destroyed 后再写入响应
-- gzip 回调检查 clientRes.destroyed 防止向已关闭连接写入，压缩后设置精确 content-length
+- gzip 回调检查 clientRes.destroyed + shuttingDown 防止向已关闭连接写入，压缩后设置精确 content-length
 - sendUpstream 收到响应后 setTimeout(0) 清除超时计时器，响应体超 10MB 立即 destroy 流
 - 非流式重试循环每轮检查 clientRes.destroyed，客户端断连立即终止重试
 - 代理绑定 `127.0.0.1`（非 `0.0.0.0`），headersTimeout/requestTimeout 防 slowloris
-- 熔断器仅对 5xx/429 计入故障，4xx 客户端错误重置熔断器（不触发熔断）
+- 熔断器仅对 5xx/429 计入故障，4xx 客户端错误重置熔断器（不触发熔断），`unknown` apiType 完全跳过熔断逻辑（含 record 方法）
 - `app.requestSingleInstanceLock()` 防止多窗口数据损坏
 - `requestCount` 仅在 shutdown/连接限制检查通过后递增，被拒绝请求不计入
 - recordRequestResult 预算更新使用 `Promise.allSettled` 并行执行
