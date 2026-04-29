@@ -13,7 +13,8 @@ describe('sanitizeResponseHeaders', () => {
   // 将 server.ts 中的函数逻辑提取出来独立测试
   const HOP_BY_HOP_HEADERS = new Set([
     'connection', 'keep-alive', 'transfer-encoding', 'te',
-    'upgrade', 'proxy-connection'
+    'upgrade', 'proxy-connection', 'proxy-authenticate', 'proxy-authorization',
+    'trailer'
   ]);
 
   function sanitizeResponseHeaders(headers: http.IncomingHttpHeaders): http.OutgoingHttpHeaders {
@@ -80,6 +81,9 @@ describe('sanitizeResponseHeaders', () => {
       'te': 'trailers',
       'upgrade': 'websocket',
       'proxy-connection': 'keep-alive',
+      'proxy-authenticate': 'Basic realm="test"',
+      'proxy-authorization': 'Basic dGVzdDp0ZXN0',
+      'trailer': 'X-Custom-Trailer',
       'content-type': 'text/plain'
     });
 

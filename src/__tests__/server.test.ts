@@ -166,6 +166,10 @@ describe('ProxyServer 核心逻辑', () => {
       expect(server['detectApiType']('/v1/completions')).toBe('openai');
       expect(server['detectApiType']('/v1/models')).toBe('openai');
       expect(server['detectApiType']('/v1/embeddings')).toBe('openai');
+      expect(server['detectApiType']('/v1/images/generations')).toBe('openai');
+      expect(server['detectApiType']('/v1/audio/transcriptions')).toBe('openai');
+      expect(server['detectApiType']('/v1/moderations')).toBe('openai');
+      expect(server['detectApiType']('/v1/responses')).toBe('openai');
     });
 
     test('Anthropic 路径正确识别', async () => {
@@ -218,11 +222,18 @@ describe('ProxyServer 核心逻辑', () => {
       expect(headers['authorization']).toBeUndefined();
     });
 
-    test('Anthropic 请求应添加版本头', async () => {
+    test('Anthropic 请求应添加默认版本头', async () => {
       server = new ProxyServer({ port: getRandomPort(), anthropicKey: 'sk-ant-test' });
       await server.start();
       const headers = server['transformHeaders']({}, 'anthropic');
       expect(headers['anthropic-version']).toBe('2023-06-01');
+    });
+
+    test('Anthropic 请求应保留客户端指定的版本头', async () => {
+      server = new ProxyServer({ port: getRandomPort(), anthropicKey: 'sk-ant-test' });
+      await server.start();
+      const headers = server['transformHeaders']({ 'anthropic-version': '2024-10-22' }, 'anthropic');
+      expect(headers['anthropic-version']).toBe('2024-10-22');
     });
 
     test('应过滤 host 和 accept-encoding 头', async () => {
