@@ -594,6 +594,22 @@ class ProxyServer {
                     const cost = calculateCost(model, usage.inputTokens, usage.outputTokens);
                     logProxy('info', `流式请求完成`, { requestId, model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cost: cost.toFixed(4), duration: `${Date.now() - requestStart}ms` });
 
+                    // 标记流式请求完成，避免被僵尸清理误判为失败
+                    if (requestId) {
+                      requestTracker.completeRequest(requestId, {
+                        requestId,
+                        inputTokens: usage.inputTokens,
+                        outputTokens: usage.outputTokens,
+                        cacheReadTokens: usage.cacheReadTokens,
+                        cacheCreationTokens: usage.cacheCreationTokens,
+                        cost,
+                        model,
+                        duration: 0,
+                        completedAt: Date.now(),
+                        status: statusCode
+                      });
+                    }
+
                     const { cost: recordedCost, allSucceeded } = await recordRequestResult({
                       model,
                       inputTokens: usage.inputTokens,
@@ -618,6 +634,7 @@ class ProxyServer {
             // 流传输中途出错时确保资源清理
             passThrough.on('error', (err) => {
               logProxy('error', 'PassThrough 流处理错误', { requestId, error: err.message });
+              if (requestId) requestTracker.failRequest(requestId, err.message, 502);
               passThrough.destroy();
               proxyReq.destroy();
               this.activeUpstreamRequests.delete(proxyReq);
@@ -626,6 +643,7 @@ class ProxyServer {
             // 上游响应流出错时清理所有关联资源
             proxyRes.on('error', (err) => {
               logProxy('error', '上游响应流错误', { requestId, error: err.message });
+              if (requestId) requestTracker.failRequest(requestId, err.message, 502);
               passThrough.destroy();
               proxyReq.destroy();
               this.activeUpstreamRequests.delete(proxyReq);
@@ -640,6 +658,7 @@ class ProxyServer {
 
           proxyReq.setTimeout(this.proxyTimeout, () => {
             this.activeUpstreamRequests.delete(proxyReq);
+            if (requestId) requestTracker.failRequest(requestId, '流式请求超时', 504);
             proxyReq.destroy();
             passThrough.destroy();
             if (clientDisconnected || clientRes.destroyed) return;
@@ -654,6 +673,7 @@ class ProxyServer {
 
           proxyReq.on('error', (_err) => {
             this.activeUpstreamRequests.delete(proxyReq);
+            if (requestId) requestTracker.failRequest(requestId, '流式上游请求失败', 502);
             passThrough.destroy();
             if (clientDisconnected || clientRes.destroyed) return;
             if (!clientRes.headersSent) {
