@@ -293,6 +293,11 @@ function registerIpcHandlers(): void {
   ipcMain.handle('config:reset', async () => {
     try {
       await configService.resetConfig();
+      // 重置后同步优化配置到运行中的代理服务器，与 optimization:setConfig 保持一致
+      if (proxyServer) {
+        const optimConfig = await getOptimizationConfig();
+        proxyServer.updateOptimizationConfig(optimConfig);
+      }
       return { success: true };
     } catch (err) {
       console.error('config:reset 错误:', err);
@@ -616,6 +621,13 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('dlp:setEnabled', async (_, ruleId: string, enabled: boolean) => {
     try {
+      // 主进程二次校验参数，防御 preload 绕过
+      if (typeof ruleId !== 'string' || !ruleId) {
+        return { success: false, error: '无效的规则 ID' };
+      }
+      if (typeof enabled !== 'boolean') {
+        return { success: false, error: 'enabled 必须为布尔值' };
+      }
       const success = dlpModule.setRuleEnabled(ruleId, enabled);
       return { success };
     } catch (err) {
