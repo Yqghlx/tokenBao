@@ -203,6 +203,9 @@ export function applyRules(content: string): string {
 
     if (rule.type === 'replace') {
       result = safeRegexReplace(result, rule.pattern, rule.replacement);
+    } else if (rule.type === 'filter') {
+      // filter 类型：移除匹配到的内容（等同于替换为空字符串）
+      result = safeRegexReplace(result, rule.pattern, '');
     }
   }
 

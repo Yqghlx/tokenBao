@@ -46,6 +46,9 @@ function setOptions(options: Partial<CompressionOptions>): void {
 function isCJK(code: number): boolean {
   return (code >= 0x4E00 && code <= 0x9FFF)   // CJK 统一汉字
     || (code >= 0x3400 && code <= 0x4DBF)       // CJK 扩展 A 区
+    || (code >= 0x20000 && code <= 0x2A6DF)     // CJK 扩展 B 区
+    || (code >= 0x2A700 && code <= 0x2B73F)     // CJK 扩展 C 区
+    || (code >= 0x2B740 && code <= 0x2B81F)     // CJK 扩展 D 区
     || (code >= 0x3040 && code <= 0x309F)       // 平假名
     || (code >= 0x30A0 && code <= 0x30FF)       // 片假名
     || (code >= 0xAC00 && code <= 0xD7AF)       // 韩文音节
@@ -56,7 +59,8 @@ function estimateTokens(text: string): number {
   // CJK 约 2 chars/token，其他约 4 chars/token
   let count = 0;
   for (const char of text) {
-    count += isCJK(char.charCodeAt(0)) ? 0.5 : 0.25;
+    // codePointAt 正确处理 CJK 扩展 B-G 区（代理对），charCodeAt 会返回高位代理导致误判
+    count += isCJK(char.codePointAt(0) ?? 0) ? 0.5 : 0.25;
   }
   return Math.ceil(count);
 }

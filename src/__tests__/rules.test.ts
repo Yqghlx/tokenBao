@@ -183,12 +183,20 @@ describe('rules 优化模块', () => {
     expect(result).toBe('c');
   });
 
-  test('非 replace 类型规则不应在 applyRules 中生效', () => {
+  test('filter 类型规则应移除匹配内容', () => {
     rulesModule.addRule({ name: '过滤规则', type: 'filter', pattern: 'test', replacement: '', enabled: true, priority: 1 });
 
-    // filter 类型不处理，原文不变
+    // filter 类型移除匹配到的部分
     const result = rulesModule.applyRules('test content');
-    expect(result).toBe('test content');
+    expect(result).toBe(' content');
+  });
+
+  test('route 类型规则不应在 applyRules 中生效', () => {
+    rulesModule.addRule({ name: '路由规则', type: 'route', pattern: 'gpt-4', replacement: 'gpt-3.5-turbo', enabled: true, priority: 1 });
+
+    // route 类型在 applyRules 中不处理，原文不变
+    const result = rulesModule.applyRules('use gpt-4 please');
+    expect(result).toBe('use gpt-4 please');
   });
 
   test('priority 边界值 0 应被接受', () => {
