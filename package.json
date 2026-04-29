@@ -16,7 +16,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && cd src/renderer && npx tsc --noEmit",
     "build:renderer": "cd src/renderer && npm install && npm run build",
     "clean": "rm -rf dist release test-data",
-    "test": "jest",
+    "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
