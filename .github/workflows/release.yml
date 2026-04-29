@@ -11,41 +11,53 @@ permissions:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    
+
     strategy:
       matrix:
-        os: [macos-latest, windows-latest]
-    
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools rpm
+
       - name: Install dependencies
         run: npm install --legacy-peer-deps
-      
+
       - name: Build TypeScript
         run: npm run build
-      
+
       - name: Build Renderer
         run: npm run build:renderer
-      
+
       - name: Build Electron (macOS)
         if: matrix.os == 'macos-latest'
         run: npx electron-builder --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Build Electron (Windows)
         if: matrix.os == 'windows-latest'
         run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
+      - name: Build Electron (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: npx electron-builder --linux --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -55,26 +67,32 @@ jobs:
   create-release:
     needs: build
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
           name: macos-latest-build
           path: release-mac
-      
+
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
           name: windows-latest-build
           path: release-win
-      
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-latest-build
+          path: release-linux
+
       - name: Get version
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      
+
       - name: Create Release with assets
         uses: softprops/action-gh-release@v1
         with:
@@ -82,28 +100,31 @@ jobs:
           name: TokenBao v${{ steps.get_version.outputs.VERSION }}
           body: |
             ## TokenBao v${{ steps.get_version.outputs.VERSION }}
-            
+
             ### 功能
             - AI API Token 优化代理
             - 多策略支持（缓存、压缩、路由）
             - 实时统计和预算管理
             - API Key 加密存储
-            
+
             ### 安装
             - macOS: 下载 DMG 文件安装
             - Windows: 下载 EXE 文件安装
-            
+            - Linux: 下载 AppImage 或 DEB 文件安装
+
             ### 自动更新
             应用启动后自动检查更新
-            
+
             ### 统计
-            - 测试覆盖: 41 tests
+            - 测试覆盖: 539 tests
             - ESLint: 0 errors
-            - 打包: DMG + EXE
+            - 打包: DMG + EXE + AppImage + DEB
           files: |
             release-mac/*.dmg
             release-mac/latest-mac.yml
             release-win/*.exe
+            release-linux/*.AppImage
+            release-linux/*.deb
           draft: false
           prerelease: false
         env:
