@@ -992,6 +992,8 @@ class ProxyServer {
 
   /** 记录上游成功，重置该提供商的熔断器 */
   private recordUpstreamSuccess(apiType: ApiType): void {
+    // 未知 API 类型无确定上游目标，不需要熔断器状态
+    if (apiType === 'unknown') return;
     const cb = this.getCircuitBreaker(apiType);
     cb.failures = 0;
     cb.openUntil = 0;
@@ -999,6 +1001,8 @@ class ProxyServer {
 
   /** 记录上游失败，达到阈值则触发该提供商的熔断 */
   private recordUpstreamFailure(apiType: ApiType): void {
+    // 未知 API 类型无确定上游目标，跳过以避免误导性熔断日志
+    if (apiType === 'unknown') return;
     const cb = this.getCircuitBreaker(apiType);
     cb.failures++;
     if (cb.failures >= CIRCUIT_BREAKER_THRESHOLD) {
