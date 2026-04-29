@@ -4,6 +4,21 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { usePolling } from '../hooks/usePolling';
 import { formatMoney } from '../utils/format';
 
+/** 进度条颜色阈值常量 */
+const COLOR_DANGER = '#ef4444';
+const COLOR_WARNING = '#f59e0b';
+const COLOR_NORMAL = '#22c55e';
+
+function ProgressBar({ percentage }: { percentage: number }) {
+  const color = percentage >= 100 ? COLOR_DANGER : percentage >= 80 ? COLOR_WARNING : COLOR_NORMAL;
+  const pct = Math.min(100, Math.round(percentage));
+  return (
+    <div className="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-valuetext={`${pct}% 已使用`} aria-label={`预算使用 ${pct}%`}>
+      <div className="progress-bar-fill" style={{ width: `${Math.min(100, percentage)}%`, background: color }} />
+    </div>
+  );
+}
+
 function Budget() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
@@ -82,6 +97,14 @@ function Budget() {
     }
   };
 
+  const handleEditFocus = useCallback((type: 'daily' | 'monthly') => {
+    editingFieldRef.current = type;
+  }, []);
+
+  const handleEditBlur = useCallback(() => {
+    editingFieldRef.current = null;
+  }, []);
+
   if (loading) {
     return (
       <div className="page">
@@ -93,15 +116,6 @@ function Budget() {
       </div>
     );
   }
-
-  const renderProgressBar = (percentage: number) => {
-    const color = percentage >= 100 ? '#ef4444' : percentage >= 80 ? '#f59e0b' : '#22c55e';
-    return (
-      <div className="progress-bar" role="progressbar" aria-valuenow={Math.min(100, Math.round(percentage))} aria-valuemin={0} aria-valuemax={100} aria-valuetext={`${Math.round(percentage)}% 已使用`} aria-label={`预算使用 ${Math.round(percentage)}%`}>
-        <div className="progress-bar-fill" style={{ width: `${Math.min(100, percentage)}%`, background: color }} />
-      </div>
-    );
-  };
 
   const renderBudgetCard = (
     title: string,
@@ -123,7 +137,7 @@ function Budget() {
       <p className="budget-remaining">
         剩余: ${formatMoney(budgetStatus.remaining)} ({budgetStatus.percentage}% 已使用)
       </p>
-      {renderProgressBar(budgetStatus.percentage)}
+      <ProgressBar percentage={budgetStatus.percentage} />
       {budgetStatus.percentage >= 80 && (
         <p className={`budget-warning ${budgetStatus.percentage >= 100 ? 'danger' : 'warn'}`}>
           {budgetStatus.percentage >= 100 ? '预算已超支！' : '预算即将用尽'}
@@ -135,8 +149,8 @@ function Budget() {
           className="budget-input"
           value={limit}
           onChange={(e) => setLimit(e.target.value)}
-          onFocus={() => { editingFieldRef.current = type; }}
-          onBlur={() => { editingFieldRef.current = null; }}
+          onFocus={() => handleEditFocus(type)}
+          onBlur={handleEditBlur}
           min={0}
           step={1}
         />

@@ -16,6 +16,10 @@ interface BudgetStore {
 const STORAGE_FILE = 'budget.json';
 const mutex = getMutex(STORAGE_FILE);
 
+/** 日期字符串缓存，避免每次请求创建 Date 对象和字符串拼接 */
+let cachedDateStr: { today: string; month: string; ts: number } | null = null;
+const DATE_CACHE_TTL = 60000; // 1 分钟内复用
+
 /** 默认预算配置（单一来源） */
 function getDefaultBudget(): BudgetStore {
   return {
@@ -24,21 +28,36 @@ function getDefaultBudget(): BudgetStore {
   };
 }
 
-/** 获取今天的日期字符串（YYYY-MM-DD），使用本地时区 */
+/** 获取今天的日期字符串（YYYY-MM-DD），带分钟级缓存 */
 function getTodayStr(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  const now = Date.now();
+  if (cachedDateStr && now - cachedDateStr.ts < DATE_CACHE_TTL) {
+    return cachedDateStr.today;
+  }
+  const date = new Date();
+  const today = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  cachedDateStr = {
+    today,
+    month: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+    ts: now
+  };
+  return today;
 }
 
-/** 获取本月的标识字符串（YYYY-MM），使用本地时区 */
+/** 获取本月的标识字符串（YYYY-MM），带分钟级缓存 */
 function getMonthStr(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
+  const now = Date.now();
+  if (cachedDateStr && now - cachedDateStr.ts < DATE_CACHE_TTL) {
+    return cachedDateStr.month;
+  }
+  const date = new Date();
+  const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  cachedDateStr = {
+    today: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+    month,
+    ts: now
+  };
+  return month;
 }
 
 function getStore(): BudgetStore {

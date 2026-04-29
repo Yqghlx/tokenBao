@@ -86,34 +86,59 @@ export function getOptimizationConfig(): OptimizationConfig {
 /**
  * 对消息列表中的文本内容统一应用变换函数
  * 逐条处理，单条失败不影响其他消息的数据完整性
+ * 快速路径：若所有消息均未变更则返回原数组，避免不必要的对象创建
  */
 function processMessageTexts(
   messages: ChatMessage[],
   transform: (text: string) => string
 ): ChatMessage[] {
-  return messages.map((msg: ChatMessage) => {
+  let changed = false;
+  const result = new Array<ChatMessage>(messages.length);
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
     try {
       if (typeof msg.content === 'string') {
-        return { ...msg, content: transform(msg.content) };
-      }
-      if (Array.isArray(msg.content)) {
-        return {
-          ...msg,
-          content: msg.content.map((block) => {
-            if (block.type === 'text' && (block as TextContentBlock).text) {
-              return { ...block, text: transform((block as TextContentBlock).text) };
+        const newContent = transform(msg.content);
+        if (newContent !== msg.content) {
+          changed = true;
+          result[i] = { ...msg, content: newContent };
+        } else {
+          result[i] = msg;
+        }
+      } else if (Array.isArray(msg.content)) {
+        let blockChanged = false;
+        const newBlocks = new Array(msg.content.length);
+        for (let j = 0; j < msg.content.length; j++) {
+          const block = msg.content[j];
+          if (block.type === 'text' && (block as TextContentBlock).text) {
+            const newText = transform((block as TextContentBlock).text);
+            if (newText !== (block as TextContentBlock).text) {
+              blockChanged = true;
+              newBlocks[j] = { ...block, text: newText };
+            } else {
+              newBlocks[j] = block;
             }
-            return block;
-          })
-        };
+          } else {
+            newBlocks[j] = block;
+          }
+        }
+        if (blockChanged) {
+          changed = true;
+          result[i] = { ...msg, content: newBlocks };
+        } else {
+          result[i] = msg;
+        }
+      } else {
+        result[i] = msg;
       }
-      return msg;
     } catch (err) {
-      // 单条消息处理失败时保留原文，不影响其他消息
       console.warn('单条消息处理失败，保留原文:', (err as Error).message);
-      return msg;
+      result[i] = msg;
     }
-  });
+  }
+
+  return changed ? result : messages;
 }
 
 /** 计算 Anthropic system 字段的 token 数（支持 string 和 array 格式） */
@@ -275,19 +300,21 @@ export function applyOptimizations(apiType: string, body: ApiRequestBody): Optim
   return result;
 }
 
+/** 将消息列表拼接为纯文本，单次遍历避免 filter+map 中间数组 */
 function messagesToText(messages: ChatMessage[]): string {
-  return messages
-    .map((msg) => {
-      if (typeof msg.content === 'string') return msg.content;
-      if (Array.isArray(msg.content)) {
-        return msg.content
-          .filter((block): block is TextContentBlock => block.type === 'text')
-          .map((block) => block.text)
-          .join(' ');
+  const parts: string[] = [];
+  for (const msg of messages) {
+    if (typeof msg.content === 'string') {
+      parts.push(msg.content);
+    } else if (Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (block.type === 'text' && (block as TextContentBlock).text) {
+          parts.push((block as TextContentBlock).text);
+        }
       }
-      return '';
-    })
-    .join(' ');
+    }
+  }
+  return parts.join(' ');
 }
 
 function hasCacheMarkers(messages: ChatMessage[]): boolean {

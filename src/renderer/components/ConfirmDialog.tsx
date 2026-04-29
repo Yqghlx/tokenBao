@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, ReactNode } from 'react';
+import { useEffect, useRef, useCallback, memo, ReactNode } from 'react';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -15,7 +15,7 @@ interface ConfirmDialogProps {
  * 通用确认对话框，替代 window.confirm
  * 支持键盘操作（Escape 取消、Enter 仅在确认按钮聚焦时触发）、焦点陷阱和 ARIA 属性
  */
-function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLabel = '取消', danger, onConfirm, onCancel }: ConfirmDialogProps) {
+const ConfirmDialog = memo(function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLabel = '取消', danger, onConfirm, onCancel }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -90,6 +90,6 @@ function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLa
       </div>
     </div>
   );
-}
+});
 
 export default ConfirmDialog;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 
 type ToastType = 'success' | 'error' | 'info' | 'loading';
 
@@ -88,53 +88,49 @@ const TOAST_STYLES: Record<string, React.CSSProperties> = {
   loading: { background: '#1a2a4a', borderLeft: '4px solid #00d4ff' },
 };
 
-export function ToastContainer({ toasts, removeToast }: { toasts: ToastItem[]; removeToast: (id: number) => void }) {
+/** Toast 基础样式（不变部分），避免每次渲染创建新对象 */
+const TOAST_BASE_STYLE: React.CSSProperties = {
+  padding: '12px 36px 12px 20px', borderRadius: '8px', color: '#fff',
+  fontSize: '14px', minWidth: '200px', maxWidth: '400px',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+  animation: 'slideIn 0.3s ease',
+  position: 'relative', display: 'flex', alignItems: 'center', gap: '8px'
+};
+
+/** loading 旋转动画样式（不变部分） */
+const SPINNER_STYLE: React.CSSProperties = {
+  display: 'inline-block', width: '14px', height: '14px',
+  border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff',
+  borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0
+};
+
+/** 关闭按钮样式（不变部分） */
+const CLOSE_BTN_STYLE: React.CSSProperties = {
+  position: 'absolute', top: '8px', right: '8px',
+  background: 'none', border: 'none', color: '#aaa',
+  cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: '2px'
+};
+
+/** 容器样式（不变） */
+const CONTAINER_STYLE: React.CSSProperties = {
+  position: 'fixed', top: '16px', right: '16px', zIndex: 1050,
+  display: 'flex', flexDirection: 'column', gap: '8px'
+};
+
+export const ToastContainer = memo(function ToastContainer({ toasts, removeToast }: { toasts: ToastItem[]; removeToast: (id: number) => void }) {
   if (toasts.length === 0) return null;
 
   return (
-    <div role="region" aria-label="通知" aria-live="polite" style={{
-      position: 'fixed', top: '16px', right: '16px', zIndex: 1050,
-      display: 'flex', flexDirection: 'column', gap: '8px'
-    }}>
+    <div role="region" aria-label="通知" aria-live="polite" style={CONTAINER_STYLE}>
       {toasts.map(t => (
-        <div key={t.id} role="alert" style={{
-          ...TOAST_STYLES[t.type],
-          padding: '12px 36px 12px 20px', borderRadius: '8px', color: '#fff',
-          fontSize: '14px', minWidth: '200px', maxWidth: '400px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          animation: 'slideIn 0.3s ease',
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          {t.type === 'loading' && (
-            <span style={{
-              display: 'inline-block',
-              width: '14px',
-              height: '14px',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderTopColor: '#fff',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-              flexShrink: 0
-            }} />
-          )}
+        <div key={t.id} role="alert" style={{ ...TOAST_BASE_STYLE, ...TOAST_STYLES[t.type] }}>
+          {t.type === 'loading' && <span style={SPINNER_STYLE} />}
           <span>{t.message}</span>
-          <button
-            onClick={() => removeToast(t.id)}
-            aria-label="关闭通知"
-            style={{
-              position: 'absolute', top: '8px', right: '8px',
-              background: 'none', border: 'none', color: '#aaa',
-              cursor: 'pointer', fontSize: '16px', lineHeight: 1,
-              padding: '2px'
-            }}
-          >
+          <button onClick={() => removeToast(t.id)} aria-label="关闭通知" style={CLOSE_BTN_STYLE}>
             ×
           </button>
         </div>
       ))}
     </div>
   );
-}
+});

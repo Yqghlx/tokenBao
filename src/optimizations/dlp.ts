@@ -149,6 +149,22 @@ const MAX_REPLACE_PER_RULE = 100;
 const MAX_SCAN_TEXT_SIZE = 1_000_000;
 
 /**
+ * 预编译所有规则的 RegExp 副本，用于每次 scan 调用时重置 /g 状态
+ * 避免每次 scan 都 new RegExp()，减少 GC 压力
+ */
+const compiledPatterns = new Map<string, RegExp>();
+function getCompiledPattern(rule: DLPRule): RegExp {
+  let cached = compiledPatterns.get(rule.id);
+  if (!cached || cached.source !== rule.pattern.source || cached.flags !== rule.pattern.flags) {
+    cached = new RegExp(rule.pattern.source, rule.pattern.flags);
+    compiledPatterns.set(rule.id, cached);
+  }
+  // 重置 /g lastIndex，避免上次替换的位置残留
+  cached.lastIndex = 0;
+  return cached;
+}
+
+/**
  * 脱敏替换函数，将匹配内容按规则替换为掩码
  * 保留首尾部分字符以帮助用户识别被脱敏的内容
  */
@@ -204,8 +220,8 @@ export function scan(text: string): DLPScanResult {
     if (!rule.enabled) continue;
 
     try {
-      // 每次重新创建 RegExp 避免 /g 状态残留
-      const regex = new RegExp(rule.pattern.source, rule.pattern.flags);
+      // 使用预编译的正则副本（已重置 lastIndex），避免每次 new RegExp 的开销
+      const regex = getCompiledPattern(rule);
       let count = 0;
       let modified = false;
 

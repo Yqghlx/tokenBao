@@ -43,15 +43,8 @@ function startAutoCleanup(): void {
   if (cleanupTimer) return;
   cleanupTimer = setInterval(() => {
     clearOldRequests();
-    // 如果清理后仍超过上限，按时间戳淘汰最早的记录
-    if (completedRequests.size > COMPLETED_MAX_SIZE) {
-      const entries = Array.from(completedRequests.entries())
-        .sort((a, b) => (a[1].completedAt || 0) - (b[1].completedAt || 0));
-      const removeCount = completedRequests.size - COMPLETED_MAX_SIZE;
-      for (let i = 0; i < removeCount; i++) {
-        completedRequests.delete(entries[i][0]);
-      }
-    }
+    // 清理后仍超限时，从 Map 首部淘汰（Map 保持插入序，早期请求在前）
+    evictOldestIfNeeded();
   }, CLEANUP_INTERVAL_MS);
   // 允许进程退出时自动停止
   if (cleanupTimer && typeof cleanupTimer === 'object' && 'unref' in cleanupTimer) {
@@ -86,16 +79,18 @@ function isRetryableStatus(statusCode: number): boolean {
  * 公式: min(BASE_DELAY * 2^attempt, MAX_RETRY_DELAY) + random(0, BASE_DELAY/2)
  */
 const MAX_RETRY_DELAY = 30000; // 最大退避 30 秒
+// 预计算退避基数表，避免每次 Math.pow 调用
+const RETRY_DELAYS = [500, 1000, 2000, 4000, 8000, 16000, 30000, 30000];
 
 function getRetryDelay(attempt: number): number {
-  const delay = Math.min(BASE_RETRY_DELAY * Math.pow(2, attempt), MAX_RETRY_DELAY);
+  const delay = attempt < RETRY_DELAYS.length ? RETRY_DELAYS[attempt] : MAX_RETRY_DELAY;
   const jitter = Math.random() * (BASE_RETRY_DELAY / 2);
   return delay + jitter;
 }
 
 function generateRequestId(): string {
-  const uuid = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
-  return `req_${uuid}`;
+  // 直接生成 12 位 hex，避免 UUID 格式化 + 正则替换开销
+  return `req_${crypto.randomBytes(6).toString('hex')}`;
 }
 
 function createRequestMetadata(
@@ -154,6 +149,15 @@ function canRetry(requestId: string): boolean {
   return metadata.retryCount < MAX_RETRIES;
 }
 
+/** 从 Map 首部淘汰超限记录（O(1) 每次淘汰），替代 Array.from + sort 的 O(n log n) */
+function evictOldestIfNeeded(): void {
+  while (completedRequests.size > COMPLETED_MAX_SIZE) {
+    const firstKey = completedRequests.keys().next().value;
+    if (firstKey !== undefined) completedRequests.delete(firstKey);
+    else break;
+  }
+}
+
 function completeRequest(requestId: string, result: RequestResult): void {
   const metadata = pendingRequests.get(requestId);
   if (metadata) {
@@ -162,15 +166,8 @@ function completeRequest(requestId: string, result: RequestResult): void {
     result.completedAt = Date.now();
     completedRequests.set(requestId, result);
     pendingRequests.delete(requestId);
-    // 容量保护：超限时立即按时间戳淘汰最早的记录
-    if (completedRequests.size > COMPLETED_MAX_SIZE) {
-      const entries = Array.from(completedRequests.entries())
-        .sort((a, b) => (a[1].completedAt || 0) - (b[1].completedAt || 0));
-      const removeCount = completedRequests.size - COMPLETED_MAX_SIZE;
-      for (let i = 0; i < removeCount; i++) {
-        completedRequests.delete(entries[i][0]);
-      }
-    }
+    // 容量保护：从 Map 首部 O(1) 淘汰，避免排序开销
+    evictOldestIfNeeded();
   }
 }
 

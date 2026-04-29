@@ -60,7 +60,8 @@ function estimateTokens(text: string): number {
   let count = 0;
   for (const char of text) {
     // codePointAt 正确处理 CJK 扩展 B-G 区（代理对），charCodeAt 会返回高位代理导致误判
-    count += isCJK(char.codePointAt(0) ?? 0) ? 0.5 : 0.25;
+    const code = char.codePointAt(0) ?? 0;
+    count += isCJK(code) ? 0.5 : 0.25;
   }
   return Math.ceil(count);
 }
@@ -71,12 +72,16 @@ function estimateTokens(text: string): number {
  */
 /** 单个代码块最大长度，超长代码块截断保护防止内存膨胀 */
 const MAX_CODE_BLOCK_SIZE = 200000;
+// 围栏代码块正则（模块级预编译，避免每次调用重新编译）
+const FENCED_CODE_REGEX = /(`{3}|~{3})[\s\S]*?(?:\1|$)/g;
+// 代码块占位符还原正则（模块级预编译）
+// eslint-disable-next-line no-control-regex
+const CODE_BLOCK_RESTORE_REGEX = /\x00CODE_BLOCK_(\d+)\x00/g;
 
 function protectCodeBlocks(text: string): { protected: string; restore: (t: string) => string } {
   const blocks: string[] = [];
-  // 匹配 ```...``` 围栏代码块（支持 ~~~ 和 ``` 围栏），未闭合时匹配到文本末尾以防代码被空白压缩破坏
-  const fencedRegex = /(`{3}|~{3})[\s\S]*?(?:\1|$)/g;
-  const protectedText = text.replace(fencedRegex, (match) => {
+  FENCED_CODE_REGEX.lastIndex = 0;
+  const protectedText = text.replace(FENCED_CODE_REGEX, (match) => {
     const truncated = match.length > MAX_CODE_BLOCK_SIZE
       ? match.slice(0, MAX_CODE_BLOCK_SIZE) + '\n...[代码块过大，已截断]'
       : match;
@@ -85,11 +90,13 @@ function protectCodeBlocks(text: string): { protected: string; restore: (t: stri
   });
   return {
     protected: protectedText,
-    // eslint-disable-next-line no-control-regex
-    restore: (t: string) => t.replace(/\x00CODE_BLOCK_(\d+)\x00/g, (_, i) => {
-      const idx = parseInt(i, 10);
-      return idx >= 0 && idx < blocks.length ? blocks[idx] : '';
-    })
+    restore: (t: string) => {
+      CODE_BLOCK_RESTORE_REGEX.lastIndex = 0;
+      return t.replace(CODE_BLOCK_RESTORE_REGEX, (_, i) => {
+        const idx = parseInt(i, 10);
+        return idx >= 0 && idx < blocks.length ? blocks[idx] : '';
+      });
+    }
   };
 }
 

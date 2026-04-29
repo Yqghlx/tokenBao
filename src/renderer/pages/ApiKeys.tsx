@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -79,6 +79,12 @@ function ApiKeys() {
       }
     }
   };
+
+  /** 缓存删除确认消息，避免每次渲染都执行 find 查找 */
+  const deleteMessage = useMemo(() => {
+    const key = apiKeys.find(k => k.id === confirmDeleteId);
+    return key ? `确定要删除「${key.name}」(${key.type}) 吗？删除后无法恢复。` : '确定要删除此 API Key 吗？';
+  }, [confirmDeleteId, apiKeys]);
 
   const deleteApiKey = async (id: number) => {
     if (window.electronAPI?.apiKeys?.delete) {
@@ -208,10 +214,7 @@ function ApiKeys() {
       <ConfirmDialog
         open={confirmDeleteId !== null}
         title="删除 API Key"
-        message={(() => {
-          const key = apiKeys.find(k => k.id === confirmDeleteId);
-          return key ? `确定要删除「${key.name}」(${key.type}) 吗？删除后无法恢复。` : '确定要删除此 API Key 吗？';
-        })()}
+        message={deleteMessage}
         confirmLabel="删除"
         danger
         onConfirm={() => {

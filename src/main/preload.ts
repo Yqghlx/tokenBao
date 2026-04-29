@@ -20,10 +20,12 @@ const VALID_CONFIG_KEYS = ['proxyPort', 'dataRetentionDays', 'cacheTTL', 'theme'
 /** 优化配置允许的属性白名单 */
 const VALID_OPTIM_KEYS = ['caching', 'compression', 'routing', 'batching', 'rules', 'dlp'] as const;
 
+// eslint-disable-next-line no-control-regex
+const CTRL_CHAR_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
+
 /** 检测字符串中是否含有控制字符（\x00-\x1F 除 \t\n\r 外，以及 \x7F） */
 function hasControlChars(str: string): boolean {
-  // eslint-disable-next-line no-control-regex
-  return /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(str);
+  return CTRL_CHAR_RE.test(str);
 }
 
 /** 跟踪每个 callback 对应的 ipcRenderer listener，支持精确移除 */

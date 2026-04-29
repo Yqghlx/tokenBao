@@ -19,20 +19,25 @@ const mutex = getMutex(STORAGE_FILE);
 /** 允许的配置键白名单 */
 const VALID_CONFIG_KEYS = new Set(['proxyPort', 'dataRetentionDays', 'cacheTTL', 'theme']);
 
+/** 预编译验证正则，避免每次校验时重新编译 */
+const REGEX_DIGITS = /^\d+$/;
+const VALID_CACHE_TTL = new Set(['5min', '1hour']);
+const VALID_THEMES = new Set(['light', 'dark', 'auto']);
+
 /** 配置值验证规则 */
 const CONFIG_VALIDATORS: Record<string, (val: string) => boolean> = {
   proxyPort: (v) => {
-    if (!/^\d+$/.test(v) || v.length > 5) return false;
+    if (!REGEX_DIGITS.test(v) || v.length > 5) return false;
     const n = parseInt(v, 10);
     return n >= 1024 && n <= 65535;
   },
   dataRetentionDays: (v) => {
-    if (!/^\d+$/.test(v) || v.length > 3) return false;
+    if (!REGEX_DIGITS.test(v) || v.length > 3) return false;
     const n = parseInt(v, 10);
     return n >= 1 && n <= 365;
   },
-  cacheTTL: (v) => ['5min', '1hour'].includes(v),
-  theme: (v) => ['light', 'dark', 'auto'].includes(v)
+  cacheTTL: (v) => VALID_CACHE_TTL.has(v),
+  theme: (v) => VALID_THEMES.has(v)
 };
 
 /** 优化配置允许的键白名单 */
@@ -56,7 +61,11 @@ const DEFAULT_CONFIG: ConfigStore = {
   }
 };
 
+/** 内存缓存：避免每次请求都执行文件 I/O 和 JSON 解析 */
+let cachedStore: ConfigStore | null = null;
+
 function getStore(): ConfigStore {
+  if (cachedStore) return cachedStore;
   const store = loadJson<ConfigStore>(STORAGE_FILE, structuredClone(DEFAULT_CONFIG));
   // 剥离不在白名单中的多余配置键，防止历史遗留或手动编辑引入的无效项
   for (const key of Object.keys(store.config)) {
@@ -64,11 +73,14 @@ function getStore(): ConfigStore {
       delete store.config[key];
     }
   }
+  cachedStore = store;
   return store;
 }
 
 async function saveStore(store: ConfigStore): Promise<void> {
   await saveJsonAsync(STORAGE_FILE, store);
+  // 写入成功后更新缓存，后续读取直接命中内存
+  cachedStore = store;
 }
 
 export async function getConfig(key: string): Promise<string | undefined> {
@@ -102,6 +114,8 @@ export async function getAllConfig(): Promise<Record<string, string>> {
 
 export async function resetConfig(): Promise<void> {
   return mutex.runExclusive(async () => {
+    // 重置时清除旧缓存，写入新默认值后 saveStore 会更新缓存
+    cachedStore = null;
     await saveStore(structuredClone(DEFAULT_CONFIG));
   });
 }
@@ -128,6 +142,11 @@ export async function setOptimizationConfig(config: Record<string, boolean>): Pr
     Object.assign(store.optimization, config);
     await saveStore(store);
   });
+}
+
+/** 测试辅助：重置内存缓存（仅用于测试隔离） */
+export function _resetCache(): void {
+  cachedStore = null;
 }
 
 export default {

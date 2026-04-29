@@ -21,6 +21,9 @@ type ApiType = 'openai' | 'anthropic' | 'unknown';
 
 const OPENAI_BASE = 'https://api.openai.com';
 const ANTHROPIC_BASE = 'https://api.anthropic.com';
+/** 预计算的 hostname，避免每次请求都 replace */
+const OPENAI_HOSTNAME = 'api.openai.com';
+const ANTHROPIC_HOSTNAME = 'api.anthropic.com';
 
 const DEFAULT_PROXY_TIMEOUT = 60000;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 请求体最大 10MB
@@ -46,13 +49,17 @@ const httpsAgent = new https.Agent({
   timeout: HTTPS_TIMEOUT
 });
 
+/** 日志级别到函数的映射，避免每次调用时三元运算查找 */
+const LOG_FN_MAP = { info: console.info, warn: console.warn, error: console.error } as const;
+/** 日志级别大写前缀，避免每次调用 toUpperCase() */
+const LOG_PREFIX_MAP = { info: 'INFO', warn: 'WARN', error: 'ERROR' } as const;
+
 /**
  * 结构化日志辅助函数
  */
 function logProxy(level: 'info' | 'warn' | 'error', msg: string, data?: Record<string, unknown>): void {
-  const timestamp = new Date().toISOString();
-  const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
-  const logFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.info;
+  const logFn = LOG_FN_MAP[level];
+  const prefix = `[${new Date().toISOString()}] [${LOG_PREFIX_MAP[level]}]`;
   if (data) {
     logFn(`${prefix} ${msg}`, JSON.stringify(data));
   } else {
@@ -238,18 +245,25 @@ export const HOP_BY_HOP_HEADERS = new Set([
   'trailer'
 ]);
 
+/** 预编译 CRLF 注入清理正则，避免 sanitizeResponseHeaders 每次调用时重新编译 */
+const CRLF_REGEX = /[\r\n]/g;
+
 /** 过滤响应头：移除 hop-by-hop 头 + CRLF 注入防护 */
 export function sanitizeResponseHeaders(headers: http.IncomingHttpHeaders): http.OutgoingHttpHeaders {
   const result: http.OutgoingHttpHeaders = {};
   for (const [key, value] of Object.entries(headers)) {
     if (HOP_BY_HOP_HEADERS.has(key.toLowerCase())) continue;
     // CRLF 注入防护：移除头值中的换行符
+    CRLF_REGEX.lastIndex = 0;
     if (typeof value === 'string') {
-      result[key] = value.replace(/[\r\n]/g, ' ');
+      result[key] = value.replace(CRLF_REGEX, ' ');
     } else if (Array.isArray(value)) {
-      result[key] = value.map(v => typeof v === 'string' ? v.replace(/[\r\n]/g, ' ') : v);
+      result[key] = value.map(v => {
+        if (typeof v === 'string') { CRLF_REGEX.lastIndex = 0; return v.replace(CRLF_REGEX, ' '); }
+        return v;
+      });
     } else if (value !== undefined) {
-      result[key] = String(value).replace(/[\r\n]/g, ' ');
+      result[key] = String(value).replace(CRLF_REGEX, ' ');
     }
   }
   return result;
@@ -279,20 +293,21 @@ class ProxyServer {
     this.proxyTimeout = DEFAULT_PROXY_TIMEOUT;
   }
 
+  /** OpenAI 路径前缀，用于 detectApiType 快速匹配 */
+  private static readonly OPENAI_PATHS = [
+    '/v1/chat/completions', '/v1/completions', '/v1/embeddings',
+    '/v1/models', '/v1/images/', '/v1/audio/',
+    '/v1/moderations', '/v1/responses'
+  ];
+  /** Anthropic 路径前缀 */
+  private static readonly ANTHROPIC_PATHS = ['/v1/messages', '/v1/complete'];
+
   detectApiType(path: string): ApiType {
-    if (path.includes('/v1/chat/completions') ||
-        path.includes('/v1/completions') ||
-        path.includes('/v1/embeddings') ||
-        path.includes('/v1/models') ||
-        path.includes('/v1/images/') ||
-        path.includes('/v1/audio/') ||
-        path.includes('/v1/moderations') ||
-        path.includes('/v1/responses')) {
-      return 'openai';
+    for (const prefix of ProxyServer.OPENAI_PATHS) {
+      if (path.startsWith(prefix)) return 'openai';
     }
-    if (path.includes('/v1/messages') ||
-        path.includes('/v1/complete')) {
-      return 'anthropic';
+    for (const prefix of ProxyServer.ANTHROPIC_PATHS) {
+      if (path.startsWith(prefix)) return 'anthropic';
     }
     return 'unknown';
   }
@@ -302,6 +317,14 @@ class ProxyServer {
       case 'openai': return OPENAI_BASE;
       case 'anthropic': return ANTHROPIC_BASE;
       default: return OPENAI_BASE;
+    }
+  }
+
+  getTargetHostname(apiType: ApiType): string {
+    switch (apiType) {
+      case 'openai': return OPENAI_HOSTNAME;
+      case 'anthropic': return ANTHROPIC_HOSTNAME;
+      default: return OPENAI_HOSTNAME;
     }
   }
 
@@ -425,7 +448,6 @@ class ProxyServer {
         const requestStart = Date.now();
         const path = clientReq.url || '';
         const apiType = this.detectApiType(path);
-        const targetBase = this.getTargetBase(apiType);
 
         logProxy('info', `${clientReq.method} ${path}`, { apiType, method: clientReq.method });
 
@@ -533,7 +555,7 @@ class ProxyServer {
         }
 
         const options: https.RequestOptions = {
-          hostname: targetBase.replace('https://', ''),
+          hostname: this.getTargetHostname(apiType),
           port: 443,
           path: path,
           method: clientReq.method,
@@ -542,8 +564,9 @@ class ProxyServer {
 
         // 流式请求：pipe 转发 + 拦截 SSE 提取 usage 统计
         if (isStreamRequest(rawBody, parsedBody)) {
+          // 复用已解析的 body，避免对同一 rawBody 重复 JSON.parse
           let parsedModel = 'unknown';
-          try { parsedModel = JSON.parse(rawBody).model || 'unknown'; } catch { logProxy('warn', '流式请求体 JSON 解析失败', { requestId }); }
+          try { parsedModel = (parsedBody || JSON.parse(rawBody)).model || 'unknown'; } catch { logProxy('warn', '流式请求体 JSON 解析失败', { requestId }); }
 
           // PassThrough 在外层声明，以便 timeout/error/close 回调中可以销毁
           const passThrough = new PassThrough();
@@ -576,26 +599,25 @@ class ProxyServer {
             }
             clientRes.writeHead(statusCode, streamHeaders);
 
-            let sseBuffer = '';
+            // 使用 Buffer 数组累积 SSE 数据，避免频繁字符串拼接产生的 GC 压力
+            const sseChunks: Buffer[] = [];
+            let sseTotalSize = 0;
             passThrough.on('data', (chunk: Buffer) => {
               if (clientDisconnected) return;
-              sseBuffer += chunk.toString();
+              sseChunks.push(chunk);
+              sseTotalSize += chunk.length;
               // 超过绝对上限则强制断开，防止内存暴涨
-              if (sseBuffer.length > SSE_BUFFER_HARD_LIMIT) {
+              if (sseTotalSize > SSE_BUFFER_HARD_LIMIT) {
                 logProxy('error', 'SSE 缓冲超出上限，强制断开', { requestId });
-                // 不传 Error 参数：passThrough 无 error handler，传参会触发未捕获异常
                 passThrough.destroy();
-                // 销毁上游请求释放连接资源，防止连接池退化
                 proxyReq.destroy();
                 return;
               }
-              // 保留最近数据用于提取 usage，但确保不截断最后一个完整的 data: 行
-              if (sseBuffer.length > SSE_BUFFER_SOFT_LIMIT) {
-                const lastDataIdx = sseBuffer.lastIndexOf('\ndata: ');
-                if (lastDataIdx > 0) {
-                  sseBuffer = sseBuffer.slice(lastDataIdx + 1);
-                } else {
-                  sseBuffer = sseBuffer.slice(-SSE_BUFFER_SOFT_LIMIT);
+              // 保留最近数据用于提取 usage，丢弃早期 chunk 减少内存
+              if (sseTotalSize > SSE_BUFFER_SOFT_LIMIT * 2) {
+                while (sseTotalSize > SSE_BUFFER_SOFT_LIMIT && sseChunks.length > 1) {
+                  const removed = sseChunks.shift()!;
+                  sseTotalSize -= removed.length;
                 }
               }
             });
@@ -603,6 +625,7 @@ class ProxyServer {
               // 流结束后从 SSE 数据中提取 usage
               if (statusCode < 400) {
                 try {
+                  const sseBuffer = Buffer.concat(sseChunks).toString();
                   const usage = extractStreamUsage(sseBuffer);
                   if (usage) {
                     const model = usage.model || parsedModel;

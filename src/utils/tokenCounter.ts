@@ -25,6 +25,8 @@ const DEGRADE_RETRY_MS = 5 * 60 * 1000;
 let degradedAt = 0;
 
 function getEncoder(): Tiktoken | null {
+  // 快速路径：编码器已初始化且无故障时直接返回，避免每次请求都走条件判断
+  if (encoder && !encoderFailed) return encoder;
   // 降级冷却期过后允许重新尝试初始化，恢复瞬态故障导致的永久降级
   if (encoderFailed) {
     if (Date.now() - degradedAt > DEGRADE_RETRY_MS) {

@@ -9,9 +9,10 @@ import { deleteJson } from '../utils/storage';
 const CONFIG_FILE = 'config.json';
 
 describe('config 服务', () => {
-  // 每个测试前重置配置文件，确保测试隔离
+  // 每个测试前重置配置文件和内存缓存，确保测试隔离
   beforeEach(() => {
     deleteJson(CONFIG_FILE);
+    configService._resetCache();
   });
 
   test('getConfig 应返回默认值', async () => {

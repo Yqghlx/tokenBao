@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { showToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { usePolling } from '../hooks/usePolling';
@@ -21,6 +21,29 @@ const SEARCH_DEBOUNCE_MS = 300;
 const EXPORT_LIMIT = 1000;
 const BLOB_RELEASE_DELAY_MS = 1000;
 
+/** CSV 安全转义（模块级避免每次导出重建函数和正则） */
+// eslint-disable-next-line no-control-regex
+const CSV_CTRL_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
+const CSV_INJECT_RE = /^[=+\-\t\r@]/;
+const CSV_CRLF_RE = /\r\n/g;
+const CSV_CR_RE = /\r/g;
+const CSV_QUOTE_RE = /"/g;
+
+function escapeCsv(value: string | number): string {
+  let str = String(value).replace(CSV_CTRL_RE, '');
+  if (CSV_INJECT_RE.test(str)) {
+    str = "'" + str;
+  }
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    CSV_CRLF_RE.lastIndex = 0;
+    CSV_CR_RE.lastIndex = 0;
+    str = str.replace(CSV_CRLF_RE, '\n').replace(CSV_CR_RE, '\n');
+    CSV_QUOTE_RE.lastIndex = 0;
+    return `"${str.replace(CSV_QUOTE_RE, '""')}"`;
+  }
+  return str;
+}
+
 /** 安全格式化时间戳，畸形值返回原始字符串 */
 function formatTimestamp(ts: string): string {
   const d = new Date(ts);
@@ -42,9 +65,13 @@ function History() {
   const totalCountRef = useRef(0);
   // 追踪待释放的 blob URL，组件卸载时清理
   const pendingBlobUrlRef = useRef<string | null>(null);
+  // 防止并发的 loadHistory 调用（轮询 + 搜索/翻页可能同时触发）
+  const loadingRef = useRef(false);
 
   const loadHistory = useCallback(async () => {
+    if (loadingRef.current) return;
     if (window.electronAPI?.history?.list) {
+      loadingRef.current = true;
       try {
         // 计算安全页码，防止数据减少后请求空页
         const safeP = Math.min(currentPage, Math.max(1, Math.ceil(totalCountRef.current / PAGE_SIZE)) || 1);
@@ -80,6 +107,7 @@ function History() {
         showToast('获取历史记录失败', 'error');
       } finally {
         setLoading(false);
+        loadingRef.current = false;
       }
     } else {
       setLoading(false);
@@ -129,21 +157,6 @@ function History() {
 
         const headers = ['时间', 'API', '模型', '输入 Tokens', '输出 Tokens', '缓存 Tokens', '成本'];
 
-        const escapeCsv = (value: string | number): string => {
-          let str = String(value).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-          // 防止 CSV 注入：以公式触发字符开头的单元格加前缀
-          if (/^[=+\-\t\r@]/.test(str)) {
-            str = "'" + str;
-          }
-          // RFC 4180：含逗号、双引号、换行符的字段须用双引号包裹
-          if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-            // 先将 \r\n 和 \r 统一为 \n，再转义双引号
-            str = str.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-            return `"${str.replace(/"/g, '""')}"`;
-          }
-          return str;
-        };
-
         const rows = allData.map((item: HistoryItem) => [
           escapeCsv(item.timestamp),
           escapeCsv(item.apiType),
@@ -191,10 +204,17 @@ function History() {
     }
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const pageStart = totalCount > 0 ? (safePage - 1) * PAGE_SIZE + 1 : 0;
-  const pageEnd = Math.min(safePage * PAGE_SIZE, totalCount);
+  /** 分页相关计算（避免每次渲染重复计算） */
+  const { totalPages, safePage, pageStart, pageEnd } = useMemo(() => {
+    const pages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    const safe = Math.min(currentPage, pages);
+    return {
+      totalPages: pages,
+      safePage: safe,
+      pageStart: totalCount > 0 ? (safe - 1) * PAGE_SIZE + 1 : 0,
+      pageEnd: Math.min(safe * PAGE_SIZE, totalCount)
+    };
+  }, [totalCount, currentPage]);
 
   if (loading) {
     return (

@@ -123,14 +123,22 @@ function Monitor() {
     return Number.isFinite(rate) ? Math.min(rate, 100) : 0;
   }, [cacheSavings, stats.totalCost]);
 
-  /** 模型成本排名（按费用降序） */
-  const modelRanking = useMemo(() =>
-    Object.entries(stats.byModel)
-      .map(([model, data]) => ({ model, ...data }))
+  /** 模型成本排名（按费用降序，含预计算百分比） */
+  const modelRanking = useMemo(() => {
+    const totalCost = stats.totalCost;
+    return Object.entries(stats.byModel)
+      .map(([model, data]) => ({
+        model,
+        ...data,
+        costPercent: totalCost > 0 && Number.isFinite(data.cost) ? (data.cost / totalCost * 100) : 0
+      }))
       .sort((a, b) => b.cost - a.cost)
-      .slice(0, 10),
-    [stats.byModel]
-  );
+      .slice(0, 10);
+  }, [stats.byModel, stats.totalCost]);
+
+  /** 详细统计条目（避免渲染时重复调用 Object.entries） */
+  const apiEntries = useMemo(() => Object.entries(stats.byApi), [stats.byApi]);
+  const modelEntries = useMemo(() => Object.entries(stats.byModel), [stats.byModel]);
 
   if (loading) {
     return (
@@ -243,9 +251,7 @@ function Monitor() {
                   </tr>
                 </thead>
                 <tbody>
-                  {modelRanking.map((item) => {
-                    const costPercent = stats.totalCost > 0 && Number.isFinite(item.cost) ? (item.cost / stats.totalCost * 100) : 0;
-                    return (
+                  {modelRanking.map((item) => (
                       <tr key={item.model}>
                         <td>{item.model}</td>
                         <td>{item.requests}</td>
@@ -253,13 +259,12 @@ function Monitor() {
                         <td>${formatCost(item.cost)}</td>
                         <td>
                           <div className="cost-bar-container">
-                            <div className="cost-bar-fill" style={{ width: `${Math.min(costPercent, 100)}%` }} />
-                            <span className="cost-bar-label">{costPercent.toFixed(1)}%</span>
+                            <div className="cost-bar-fill" style={{ width: `${Math.min(item.costPercent, 100)}%` }} />
+                            <span className="cost-bar-label">{item.costPercent.toFixed(1)}%</span>
                           </div>
                         </td>
                       </tr>
-                    );
-                  })}
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -270,10 +275,10 @@ function Monitor() {
             <div className="stats-breakdown">
               <div className="breakdown-section">
                 <h4>按 API 类型</h4>
-                {Object.keys(stats.byApi).length === 0 ? (
+                {apiEntries.length === 0 ? (
                   <p className="breakdown-item-detail">暂无数据</p>
                 ) : (
-                  Object.entries(stats.byApi).map(([api, data]) => (
+                  apiEntries.map(([api, data]) => (
                     <div key={api} className="breakdown-item">
                       <span className="breakdown-item-label">{api.toUpperCase()}</span>
                       <div className="breakdown-item-detail">
@@ -285,10 +290,10 @@ function Monitor() {
               </div>
               <div className="breakdown-section">
                 <h4>按模型</h4>
-                {Object.keys(stats.byModel).length === 0 ? (
+                {modelEntries.length === 0 ? (
                   <p className="breakdown-item-detail">暂无数据</p>
                 ) : (
-                  Object.entries(stats.byModel).map(([model, data]) => (
+                  modelEntries.map(([model, data]) => (
                     <div key={model} className="breakdown-item">
                       <span className="breakdown-item-label">{model}</span>
                       <div className="breakdown-item-detail">

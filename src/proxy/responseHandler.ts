@@ -18,12 +18,14 @@ function safeToken(value: unknown): number {
 const MAX_SSE_LINES = 100000;
 /** 模型名称最大长度，超出截断防止畸形数据传播 */
 const MAX_MODEL_NAME_LEN = 100;
+// eslint-disable-next-line no-control-regex
+const CTRL_CHAR_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
 
 /** 清理模型名：剥离控制字符并截断过长值，防止畸形数据传播到统计/计费系统 */
 function sanitizeModel(name: unknown): string {
   if (typeof name !== 'string' || !name) return 'unknown';
-  // eslint-disable-next-line no-control-regex
-  const cleaned = name.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  CTRL_CHAR_RE.lastIndex = 0;
+  const cleaned = name.replace(CTRL_CHAR_RE, '');
   if (!cleaned) return 'unknown';
   return cleaned.length > MAX_MODEL_NAME_LEN ? cleaned.slice(0, MAX_MODEL_NAME_LEN) : cleaned;
 }
@@ -43,18 +45,20 @@ export function extractStreamUsage(sseData: string): UsageStats | null {
   }
 
   const lines = dataToProcess.split('\n');
-  // 防御畸形数据产生过多行
-  const effectiveLines = lines.length > MAX_SSE_LINES ? lines.slice(-MAX_SSE_LINES) : lines;
+  // 直接调整遍历起点，避免 slice 创建额外数组（split 已分配完整数组）
+  const startIdx = lines.length > MAX_SSE_LINES ? lines.length - MAX_SSE_LINES : 0;
   let fallbackModel = 'unknown';
   let foundUsage: UsageStats | null = null;
   let foundModel = false;
 
   // 反向遍历：先遇到末尾的 usage，再向前寻找 message_start 的模型名
-  for (let i = effectiveLines.length - 1; i >= 0; i--) {
-    const line = effectiveLines[i];
+  for (let i = lines.length - 1; i >= startIdx; i--) {
+    const line = lines[i];
     if (!line.startsWith('data: ')) continue;
     const data = line.slice(6);
     if (data === '[DONE]') continue;
+    // 快速跳过明显非 JSON 的数据行（event 类型行、id 行等），避免无效 JSON.parse 开销
+    if (data.length === 0 || data[0] !== '{') continue;
 
     let parsed: Record<string, unknown>;
     try {

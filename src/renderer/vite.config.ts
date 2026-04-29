@@ -29,10 +29,14 @@ export default defineConfig({
     chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
-        // 将 react/react-dom 拆分为独立 vendor chunk，利用浏览器缓存
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-router': ['react-router-dom'],
+        // 将第三方库拆分为独立 vendor chunk，利用浏览器长期缓存
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom')) return 'vendor-react';
+            if (id.includes('react') && !id.includes('react-router')) return 'vendor-react';
+            if (id.includes('react-router')) return 'vendor-router';
+            return 'vendor';
+          }
         },
       },
     },

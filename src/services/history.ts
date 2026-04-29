@@ -25,6 +25,8 @@ const STORAGE_FILE = 'history.json';
 const MAX_HISTORY = 1000;
 const MAX_BODY_SIZE = 50000; // requestBody/responseBody 最大 50KB
 const DEFAULT_RETENTION_DAYS = 30;
+const CLEANUP_INTERVAL = 20; // 每 20 次写入执行一次过期清理，避免频繁全量扫描
+let writeCount = 0;
 const mutex = getMutex(STORAGE_FILE);
 
 /** 缓存的保留天数，避免每次清理都读配置文件 */
@@ -123,36 +125,63 @@ export async function addRequest(log: Omit<RequestLog, 'id'>): Promise<RequestLo
     const store = getStore();
     const request: RequestLog = { ...log, id: store.nextId++ };
     store.requests.push(request);
-    // 在锁内同步清理过期记录，避免与后续写入冲突
-    await cleanupExpiredRequests(store);
+    writeCount++;
+    // 每 CLEANUP_INTERVAL 次写入清理一次过期记录，避免每次写入都全量扫描
+    if (writeCount >= CLEANUP_INTERVAL) {
+      writeCount = 0;
+      await cleanupExpiredRequests(store);
+    }
     await saveStore(store);
     return request;
   });
 }
 
-/** 共享过滤逻辑：apiType + search 关键词 */
+/** 预编译空字节清理正则 */
+const NULL_CHAR_RE = /\0/g;
+
+/** 共享过滤逻辑：apiType + search 关键词，单次遍历合并过滤条件 */
 function filterRequests(requests: RequestLog[], options?: { apiType?: string; search?: string }): RequestLog[] {
-  let filtered = requests;
-  if (options?.apiType) {
-    filtered = filtered.filter(r => r.apiType === options.apiType);
+  if (!options?.apiType && !options?.search) return requests;
+
+  const filterApiType = options?.apiType || '';
+  // 防御性清理：去除空字节并截断过长搜索词，避免极端输入性能问题
+  const keyword = options?.search
+    ? options.search.replace(NULL_CHAR_RE, '').slice(0, 200).toLowerCase()
+    : '';
+
+  if (filterApiType && keyword.length > 0) {
+    return requests.filter(r => r.apiType === filterApiType &&
+      (r.model.toLowerCase().includes(keyword) || r.apiType.toLowerCase().includes(keyword)));
   }
-  if (options?.search) {
-    // 防御性清理：去除空字节并截断过长搜索词，避免极端输入性能问题
-    const keyword = options.search.replace(/\0/g, '').slice(0, 200).toLowerCase();
-    if (keyword.length > 0) {
-      filtered = filtered.filter(r =>
-        r.model.toLowerCase().includes(keyword) ||
-        r.apiType.toLowerCase().includes(keyword)
-      );
-    }
+  if (filterApiType) {
+    return requests.filter(r => r.apiType === filterApiType);
   }
-  return filtered;
+  return requests.filter(r =>
+    r.model.toLowerCase().includes(keyword) || r.apiType.toLowerCase().includes(keyword)
+  );
 }
 
 export async function listRequests(options?: { limit?: number; offset?: number; apiType?: string; search?: string }): Promise<RequestLog[]> {
   return mutex.runExclusive(() => {
     const store = getStore();
-    // 倒序构建：从末尾向前遍历，避免完整数组反转复制
+    const total = store.requests.length;
+    if (total === 0) return [];
+
+    // 无过滤条件时直接使用 offset/limit 裁剪倒序数组，避免完整反转
+    if (!options?.apiType && !options?.search) {
+      const offset = Math.min(options?.offset ?? 0, total);
+      const limit = options?.limit ?? total;
+      // 从后向前取 [end-offset .. end-offset-limit+1]
+      const end = total - offset;
+      const start = Math.max(0, end - limit);
+      const result: RequestLog[] = [];
+      for (let i = end - 1; i >= start; i--) {
+        result.push(store.requests[i]);
+      }
+      return result;
+    }
+
+    // 有过滤条件时需要遍历全部记录
     const reversed: RequestLog[] = [];
     for (let i = store.requests.length - 1; i >= 0; i--) {
       reversed.push(store.requests[i]);
@@ -176,10 +205,24 @@ export async function clearRequests(): Promise<void> {
   });
 }
 
-/** 获取过滤后的记录总数（用于分页计算） */
+/** 获取过滤后的记录总数（用于分页计算），使用计数代替创建临时数组 */
 export async function getRequestCount(options?: { apiType?: string; search?: string }): Promise<number> {
   return mutex.runExclusive(() => {
-    return filterRequests(getStore().requests, options).length;
+    const requests = getStore().requests;
+    if (!options?.apiType && !options?.search) return requests.length;
+
+    const filterApiType = options?.apiType || '';
+    const keyword = options?.search
+      ? options.search.replace(NULL_CHAR_RE, '').slice(0, 200).toLowerCase()
+      : '';
+
+    let count = 0;
+    for (const r of requests) {
+      if (filterApiType && r.apiType !== filterApiType) continue;
+      if (keyword.length > 0 && !r.model.toLowerCase().includes(keyword) && !r.apiType.toLowerCase().includes(keyword)) continue;
+      count++;
+    }
+    return count;
   });
 }
 

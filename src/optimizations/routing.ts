@@ -82,12 +82,31 @@ const complexKeywords = [
   '综合', '评估', '比较', '重构', '优化', '调试'
 ];
 
+/** 路由查找缓存：sourceModel(小写) → condition → targetModel，避免每次请求 O(n) 线性扫描 */
+let routingCache = new Map<string, Map<string, string>>();
+let routingCacheBuilt = false;
+
+function buildRoutingCache(): void {
+  routingCache = new Map();
+  for (const rule of defaultOptions.rules) {
+    const key = rule.sourceModel.toLowerCase();
+    let conditionMap = routingCache.get(key);
+    if (!conditionMap) {
+      conditionMap = new Map();
+      routingCache.set(key, conditionMap);
+    }
+    conditionMap.set(rule.condition, rule.targetModel);
+  }
+  routingCacheBuilt = true;
+}
+
 function getOptions(): RoutingOptions {
   return { ...defaultOptions };
 }
 
 function setOptions(options: Partial<RoutingOptions>): void {
   Object.assign(defaultOptions, options);
+  routingCacheBuilt = false;
 }
 
 function detectComplexity(prompt: string): 'simple' | 'classification' | 'extraction' | 'complex' | 'unknown' {
@@ -136,13 +155,16 @@ function routeModel(model: string, prompt: string): string {
   // 无法判断复杂度时保持原模型，避免盲目降级影响输出质量
   if (condition === 'unknown') return model;
 
-  // 精确匹配 condition（模型名大小写不敏感，兼容 "GPT-4" / "gpt-4" 等变体）
+  // 懒构建路由缓存
+  if (!routingCacheBuilt) buildRoutingCache();
+
   const modelLower = model.toLowerCase();
-  for (const rule of defaultOptions.rules) {
-    if (rule.sourceModel.toLowerCase() === modelLower && rule.condition === condition) {
-      return rule.targetModel;
-    }
-  }
+  const conditionMap = routingCache.get(modelLower);
+  if (!conditionMap) return model;
+
+  // 精确匹配 condition
+  const direct = conditionMap.get(condition);
+  if (direct) return direct;
 
   // 降级匹配：extraction → classification → simple，classification → simple
   const fallbackChain: Array<'classification' | 'simple'> = condition === 'extraction'
@@ -152,11 +174,8 @@ function routeModel(model: string, prompt: string): string {
       : [];
 
   for (const fallback of fallbackChain) {
-    for (const rule of defaultOptions.rules) {
-      if (rule.sourceModel.toLowerCase() === modelLower && rule.condition === fallback) {
-        return rule.targetModel;
-      }
-    }
+    const fallbackResult = conditionMap.get(fallback);
+    if (fallbackResult) return fallbackResult;
   }
 
   // 复杂任务不降级（保持原模型）

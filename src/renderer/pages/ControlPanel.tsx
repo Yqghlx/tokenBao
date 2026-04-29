@@ -256,6 +256,12 @@ function ControlPanel() {
     [budgetStatus.spent, budgetStatus.limit]
   );
 
+  /** 预算进度条样式（避免渲染时创建内联对象） */
+  const progressBarStyle = useMemo(() => ({
+    width: `${budgetPercent}%`,
+    background: budgetPercent > 80 ? '#ef4444' : budgetPercent > 50 ? '#f59e0b' : '#4ade80'
+  }), [budgetPercent]);
+
   if (loading) {
     return (
       <div className="page">
@@ -317,10 +323,7 @@ function ControlPanel() {
             <div className="progress-bar" role="progressbar" aria-valuenow={budgetPercent} aria-valuemin={0} aria-valuemax={100} aria-label={`预算使用 ${budgetPercent}%`}>
               <div
                 className="progress-bar-fill"
-                style={{
-                  width: `${budgetPercent}%`,
-                  background: budgetPercent > 80 ? '#ef4444' : budgetPercent > 50 ? '#f59e0b' : '#4ade80'
-                }}
+                style={progressBarStyle}
               />
             </div>
           )}

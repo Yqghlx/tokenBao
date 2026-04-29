@@ -78,16 +78,23 @@ function stopHealthCheck(): void {
   }
 }
 
+/** 路径脱敏预编译正则 */
+const UNIX_PATH_RE = /\/[\w./-]+/g;
+const WIN_PATH_RE = /\\[\w.\\-]+/g;
+// eslint-disable-next-line no-control-regex
+const CTRL_CHAR_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
+
 /**
  * 对错误消息进行脱敏，防止内部路径/凭证等泄露到渲染进程
  * 仅保留错误类型和简短描述，移除文件路径和堆栈信息
  */
 function sanitizeErrorMessage(err: unknown): string {
   if (err instanceof Error) {
-    // 移除常见路径模式（绝对路径、相对路径）
+    UNIX_PATH_RE.lastIndex = 0;
+    WIN_PATH_RE.lastIndex = 0;
     const msg = err.message
-      .replace(/\/[\w./-]+/g, '[path]')
-      .replace(/\\[\w.\\-]+/g, '[path]')
+      .replace(UNIX_PATH_RE, '[path]')
+      .replace(WIN_PATH_RE, '[path]')
       .slice(0, 200);
     return msg;
   }
@@ -235,13 +242,11 @@ function registerIpcHandlers(): void {
   ipcMain.handle('proxy:setKeys', async (_, openaiKey: string, anthropicKey: string) => {
     try {
       // 主进程二次校验，防御 preload 绕过
-      // eslint-disable-next-line no-control-regex
-      const ctrlCharRe = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
       if (openaiKey) {
         if (!openaiKey.startsWith('sk-') || openaiKey.length < 10 || openaiKey.length > 500) {
           return { success: false, error: 'OpenAI Key 格式无效' };
         }
-        if (ctrlCharRe.test(openaiKey)) {
+        if (CTRL_CHAR_RE.test(openaiKey)) {
           return { success: false, error: '密钥包含非法控制字符' };
         }
       }
@@ -249,7 +254,7 @@ function registerIpcHandlers(): void {
         if (!anthropicKey.startsWith('sk-ant-') || anthropicKey.length < 10 || anthropicKey.length > 500) {
           return { success: false, error: 'Anthropic Key 格式无效' };
         }
-        if (ctrlCharRe.test(anthropicKey)) {
+        if (CTRL_CHAR_RE.test(anthropicKey)) {
           return { success: false, error: '密钥包含非法控制字符' };
         }
       }

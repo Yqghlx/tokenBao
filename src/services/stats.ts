@@ -15,6 +15,17 @@ interface Stats {
 const STORAGE_FILE = 'stats.json';
 const mutex = getMutex(STORAGE_FILE);
 
+/** 预编译验证正则，避免每次调用时重复编译 */
+const API_TYPE_REGEX = /^[a-zA-Z0-9_-]+$/;
+const MODEL_NAME_REGEX = /^[a-zA-Z0-9._:-]+$/;
+
+/** 共享输入验证：apiType/model 字符串校验（消除两个导出函数中的重复代码） */
+function validateIdentifiers(apiType: string, model: string): boolean {
+  if (typeof apiType !== 'string' || apiType.length > 50 || !API_TYPE_REGEX.test(apiType)) return false;
+  if (typeof model !== 'string' || model.length > 100 || !MODEL_NAME_REGEX.test(model)) return false;
+  return true;
+}
+
 function getDefaultStats(): Stats {
   return {
     totalRequests: 0,
@@ -44,13 +55,9 @@ export async function recordOptimization(data: {
   model: string;
   savedTokens: number;
 }): Promise<void> {
-  // 输入校验：拒绝无效字符串（与 addStats 一致的防原型污染键注入校验）
-  if (typeof data.apiType !== 'string' || data.apiType.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(data.apiType)) {
-    console.warn('stats.recordOptimization: apiType 无效，已跳过', data.apiType);
-    return;
-  }
-  if (typeof data.model !== 'string' || data.model.length > 100 || !/^[a-zA-Z0-9._:-]+$/.test(data.model)) {
-    console.warn('stats.recordOptimization: model 无效，已跳过', data.model);
+  // 输入校验：拒绝无效字符串（防原型污染键注入）
+  if (!validateIdentifiers(data.apiType, data.model)) {
+    console.warn('stats.recordOptimization: apiType 或 model 无效，已跳过', data.apiType, data.model);
     return;
   }
   // 输入校验：拒绝非有限数和负数（Number.isFinite 同时拦截 null/NaN/Infinity）
@@ -72,16 +79,18 @@ export async function recordOptimization(data: {
     if (!stats.byApi[data.apiType]) {
       stats.byApi[data.apiType] = { requests: 0, tokens: 0, cost: 0 };
     }
-    stats.byApi[data.apiType].tokens += data.savedTokens;
+    const apiEntry = stats.byApi[data.apiType];
+    apiEntry.tokens += data.savedTokens;
 
     if (!stats.byModel[data.model]) {
       stats.byModel[data.model] = { requests: 0, tokens: 0, cost: 0 };
     }
-    stats.byModel[data.model].tokens += data.savedTokens;
+    const modelEntry = stats.byModel[data.model];
+    modelEntry.tokens += data.savedTokens;
 
     // 仅检查本次修改的条目，而非全量遍历
-    if (!Number.isFinite(stats.byApi[data.apiType].tokens)) stats.byApi[data.apiType].tokens = 0;
-    if (!Number.isFinite(stats.byModel[data.model].tokens)) stats.byModel[data.model].tokens = 0;
+    if (!Number.isFinite(apiEntry.tokens)) apiEntry.tokens = 0;
+    if (!Number.isFinite(modelEntry.tokens)) modelEntry.tokens = 0;
 
     await saveStats(stats);
   });
@@ -100,12 +109,8 @@ export async function addStats(data: {
   cost: number;
 }): Promise<void> {
   // 输入校验：拒绝无效字符串（防原型污染键注入）
-  if (typeof data.apiType !== 'string' || data.apiType.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(data.apiType)) {
-    console.warn('stats.addStats: apiType 无效，已跳过', data.apiType);
-    return;
-  }
-  if (typeof data.model !== 'string' || data.model.length > 100 || !/^[a-zA-Z0-9._:-]+$/.test(data.model)) {
-    console.warn('stats.addStats: model 无效，已跳过', data.model);
+  if (!validateIdentifiers(data.apiType, data.model)) {
+    console.warn('stats.addStats: apiType 或 model 无效，已跳过', data.apiType, data.model);
     return;
   }
   // 输入校验：拒绝非有限数和负数（Number.isFinite 同时拦截 null/NaN/Infinity）
@@ -144,16 +149,19 @@ export async function addStats(data: {
     if (!stats.byApi[data.apiType]) {
       stats.byApi[data.apiType] = { requests: 0, tokens: 0, cost: 0 };
     }
-    stats.byApi[data.apiType].requests++;
-    stats.byApi[data.apiType].tokens += data.inputTokens + data.outputTokens;
-    stats.byApi[data.apiType].cost += data.cost;
+    const apiEntry = stats.byApi[data.apiType];
+    const tokenSum = data.inputTokens + data.outputTokens;
+    apiEntry.requests++;
+    apiEntry.tokens += tokenSum;
+    apiEntry.cost += data.cost;
 
     if (!stats.byModel[data.model]) {
       stats.byModel[data.model] = { requests: 0, tokens: 0, cost: 0 };
     }
-    stats.byModel[data.model].requests++;
-    stats.byModel[data.model].tokens += data.inputTokens + data.outputTokens;
-    stats.byModel[data.model].cost += data.cost;
+    const modelEntry = stats.byModel[data.model];
+    modelEntry.requests++;
+    modelEntry.tokens += tokenSum;
+    modelEntry.cost += data.cost;
 
     // 后置完整性检查：Infinity/NaN 回退到累加前有效值，避免丢失历史累积
     if (!Number.isFinite(stats.totalCost)) {
@@ -173,16 +181,10 @@ export async function addStats(data: {
       stats.totalCachedTokens = prevCached;
     }
     // 仅检查本次修改的 byApi/byModel 条目，防止 Infinity 污染前端显示
-    const apiEntry = stats.byApi[data.apiType];
-    if (apiEntry) {
-      if (!Number.isFinite(apiEntry.cost)) apiEntry.cost = 0;
-      if (!Number.isFinite(apiEntry.tokens)) apiEntry.tokens = 0;
-    }
-    const modelEntry = stats.byModel[data.model];
-    if (modelEntry) {
-      if (!Number.isFinite(modelEntry.cost)) modelEntry.cost = 0;
-      if (!Number.isFinite(modelEntry.tokens)) modelEntry.tokens = 0;
-    }
+    if (!Number.isFinite(apiEntry.cost)) apiEntry.cost = 0;
+    if (!Number.isFinite(apiEntry.tokens)) apiEntry.tokens = 0;
+    if (!Number.isFinite(modelEntry.cost)) modelEntry.cost = 0;
+    if (!Number.isFinite(modelEntry.tokens)) modelEntry.tokens = 0;
 
     await saveStats(stats);
   });

@@ -126,7 +126,8 @@ export function loadJson<T>(filename: string, defaultValue: T): T {
 
 export function saveJson<T>(filename: string, data: T): void {
   const filePath = getFilePath(filename);
-  const content = JSON.stringify(data, null, 2);
+  // 紧凑格式减少磁盘 I/O 和 fsync 写入量
+  const content = JSON.stringify(data);
   // 原子写入：先写临时文件再 fsync 再重命名，防止写入中断导致数据损坏
   const tmpPath = filePath + '.tmp';
   const fd = fs.openSync(tmpPath, 'w');
@@ -151,7 +152,8 @@ export function saveJson<T>(filename: string, data: T): void {
  */
 export async function saveJsonAsync<T>(filename: string, data: T): Promise<void> {
   const filePath = getFilePath(filename);
-  const content = JSON.stringify(data, null, 2);
+  // 紧凑格式减少磁盘 I/O 和 fsync 写入量
+  const content = JSON.stringify(data);
   const tmpPath = filePath + '.tmp';
   try {
     await writeFileAsync(tmpPath, content, 'utf-8');

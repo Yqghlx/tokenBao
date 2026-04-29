@@ -26,6 +26,8 @@ const rules: Map<number, Rule> = new Map();
 let nextId = 1;
 // 排序缓存：add/update/delete 时失效，applyRules 时按需重建
 let sortedRulesCache: Rule[] | null = null;
+// 正则缓存：避免每次请求重复编译相同 pattern，规则变更时失效
+const regexCache = new Map<string, RegExp>();
 
 function loadFromStorage(): void {
   try {
@@ -106,6 +108,7 @@ export function addRule(rule: Omit<Rule, 'id'>): Rule {
   const newRule = { ...rule, id: nextId++ };
   rules.set(newRule.id, newRule);
   sortedRulesCache = null;
+  regexCache.clear();
   saveToStorage();
   return newRule;
 }
@@ -155,6 +158,7 @@ export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined
     const { id: _ruleId, ...safeUpdates } = updates;
     Object.assign(rule, safeUpdates);
     sortedRulesCache = null;
+    regexCache.clear();
     saveToStorage();
   }
   return rule ? { ...rule } : undefined;
@@ -164,6 +168,7 @@ export function deleteRule(id: number): boolean {
   const result = rules.delete(id);
   if (result) {
     sortedRulesCache = null;
+    regexCache.clear();
     saveToStorage();
   }
   return result;
@@ -174,7 +179,13 @@ export function deleteRule(id: number): boolean {
  */
 function safeRegexReplace(text: string, pattern: string, replacement: string): string {
   try {
-    const regex = new RegExp(pattern, 'g');
+    let regex = regexCache.get(pattern);
+    if (!regex) {
+      regex = new RegExp(pattern, 'g');
+      regexCache.set(pattern, regex);
+    }
+    // 重置 lastIndex，防止上次调用的位置残留
+    regex.lastIndex = 0;
     const start = Date.now();
     let iterations = 0;
     const result = text.replace(regex, () => {

@@ -130,18 +130,42 @@ let sortedModelKeys = Object.keys(MODEL_PRICING).sort((a, b) => b.length - a.len
 
 function invalidateSortedCache(): void {
   sortedModelKeys = Object.keys(MODEL_PRICING).sort((a, b) => b.length - a.length);
+  // 定价更新后归一化缓存可能失效（新模型名加入），清空重填
+  normalizeCache.clear();
 }
+
+/** 归一化结果缓存，避免每次请求重复 toLowerCase + 前缀匹配循环 */
+const NORMALIZE_CACHE_SIZE = 200;
+const normalizeCache = new Map<string, string>();
 
 export function normalizeModelName(model: string): string {
   if (!model) return 'unknown';
+
+  // 快速路径：缓存命中
+  const cached = normalizeCache.get(model);
+  if (cached !== undefined) return cached;
+
   const lower = model.toLowerCase();
-  if (MODEL_ALIASES[lower]) return MODEL_ALIASES[lower];
-  if (MODEL_PRICING[lower]) return lower;
-  // 前缀匹配：按长度降序排列，确保最长前缀优先匹配
-  for (const key of sortedModelKeys) {
-    if (lower.startsWith(key)) return key;
+  let result: string;
+  if (MODEL_ALIASES[lower]) {
+    result = MODEL_ALIASES[lower];
+  } else if (MODEL_PRICING[lower]) {
+    result = lower;
+  } else {
+    // 前缀匹配：按长度降序排列，确保最长前缀优先匹配
+    result = model;
+    for (const key of sortedModelKeys) {
+      if (lower.startsWith(key)) { result = key; break; }
+    }
   }
-  return model;
+
+  // LRU 淘汰：删除最早插入的条目
+  if (normalizeCache.size >= NORMALIZE_CACHE_SIZE) {
+    const firstKey = normalizeCache.keys().next().value;
+    if (firstKey !== undefined) normalizeCache.delete(firstKey);
+  }
+  normalizeCache.set(model, result);
+  return result;
 }
 
 export function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
