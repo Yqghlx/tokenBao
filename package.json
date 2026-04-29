@@ -1,8 +1,11 @@
 {
   "name": "tokenbao",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "AI API Token 节省工具",
-  "author": "TokenBao Team",
+  "author": {
+    "name": "TokenBao Team",
+    "email": "tokenbao@example.com"
+  },
   "license": "MIT",
   "main": "dist/main/main.js",
   "engines": {
