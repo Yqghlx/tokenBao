@@ -54,4 +54,4 @@ jobs:
         run: npm run build && npm run build:renderer
 
       - name: Build Electron app
-        run: npm run package
+        run: npx electron-builder --publish never
