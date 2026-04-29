@@ -349,7 +349,7 @@ function Optimization() {
             <div className="info-panel">
               <div className="form-group">
                 <label htmlFor="rule-name">规则名称</label>
-                <input id="rule-name" type="text" value={newRule.name} onChange={(e) => setNewRule(p => ({ ...p, name: e.target.value }))} placeholder="例如: 移除问候语" />
+                <input id="rule-name" type="text" value={newRule.name} onChange={(e) => setNewRule(p => ({ ...p, name: e.target.value }))} placeholder="例如: 移除问候语" maxLength={100} />
               </div>
               <div className="form-group">
                 <label htmlFor="rule-pattern">正则表达式</label>
@@ -369,7 +369,7 @@ function Optimization() {
               </div>
               <div className="form-group">
                 <label htmlFor="rule-replacement">替换文本</label>
-                <input id="rule-replacement" type="text" value={newRule.replacement} onChange={(e) => setNewRule(p => ({ ...p, replacement: e.target.value }))} placeholder="留空则为删除" />
+                <input id="rule-replacement" type="text" value={newRule.replacement} onChange={(e) => setNewRule(p => ({ ...p, replacement: e.target.value }))} placeholder="留空则为删除" maxLength={1000} />
               </div>
               <div className="form-group">
                 <label htmlFor="rule-priority">优先级（0-1000，数字越大越先执行）</label>

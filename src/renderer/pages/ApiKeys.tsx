@@ -132,6 +132,7 @@ function ApiKeys() {
               value={newKey.name}
               onChange={(e) => setNewKey(prev => ({ ...prev, name: e.target.value }))}
               placeholder="例如: 我的 OpenAI Key"
+              maxLength={100}
               aria-required="true"
             />
           </div>
