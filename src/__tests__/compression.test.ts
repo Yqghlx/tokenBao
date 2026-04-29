@@ -214,6 +214,15 @@ describe('compression 模块', () => {
     expect(result.text).toContain('你好');
   });
 
+  test('CJK 扩展 B 区字符（代理对）应正确估算 token', () => {
+    // U+20000 是 CJK Extension B 区起始字符（需要 UTF-16 代理对）
+    // 使用 codePointAt(0) 才能正确识别，charCodeAt(0) 会返回高位代理导致误判
+    const extBChar = String.fromCodePoint(0x20000);
+    const input = `扩展 B 区：${extBChar}，常见汉字：你好`;
+    const result = compression.compress(input);
+    expect(result.text).toContain('你好');
+  });
+
   test('全角字符应正确估算 token', () => {
     // U+FF01=！ U+FF21=Ａ U+FF10=０
     const input = '全角字符：！Ａ０ 混合文本';
