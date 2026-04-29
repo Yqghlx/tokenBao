@@ -150,7 +150,10 @@ export function updateRule(id: number, updates: Partial<Rule>): Rule | undefined
     if (updates.enabled !== undefined && typeof updates.enabled !== 'boolean') {
       throw new Error('enabled 必须为布尔值');
     }
-    Object.assign(rule, updates);
+    // 防御性排除 id：防止 Map 键与记录 id 不一致，即使调用方已做白名单过滤
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _ruleId, ...safeUpdates } = updates;
+    Object.assign(rule, safeUpdates);
     sortedRulesCache = null;
     saveToStorage();
   }
